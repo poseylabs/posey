@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: posey-graphql
+  namespace: default
+  labels:
+    app: posey-graphql
+    tier: auth
+    service-type: auth
+spec:
+  selector:
+    app: posey-graphql
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: graphql
+  type: ClusterIP 

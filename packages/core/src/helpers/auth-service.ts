@@ -226,8 +226,8 @@ export async function refreshSession(): Promise<AuthResponse | null> {
 export async function updateAuthUser(user: Partial<User>): Promise<AuthResponse> {
   // Clean metadata before sending to avoid nesting
   const cleanMetadata = {
-    preferences: user.metadata?.preferences || {},
-    profile: user.metadata?.profile || {}
+    preferences: user.metadata?.preferences,
+    profile: user.metadata?.profile
   };
 
   const response = await fetch(`${AUTH_API}/auth/user`, {

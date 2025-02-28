@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: posey-postgres
+  namespace: default
+  labels:
+    app: posey-postgres
+spec:
+  # Selector matches the pods created by the StatefulSet
+  selector:
+    app: posey-postgres
+  # Port mapping
+  ports:
+  - port: 5432          # The port exposed by the service
+    targetPort: 5432    # The port the container is listening on
+    name: postgres
+  # ClusterIP makes the service only accessible within the cluster
+  # This is good for databases that shouldn't be exposed externally
+  type: ClusterIP 

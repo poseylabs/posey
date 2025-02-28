@@ -25,8 +25,8 @@ export interface User {
 
 // New interface for SuperTokens metadata
 export interface UserMetadata {
-  profile: UserProfile | {};
-  preferences: UserPreferences | {};
+  profile: UserProfile;
+  preferences: UserPreferences;
 }
 
 export interface UserProfile {

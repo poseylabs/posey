@@ -1,0 +1,64 @@
+name: Deploy Auxiliary Services
+
+on:
+  workflow_call: # This workflow is meant to be called by other workflows
+
+jobs:
+  deploy-auxiliary-services:
+    name: Deploy Auxiliary Services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Set up Kubernetes config
+        run: doctl kubernetes cluster kubeconfig save posey-cluster
+
+      #----------------------------------------------
+      # Deploy Voyager Service
+      #----------------------------------------------
+      - name: Deploy Voyager Service
+        run: |
+          kubectl apply -k k8s/voyager/
+          
+          # Wait for Voyager to be ready
+          echo "Waiting for Voyager service to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-voyager --timeout=300s
+
+      #----------------------------------------------
+      # Deploy Cron Service
+      #----------------------------------------------
+      - name: Deploy Cron Service
+        run: |
+          kubectl apply -k k8s/cron/
+          
+          # Wait for Cron to be ready
+          echo "Waiting for Cron service to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-cron --timeout=300s
+          
+      #----------------------------------------------
+      # Verify Auxiliary Services
+      #----------------------------------------------  
+      - name: Verify Auxiliary Services
+        run: |
+          echo "Auxiliary services deployed:"
+          kubectl get pods -l tier=auxiliary
+          
+          # Test Voyager service health endpoint
+          VOYAGER_POD=$(kubectl get pods -l app=posey-voyager -o jsonpath="{.items[0].metadata.name}")
+          if [ -n "$VOYAGER_POD" ]; then
+            echo "Testing Voyager service health endpoint..."
+            kubectl exec $VOYAGER_POD -- curl -s localhost:7777/health || echo "Voyager service health check failed"
+          fi
+          
+          # Test Cron service health endpoint
+          CRON_POD=$(kubectl get pods -l app=posey-cron -o jsonpath="{.items[0].metadata.name}")
+          if [ -n "$CRON_POD" ]; then
+            echo "Testing Cron service health endpoint..."
+            kubectl exec $CRON_POD -- curl -s localhost:2222/health || echo "Cron service health check failed"
+          fi 

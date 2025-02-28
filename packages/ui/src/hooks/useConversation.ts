@@ -65,7 +65,9 @@ export const useConversation = () => {
           content: message,
           sender: user?.id || '',
           role: 'user',
-          metadata: {}
+          metadata: {
+            ...user?.metadata
+          }
         });
         addMessage(userMessage);
       }
@@ -75,7 +77,7 @@ export const useConversation = () => {
         content: response?.data?.answer,
         sender: 'agent',
         role: 'assistant',
-        metadata: response?.data?.metadata || {}
+        metadata: response?.data?.metadata
       });
 
       addMessage(agentMessage);

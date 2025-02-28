@@ -12,7 +12,7 @@ services:
     networks:
       - posey.net
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8091/pools"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8091/pools" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -21,4 +21,4 @@ networks:
   posey.net:
     name: posey.net
     external: true
-    driver: bridge 
+    driver: bridge

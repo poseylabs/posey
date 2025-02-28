@@ -1,0 +1,231 @@
+name: Deploy to Digital Ocean Kubernetes
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  # Deployment configuration
+  DO_CLUSTER_NAME: posey-cluster
+  NAMESPACE: default
+
+jobs:
+  deploy:
+    name: Deploy to Digital Ocean Kubernetes
+    runs-on: ubuntu-latest
+    steps:
+      #----------------------------------------------
+      # Checkout code and setup tools
+      #----------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Set up Kubernetes config
+        run: doctl kubernetes cluster kubeconfig save ${{ env.DO_CLUSTER_NAME }}
+
+      #----------------------------------------------
+      # Create ConfigMaps for non-sensitive configuration
+      #----------------------------------------------
+      - name: Create Postgres ConfigMap
+        run: |
+          kubectl create configmap postgres-config \
+            --from-literal=POSTGRES_PORT=3333 \
+            --from-literal=POSTGRES_HOST=posey-postgres \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Database URLs ConfigMap
+        run: |
+          kubectl create configmap database-urls \
+            --from-literal=POSTGRES_DSN_POSEY="postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@posey-postgres:3333/${{ secrets.POSTGRES_DB_POSEY }}" \
+            --from-literal=HASURA_GRAPHQL_DATABASE_URL="postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@posey-postgres:3333/${{ secrets.POSTGRES_DB_POSEY }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Qdrant ConfigMap
+        run: |
+          kubectl create configmap qdrant-config \
+            --from-literal=QDRANT_URL=http://posey-qdrant:1111 \
+            --from-literal=QDRANT_HOST=http://posey-qdrant:1111 \
+            --from-literal=QDRANT_PORT=1111 \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Services ConfigMap
+        run: |
+          kubectl create configmap services-config \
+            --from-literal=AGENTS_SERVICE_URL=http://posey-agents:5555 \
+            --from-literal=AGENT_PORT=5555 \
+            --from-literal=CRON_PORT=2222 \
+            --from-literal=VOYAGER_PORT=7777 \
+            --from-literal=VOYAGER_DOMAIN=${{ secrets.VOYAGER_DOMAIN || 'posey.ai' }} \
+            --from-literal=MCP_PORT=5050 \
+            --from-literal=SUPER_TOKENS_PORT=3567 \
+            --from-literal=AUTH_PORT=9999 \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create ML Models ConfigMap
+        run: |
+          kubectl create configmap ml-models-config \
+            --from-literal=AGENT_MODEL_ID=${{ secrets.AGENT_MODEL_ID || 'mistralai/Mistral-7B-Instruct-v0.3' }} \
+            --from-literal=EMBEDDING_MODEL=${{ secrets.EMBEDDING_MODEL || 'BAAI/bge-large-en-v1.5' }} \
+            --from-literal=EMBEDDING_CACHE_DIR=/app/models \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      #----------------------------------------------
+      # Create Secrets for sensitive information
+      #----------------------------------------------
+      - name: Create Postgres Secret
+        run: |
+          kubectl create secret generic postgres-credentials \
+            --from-literal=POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+            --from-literal=POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+            --from-literal=POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
+            --from-literal=POSTGRES_DB_POSEY=${{ secrets.POSTGRES_DB_POSEY }} \
+            --from-literal=POSTGRES_DB_SUPERTOKENS=${{ secrets.POSTGRES_DB_SUPERTOKENS }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Couchbase Secret
+        run: |
+          kubectl create secret generic couchbase-credentials \
+            --from-literal=COUCHBASE_USER=${{ secrets.COUCHBASE_USER || 'admin' }} \
+            --from-literal=COUCHBASE_PASSWORD=${{ secrets.COUCHBASE_PASSWORD || 'password' }} \
+            --from-literal=COUCHBASE_BUCKET=${{ secrets.COUCHBASE_BUCKET || 'posey' }} \
+            --from-literal=COUCHBASE_URL=${{ secrets.COUCHBASE_URL || 'couchbase://posey-couchbase' }} \
+            --from-literal=COUCHBASE_SCOPE=${{ secrets.COUCHBASE_SCOPE || '_default' }} \
+            --from-literal=COUCHBASE_COLLECTION=${{ secrets.COUCHBASE_COLLECTION || '_default' }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Hasura Secret
+        run: |
+          kubectl create secret generic hasura-credentials \
+            --from-literal=HASURA_ADMIN_SECRET=${{ secrets.HASURA_ADMIN_SECRET }} \
+            --from-literal=HASURA_GRAPHQL_DATABASE_URL="postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@posey-postgres:3333/${{ secrets.POSTGRES_DB_POSEY }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Auth Secret
+        run: |
+          kubectl create secret generic auth-credentials \
+            --from-literal=JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }} \
+            --from-literal=AUTH_BASE_URL=${{ secrets.AUTH_BASE_URL }} \
+            --from-literal=ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create NPM Token Secret
+        run: |
+          kubectl create secret generic npm-token \
+            --from-literal=NPM_AUTH_TOKEN=${{ secrets.NPM_AUTH_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      #----------------------------------------------
+      # Apply Kubernetes manifests for databases first
+      #----------------------------------------------
+      - name: Deploy PostgreSQL
+        run: |
+          kubectl apply -k k8s/postgres/
+          
+          # Wait for PostgreSQL to be ready
+          echo "Waiting for PostgreSQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-postgres --timeout=300s
+
+      - name: Deploy Qdrant
+        run: |
+          kubectl apply -k k8s/qdrant/
+          
+          # Wait for Qdrant to be ready
+          echo "Waiting for Qdrant to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-qdrant --timeout=300s
+
+      - name: Deploy Couchbase
+        run: |
+          kubectl apply -k k8s/couchbase/
+          
+          # Wait for Couchbase to be ready
+          echo "Waiting for Couchbase to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-couchbase --timeout=300s
+
+      #----------------------------------------------
+      # Apply Kubernetes manifests for application services
+      #----------------------------------------------
+      - name: Deploy Hasura GraphQL
+        run: |
+          kubectl apply -k k8s/graphql/
+          
+          # Wait for GraphQL to be ready
+          echo "Waiting for GraphQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-graphql --timeout=300s
+
+      - name: Deploy SuperTokens
+        run: |
+          kubectl apply -k k8s/supertokens/
+          
+          # Wait for SuperTokens to be ready
+          echo "Waiting for SuperTokens to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-supertokens --timeout=300s
+
+      - name: Deploy Auth Service
+        run: |
+          kubectl apply -k k8s/auth/
+          
+          # Wait for Auth to be ready
+          echo "Waiting for Auth to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-auth --timeout=300s
+
+      - name: Deploy Agents Service
+        run: |
+          kubectl apply -k k8s/agents/
+          
+          # Wait for Agents to be ready
+          echo "Waiting for Agents to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-agents --timeout=300s
+
+      - name: Deploy MCP Service
+        run: |
+          kubectl apply -k k8s/mcp/
+          
+          # Wait for MCP to be ready
+          echo "Waiting for MCP to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-mcp --timeout=300s
+
+      - name: Deploy Voyager Service
+        run: |
+          kubectl apply -k k8s/voyager/
+          
+          # Wait for Voyager to be ready
+          echo "Waiting for Voyager to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-voyager --timeout=300s
+
+      - name: Deploy Cron Service
+        run: |
+          kubectl apply -k k8s/cron/
+          
+          # Wait for Cron to be ready
+          echo "Waiting for Cron to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-cron --timeout=300s
+
+      - name: Deploy Web UI (if present)
+        run: |
+          if [ -d "k8s/www" ]; then
+            kubectl apply -k k8s/www/
+            
+            # Wait for Web UI to be ready
+            echo "Waiting for Web UI to be ready..."
+            kubectl wait --for=condition=ready pod -l app=posey-www --timeout=300s
+          else
+            echo "Web UI deployment directory not found, skipping..."
+          fi
+
+      #----------------------------------------------
+      # Verify deployment
+      #----------------------------------------------
+      - name: Verify deployment
+        run: |
+          echo "All services deployed successfully!"
+          kubectl get pods
+          
+          # Get external access URLs (if any)
+          echo "External access URLs:"
+          kubectl get services -o wide | grep LoadBalancer 

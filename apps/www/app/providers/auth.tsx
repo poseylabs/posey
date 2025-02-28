@@ -42,7 +42,9 @@ export function AuthProvider({
   const getUserSession = async () => {
     try {
       const data = await getSession();
-      const { session, user } = data || {};
+      const user = data?.user;
+      const session = data?.session;
+
       if (session?.sessionHandle && user?.id && user?.email) {
 
         await setUser({ user });

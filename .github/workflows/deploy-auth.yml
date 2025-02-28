@@ -1,0 +1,68 @@
+name: Deploy Authentication Services
+
+on:
+  workflow_call: # This workflow is meant to be called by other workflows
+
+jobs:
+  deploy-auth:
+    name: Deploy Authentication Services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Set up Kubernetes config
+        run: doctl kubernetes cluster kubeconfig save posey-cluster
+
+      #----------------------------------------------
+      # Deploy Hasura GraphQL (needed for auth)
+      #----------------------------------------------
+      - name: Deploy Hasura GraphQL
+        run: |
+          kubectl apply -k k8s/graphql/
+          
+          # Wait for GraphQL to be ready
+          echo "Waiting for GraphQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-graphql --timeout=300s
+
+      #----------------------------------------------
+      # Deploy SuperTokens
+      #----------------------------------------------
+      - name: Deploy SuperTokens
+        run: |
+          kubectl apply -k k8s/supertokens/
+          
+          # Wait for SuperTokens to be ready
+          echo "Waiting for SuperTokens to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-supertokens --timeout=300s
+
+      #----------------------------------------------
+      # Deploy Auth Service
+      #----------------------------------------------
+      - name: Deploy Auth Service
+        run: |
+          kubectl apply -k k8s/auth/
+          
+          # Wait for Auth to be ready
+          echo "Waiting for Auth to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-auth --timeout=300s
+          
+      #----------------------------------------------
+      # Verify Auth Services
+      #----------------------------------------------  
+      - name: Verify Auth Services
+        run: |
+          echo "Authentication services deployed:"
+          kubectl get pods -l service-type=auth
+          
+          # Test auth service health endpoint
+          AUTH_POD=$(kubectl get pods -l app=posey-auth -o jsonpath="{.items[0].metadata.name}")
+          if [ -n "$AUTH_POD" ]; then
+            echo "Testing Auth service health endpoint..."
+            kubectl exec $AUTH_POD -- curl -s localhost:9999/health || echo "Auth service health check failed"
+          fi 

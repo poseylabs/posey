@@ -1,0 +1,66 @@
+name: Deploy Frontend Applications
+
+on:
+  workflow_call: # This workflow is meant to be called by other workflows
+
+jobs:
+  deploy-frontend:
+    name: Deploy Frontend Applications
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Set up Kubernetes config
+        run: doctl kubernetes cluster kubeconfig save posey-cluster
+
+      #----------------------------------------------
+      # Deploy Web Application
+      #----------------------------------------------
+      - name: Deploy Web Application
+        run: |
+          kubectl apply -k k8s/web/
+          
+          # Wait for Web app to be ready
+          echo "Waiting for Web application to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-web --timeout=300s
+
+      #----------------------------------------------
+      # Deploy Admin Dashboard (if exists)
+      #----------------------------------------------
+      - name: Deploy Admin Dashboard
+        run: |
+          if [ -d "k8s/admin/" ]; then
+            kubectl apply -k k8s/admin/
+            
+            # Wait for Admin dashboard to be ready
+            echo "Waiting for Admin dashboard to be ready..."
+            kubectl wait --for=condition=ready pod -l app=posey-admin --timeout=300s
+          else
+            echo "No Admin dashboard to deploy, skipping..."
+          fi
+          
+      #----------------------------------------------
+      # Verify Frontend Applications
+      #----------------------------------------------  
+      - name: Verify Frontend Applications
+        run: |
+          echo "Frontend applications deployed:"
+          kubectl get pods -l tier=frontend
+          
+          # Get ingress or load balancer details
+          echo "External access URLs:"
+          kubectl get services -l tier=frontend -o wide | grep LoadBalancer || echo "No LoadBalancer services found"
+          kubectl get ingress -l tier=frontend 2>/dev/null || echo "No ingress resources found"
+          
+          # Test web application health endpoint
+          WEB_POD=$(kubectl get pods -l app=posey-web -o jsonpath="{.items[0].metadata.name}" 2>/dev/null)
+          if [ -n "$WEB_POD" ]; then
+            echo "Testing Web application health endpoint..."
+            kubectl exec $WEB_POD -- curl -s localhost:3000/api/health || echo "Web application health check failed"
+          fi 

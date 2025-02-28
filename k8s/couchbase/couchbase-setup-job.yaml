@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: couchbase-setup
+  namespace: default
+  labels:
+    app: posey-couchbase-setup
+    tier: database
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: posey-couchbase-setup
+        tier: database
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: couchbase-setup
+        image: couchbase/server:7.2.0
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # Wait for Couchbase to be ready
+          echo "Waiting for Couchbase to start..."
+          until curl -s http://posey-couchbase:8091/pools > /dev/null; do
+            sleep 5
+          done
+          
+          # Initialize the cluster
+          echo "Initializing Couchbase cluster..."
+          couchbase-cli cluster-init \
+            --cluster posey-couchbase:8091 \
+            --cluster-username ${COUCHBASE_USER} \
+            --cluster-password ${COUCHBASE_PASSWORD} \
+            --services data,index,query \
+            --cluster-ramsize 2048 \
+            --cluster-index-ramsize 512 \
+            --index-storage-setting default
+
+          # Create the bucket
+          echo "Creating bucket: ${COUCHBASE_BUCKET}..."
+          couchbase-cli bucket-create \
+            --cluster posey-couchbase:8091 \
+            --username ${COUCHBASE_USER} \
+            --password ${COUCHBASE_PASSWORD} \
+            --bucket ${COUCHBASE_BUCKET} \
+            --bucket-type couchbase \
+            --bucket-ramsize 1024 \
+            --bucket-replica 0
+          
+          echo "Couchbase setup completed successfully!"
+        env:
+        - name: COUCHBASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: couchbase-credentials
+              key: COUCHBASE_USER
+        - name: COUCHBASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: couchbase-credentials
+              key: COUCHBASE_PASSWORD
+        - name: COUCHBASE_BUCKET
+          valueFrom:
+            secretKeyRef:
+              name: couchbase-credentials
+              key: COUCHBASE_BUCKET 

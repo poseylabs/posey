@@ -3,7 +3,7 @@ import { config } from '@posey.ai/core';
 const AGENT_API = `${process.env.NEXT_PUBLIC_AGENT_API_ENDPOINT || 'http://localhost:5555'}`;
 
 const DEFAULT_USER = config.defaults.user;
-const DEFAULT_USER_PREFERENCES = config.defaults.user.preferences;
+const DEFAULT_USER_PREFERENCES = config.defaults.user.metadata.preferences;
 
 export async function getUserPreferencesFromDB(user_id: string | undefined) {
   if (!user_id) return DEFAULT_USER_PREFERENCES;
@@ -12,7 +12,7 @@ export async function getUserPreferencesFromDB(user_id: string | undefined) {
     const preferences = await response.json();
     return {
       ...DEFAULT_USER_PREFERENCES,
-      ...(preferences?.data || {})
+      ...preferences?.data
     };
   } catch (error) {
     console.error('Error fetching user preferences:', error);

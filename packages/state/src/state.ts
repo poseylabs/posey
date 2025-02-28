@@ -417,7 +417,7 @@ export const usePoseyState = create<PoseyState>()(
               created_at: conversation?.created_at || new Date(),
               updated_at: new Date(),
               agent_id: conversation?.agent_id || DEFAULT_AGENT.id,
-              metadata: conversation?.metadata || {}
+              metadata: conversation?.metadata
             };
           } catch (error) {
             console.error('Error fetching conversation:', error);
@@ -429,7 +429,7 @@ export const usePoseyState = create<PoseyState>()(
           title,
           user_id,
           agent_id,
-          metadata = {},
+          metadata,
           initial_message
         }: {
           title?: string;

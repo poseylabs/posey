@@ -1,5 +1,5 @@
 {
-  "name": "@posey.ai/webui",
+  "name": "@posey.ai/ui",
   "author": "Posey Labs <code@posey.ai>",
   "version": "1.0.0-beta.1",
   "main": "./dist/index.mjs",

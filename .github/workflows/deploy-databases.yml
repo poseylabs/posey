@@ -1,0 +1,69 @@
+name: Deploy Database Services
+
+on:
+  workflow_call: # This workflow is meant to be called by other workflows
+
+jobs:
+  deploy-databases:
+    name: Deploy Database Services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Set up Kubernetes config
+        run: doctl kubernetes cluster kubeconfig save posey-cluster
+
+      #----------------------------------------------
+      # Deploy PostgreSQL
+      #----------------------------------------------
+      - name: Deploy PostgreSQL
+        run: |
+          kubectl apply -k k8s/postgres/
+          
+          # Wait for PostgreSQL to be ready
+          echo "Waiting for PostgreSQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-postgres --timeout=300s
+
+      #----------------------------------------------
+      # Deploy Qdrant
+      #----------------------------------------------
+      - name: Deploy Qdrant
+        run: |
+          kubectl apply -k k8s/qdrant/
+          
+          # Wait for Qdrant to be ready
+          echo "Waiting for Qdrant to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-qdrant --timeout=300s
+
+      #----------------------------------------------
+      # Deploy Couchbase
+      #----------------------------------------------
+      - name: Deploy Couchbase
+        run: |
+          kubectl apply -k k8s/couchbase/
+          
+          # Wait for Couchbase to be ready
+          echo "Waiting for Couchbase to be ready..."
+          kubectl wait --for=condition=ready pod -l app=posey-couchbase --timeout=300s
+          
+      #----------------------------------------------
+      # Verify Database Services
+      #----------------------------------------------  
+      - name: Verify Database Services
+        run: |
+          echo "Database services deployed:"
+          kubectl get pods -l tier=database
+          
+          # Check if any database services failed to start
+          if kubectl get pods -l tier=database | grep -v "Running\|Completed"; then
+            echo "Warning: Some database pods are not in Running state"
+            exit 1
+          else
+            echo "All database services are running correctly!"
+          fi 
