@@ -15,6 +15,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Debug step to verify token exists
+      - name: Check Digital Ocean Token
+        run: |
+          if [ -n "${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}" ]; then
+            echo "✅ DIGITALOCEAN_ACCESS_TOKEN is set"
+          else
+            echo "❌ DIGITALOCEAN_ACCESS_TOKEN is not set"
+            exit 1
+          fi
+
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
         with:
