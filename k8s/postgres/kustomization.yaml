@@ -6,11 +6,7 @@ resources:
   - postgres-statefulset.yaml
   - postgres-service.yaml
 
-# Common labels to apply to all resources
-labels:
-  app.kubernetes.io/name: postgres
-  app.kubernetes.io/part-of: posey
-  app.kubernetes.io/managed-by: kustomize
-
-# Note: We are not including postgres-secret.yaml here because
-# it's being created via the GitHub Actions workflow 
+# Common labels applied to all resources
+commonLabels:
+  app: posey-postgres
+  tier: database
