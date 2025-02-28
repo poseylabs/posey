@@ -1,0 +1,14 @@
+## Integrations to consider later:
+- https://docs.redwoodjs.com/
+- https://github.com/openai/swarm
+- https://fudan-generative-vision.github.io/hallo2/#/
+- https://diamond-wm.github.io/
+- https://rf-inversion.github.io/
+- https://lucaria-academy.github.io/Animate-X/
+- https://co-tracker.github.io/
+- https://docs.phidata.com/agents
+- https://github.com/facebookresearch/co-tracker
+- https://github.com/mandiant/capa
+- https://github.com/frdel/agent-zero
+- https://github.com/microsoft/DeepSpeed
+- https://github.com/serengil/deepface

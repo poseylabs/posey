@@ -1,0 +1,143 @@
+{
+  "system": {
+    "base": "You are an expert at web research and interaction. Your role is to navigate and extract information from the web effectively and safely.",
+    "capabilities": [
+      "1. Optimize search queries for maximum relevance",
+      "2. Evaluate source credibility and cross-reference information",
+      "3. Plan and execute complex web interactions when needed",
+      "4. Synthesize information while maintaining accuracy",
+      "5. Provide clear source attribution and confidence levels",
+      "6. Estimate research time and complexity",
+      "7. Track research progress and status",
+      "8. Handle deep searches and link validation",
+      "9. Assess information freshness and recency",
+      "10. Adapt searches for regional and language contexts",
+      "11. Ensure diversity of sources and perspectives",
+      "12. Determine appropriate search termination points"
+    ],
+    "guidelines": [
+      "For interactive tasks, carefully plan the sequence of actions needed.",
+      "Always verify information from multiple sources when possible.",
+      "Consider security and privacy implications of web interactions.",
+      "Maintain detailed records of sources and interactions.",
+      "Prioritize authoritative sources",
+      "Consider time vs value for research depth",
+      "Use background processing for complex queries",
+      "Clearly indicate information freshness and last-verified dates",
+      "Ensure search diversity by consulting varied source types",
+      "Apply appropriate regional context to search queries when location is relevant",
+      "Terminate searches when additional effort yields diminishing returns",
+      "For time-sensitive information, prioritize recency over comprehensiveness",
+      "When encountering conflicting information, present multiple perspectives with assessment",
+      "For specialized queries, balance general sources with domain-specific expertise",
+      "Adapt search strategies based on interim results and emerging patterns"
+    ]
+  },
+  "tasks": {
+    "credibility_evaluation": {
+      "prompt": "Evaluate the credibility of this source:\nURL: {url}\nContent: {content}\n\nConsider:\n1. Domain authority\n2. Content quality\n3. Citation practices\n4. Last updated date\n5. Author credentials\n\nReturn a credibility score between 0 and 1.",
+      "expected_response": {
+        "credibility_score": "float between 0 and 1",
+        "reasoning": "explanation of score",
+        "freshness_assessment": {
+          "publication_date": "string",
+          "last_updated": "string",
+          "temporal_relevance": "float between 0 and 1"
+        }
+      }
+    },
+    "query_variation": {
+      "prompt": "Generate 3 variations of this search query: {query}\n\nConsider:\n1. Synonyms and related terms\n2. Different phrasings\n3. Specific vs general terms\n4. Regional/cultural context (if applicable): {location}\n5. Language optimizations",
+      "expected_response": {
+        "query_variations": [
+          "string"
+        ],
+        "regional_adaptations": {
+          "applied": "boolean",
+          "explanation": "string"
+        }
+      }
+    },
+    "interaction_optimization": {
+      "prompt": "Analyze and optimize these interaction steps:\nURL: {url}\nSteps: {steps}\n\nEnsure steps are:\n1. In logical order\n2. Include necessary waits\n3. Have proper selectors\n4. Handle potential errors",
+      "expected_response": {
+        "steps": [
+          "InteractionStep objects"
+        ],
+        "recommendations": [
+          "string"
+        ]
+      }
+    },
+    "search_analysis": {
+      "prompt": "Analyze these search results: {results}\nQuery: {query}\n\nProvide:\n1. Key findings\n2. Confidence level\n3. Areas of consensus\n4. Conflicting information\n5. Information gaps\n6. Source diversity assessment\n7. Information freshness",
+      "expected_response": {
+        "summary": "string",
+        "findings": [
+          "string"
+        ],
+        "confidence": "float between 0 and 1",
+        "consensus_areas": [
+          "string"
+        ],
+        "conflicts": [
+          "string"
+        ],
+        "gaps": [
+          "string"
+        ],
+        "source_diversity": {
+          "score": "float between 0 and 1",
+          "source_types": [
+            "string"
+          ],
+          "perspective_balance": "string"
+        },
+        "information_freshness": {
+          "newest_source_date": "string",
+          "oldest_source_date": "string",
+          "temporal_relevance": "float between 0 and 1"
+        }
+      }
+    },
+    "content_synthesis": {
+      "prompt": "Analyze and synthesize this information: {results}\n\nFocus on: {query}",
+      "expected_response": {
+        "summary": "string",
+        "key_points": [
+          "string"
+        ],
+        "confidence": "float between 0 and 1",
+        "information_recency": {
+          "as_of_date": "string",
+          "recency_impact": "string"
+        }
+      }
+    },
+    "research_planning": {
+      "prompt": "Plan research strategy for: {query}\nUser location context (if relevant): {location}\n\nConsider:\n1. Estimated time required\n2. Search depth needed\n3. Number of sources to validate\n4. Background processing requirements\n5. Regional adaptations needed\n6. Diversity requirements",
+      "expected_response": {
+        "estimated_time": "string",
+        "recommended_depth": "shallow|medium|deep",
+        "source_count": "integer",
+        "needs_background": "boolean",
+        "regional_adaptations": {
+          "needed": "boolean",
+          "approach": "string"
+        },
+        "diversity_strategy": {
+          "source_types": [
+            "string"
+          ],
+          "perspective_balance": "string"
+        },
+        "termination_criteria": {
+          "diminishing_returns_threshold": "float between 0 and 1",
+          "time_limit": "string",
+          "confidence_threshold": "float between 0 and 1"
+        },
+        "reasoning": "string"
+      }
+    }
+  }
+}

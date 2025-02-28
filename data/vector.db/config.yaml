@@ -1,0 +1,11 @@
+storage:
+  storage_path: /qdrant/storage
+
+service:
+  http_port: 1111
+  grpc_port: 6334
+
+telemetry:
+  disabled: true
+
+log_level: INFO

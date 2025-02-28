@@ -1,0 +1,44 @@
+{
+  "name": "@posey.ai/posey-image-midjourney",
+  "version": "1.0.0-beta.1",
+  "description": "Midjourney image generation provider for Posey",
+  "author": "Posey Labs",
+  "website": "https://github.com/poseylabs/posey-image-midjourney",
+  "license": "AGPL-3.0",
+  "requires": {
+    "python": ">=3.8.0"
+  },
+  "type": "provider",
+  "category": "image_generation",
+  "capabilities": [
+    "image_generation"
+  ],
+  "entry_points": {
+    "image_providers": [
+      "midjourney = image_providers.midjourney_provider:MidjourneyProvider"
+    ]
+  },
+  "settings": {
+    "environment_variables": [
+      "MIDJOURNEY_API_URL",
+      "MIDJOURNEY_API_KEY"
+    ],
+    "configuration": {
+      "timeout_seconds": {
+        "type": "integer",
+        "default": 120,
+        "description": "Maximum time to wait for image generation in seconds"
+      },
+      "default_style": {
+        "type": "string",
+        "default": "raw",
+        "description": "Default style to use if not specified"
+      }
+    }
+  },
+  "tags": [
+    "image generation",
+    "midjourney",
+    "ai art"
+  ]
+}

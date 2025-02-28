@@ -1,0 +1,11 @@
+name: posey_agents
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - -r requirements.txt
+variables:
+  PYTHONPATH: ${CONDA_PREFIX}/lib/python3.10/site-packages

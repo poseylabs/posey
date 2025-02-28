@@ -1,0 +1,50 @@
+name: posey_data
+
+services:
+  posey-graphql:
+    image: hasura/graphql-engine:v2.15.2
+    container_name: posey-graphql
+    build:
+      context: ../../
+      dockerfile: data/graphql/Dockerfile
+    ports:
+      - "4444:4444"
+    environment:
+      HASURA_GRAPHQL_ADMIN_SECRET: "${HASURA_ADMIN_SECRET}"
+      HASURA_GRAPHQL_DATABASE_URL: "${HASURA_GRAPHQL_DATABASE_URL}"
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: "startup, http-log, webhook-log, websocket-log"
+      HASURA_GRAPHQL_MIGRATIONS_DIR: "/app/src/migrations"
+      HASURA_GRAPHQL_METADATA_DIR: "/app/src/metadata"
+      HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: "60"
+      HASURA_GRAPHQL_RETRY_INTERVAL: "10"
+      POSTGRES_HOST: "${POSTGRES_HOST}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB_POSEY: "${POSTGRES_DB_POSEY}"
+      POSTGRES_PORT: "${POSTGRES_PORT}"
+    env_file:
+      - ../.env
+    depends_on:
+      - posey-couchbase
+      - posey-qdrant
+      - posey-postgres
+    networks:
+      - posey.net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - graphql_data:/var/lib/postgresql/data
+
+volumes:
+  graphql_data:
+    driver: local
+
+networks:
+  posey.net:
+    external: true 

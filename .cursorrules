@@ -1,0 +1,106 @@
+# Cursor Rules for Posey AI Development
+
+## Overview
+We are building an agentic framework that enables the creation of specialized AI agents for various tasks.
+Our architecture follows a monorepo structure using NX for efficient configuration and dependency sharing.
+Primary development languages: TypeScript and Python.
+
+## Core Technologies
+### Infrastructure
+- NX: Monorepo management
+- Docker: Containerization and deployment
+- GitHub Actions: CI/CD pipelines
+- Supertokens: Authentication & authorization
+- Qdrant: Vector search & memory management
+
+### Frontend
+- Next.js 15: Web application framework
+- React 19: Using the lates version of React as well as Next.js
+- Electron: Desktop application framework
+- DaisyUI + Tailwind CSS: Styling
+- React Testing Library + Jest: Testing
+
+### AI & Agents
+- [Pydantic AI](https://ai.pydantic.dev): Core agent capabilities
+- Transformer models: NLP & understanding
+- Vector databases: Semantic search
+- Custom abilities plugin system
+
+## Project Structure
+- Use NX for monorepo management to share configurations and dependencies efficiently.
+- Use Docker for containerization and deployment of services.
+- Use Supertokens for authentication and authorization.
+- Use Qdrant for vector search and memory management.
+- Use Next.js for the web application.
+- Use Electron for the desktop application.
+- Use DaisyUI + Tailwind CSS for styling.
+- Always use TypeScript for JavaScript projects and ensure strict type checking.
+- Use Pydantic AI for basic agentic capabilities.
+
+## General Guidelines
+- Prioritize the use of open-source software and tools for development.
+- Ensure all services and features are designed to be flexible and adaptable to future innovations.
+- While open-source is preferred, maintain the ability to integrate with closed-source tools like ChatGPT or Claude when necessary.
+- Always check for latest version and new cutting edge tools & technologies. Don't be afraid to try new things and think outside the box.
+
+## Development Practices
+- Follow a modular and reusable code structure to facilitate easy maintenance and expansion.
+- Use NX for monorepo management to share configurations and dependencies efficiently.
+- Implement continuous integration and deployment pipelines using GitHub Actions.
+- Ensure all code is written in TypeScript and follows functional and declarative programming patterns.
+
+## AI and Agents
+- Develop Posey as a central orchestrator for a swarm of specialized AI agents (we call these minions).
+- Ensure minions are as autonomous as possible, with fallback mechanisms to request user input when needed.
+- Use MCP to enhance agent communication and enable plugging in with other tools more easily
+- Use transformer models and vector search for natural language understanding and information retrieval.
+
+## Security and Privacy
+- Implement end-to-end encryption for all sensitive data.
+- Regularly update dependencies to patch vulnerabilities and ensure security.
+- Provide users with control over their data and interactions with the AI.
+- Implement role-based access control (RBAC) for user permissions.
+- Conduct regular vulnerability scans and comprehensive security audits (automated and manual) to identify and mitigate risks.
+
+## User Interaction
+- Design Posey to provide personalized, context-aware assistance across various aspects of life and work.
+- Ensure multi-platform support (web, mobile, voice) for seamless user interaction.
+- Implement natural language processing for intuitive communication.
+- Maintain a consistent and professional tone in all user interactions.
+
+## Memory and Learning
+- Develop a robust memory architecture to store and retrieve the AI's "life experiences."
+- Implement feedback loops to improve AI responses based on user interactions.
+- Use vector databases like Qdrant for semantic search and memory management.
+
+## Documentation and Communication
+- Maintain up-to-date documentation for setup, contribution guidelines, and API endpoints.
+- Use JSDoc or TypeScript doc comments for code documentation.
+- Ensure all communications are contextually relevant and personalized.
+
+## Testing and Quality Assurance
+- Write unit and integration tests for critical components using Jest and React Testing Library.
+- Implement end-to-end testing and generate code coverage reports.
+- Set up continuous integration (CI) pipelines to ensure code quality and coverage metrics are met.
+
+## Performance Optimization
+- Optimize for both web and mobile performance using techniques like lazy loading and code splitting.
+- Use memoization techniques with `React.memo` and `useMemo` to enhance performance.
+- Monitor performance using tools like WebPageTest and React Profiler.
+
+## Key Conventions
+- Use descriptive and meaningful commit messages.
+- Ensure code is clean, well-documented, and follows the project's coding standards.
+- Require pull requests to be reviewed by at least one other developer.
+- Use issue tracking with clear labels and milestones.
+
+## Continuous Improvement
+- Implement a continuous learning and improvement pipeline for the AI.
+- Allow for user feedback to improve AI interactions over time.
+- Stay updated with the latest best practices and updates in AI and software development.
+
+## Styling
+- Use DaisyUI and Tailwind CSS for styling.
+- Prefer packages/ui for UI components by default and import them from there.
+- Prefer packages/core for shared utilities and helpers.
+- Ensure adherence to accessibility best practices (e.g., WCAG guidelines) for all UI components.

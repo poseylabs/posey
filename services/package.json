@@ -1,0 +1,22 @@
+{
+  "name": "@posey.ai/services",
+  "version": "0.0.0-beta.1",
+  "type": "module",
+  "license": "AGPL-3.0",
+  "scripts": {
+    "build": "docker compose build",
+    "build:agents": "docker compose build agents",
+    "build:cron": "docker compose build cron",
+    "build:ollama-small": "chmod +x ollama/scripts/setup-cache.sh && ./ollama/scripts/setup-cache.sh && docker compose build ollama-small",
+    "build:ollama-large": "chmod +x ollama/scripts/setup-cache.sh && ./ollama/scripts/setup-cache.sh && docker compose build ollama-large",
+    "dev": "docker compose watch",
+    "dev:agents": "docker compose watch agents",
+    "dev:cron": "docker compose watch cron",
+    "start": "docker compose up -d",
+    "stop": "docker compose down",
+    "docker:dev": "docker compose up --build"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

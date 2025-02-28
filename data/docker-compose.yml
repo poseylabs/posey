@@ -1,0 +1,74 @@
+name: posey_data
+
+services:
+  posey-postgres:
+    container_name: posey-postgres
+    extends:
+      file: ./postgres/docker-compose.yml
+      service: posey-postgres
+    networks:
+      - posey.net
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB_POSEY} -p $${POSTGRES_PORT:-3333}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  posey-qdrant:
+    container_name: posey-qdrant
+    extends:
+      file: ./vector.db/docker-compose.yml
+      service: posey-qdrant
+    networks:
+      - posey.net
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1111/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  posey-couchbase:
+    container_name: posey-couchbase
+    extends:
+      file: ./couchbase/docker-compose.yml
+      service: posey-couchbase
+    networks:
+      - posey.net
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/pools/default"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  posey-graphql:
+    container_name: posey-graphql
+    extends:
+      file: ./graphql/docker-compose.yml
+      service: posey-graphql
+    networks:
+      - posey.net
+    depends_on:
+      posey-postgres:
+        condition: service_healthy
+
+volumes:
+  couchbase_data:
+    name: posey_couchbase_data
+  graphql_data:
+    name: posey_graphql_data
+  postgres_data:
+    name: posey_postgres_data
+  qdrant_data:
+    name: posey_qdrant_data
+
+networks:
+  posey.net:
+    name: posey.net
+    external: true
+    driver: bridge

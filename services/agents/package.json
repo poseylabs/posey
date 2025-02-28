@@ -1,0 +1,22 @@
+{
+  "name": "@posey.ai/agents",
+  "version": "0.0.0-beta.1",
+  "type": "module",
+  "scripts": {
+    "db:migrate": "python3 -m app.db.migrate",
+    "db:seed": "python3 -m app.db.seeds",
+    "db:reset": "python3 -m app.db.migrate && python3 -m app.db.seeds",
+    "docker:build": "bash scripts/init-build-cache.sh",
+    "docker:build:nocache": "docker-compose build --no-cache",
+    "docker:stop": "docker stop $(docker ps -q)",
+    "docker:test": "bash scripts/test-with-cache.sh",
+    "docker:test:clean": "docker-compose -f docker-compose.test.yml down -v",
+    "docker:test:logs": "docker-compose -f docker-compose.test.yml logs -f test_app",
+    "env:activate": "python3 source .venv/bin/posey/activate",
+    "env:deactivate": "deactivate",
+    "env:create": "python3 -m venv .venv/bin/posey && source .venv/bin/posey/activate"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}

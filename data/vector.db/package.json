@@ -1,0 +1,27 @@
+{
+  "name": "@posey.ai/vector.db",
+  "version": "0.0.0-beta.1",
+  "type": "module",
+  "private": false,
+  "scripts": {
+    "deploy": "doctl kubernetes cluster kubeconfig save pockets && yarn k8s:up",
+    "docker:build": "docker build -t registry.digitalocean.com/posey/vector.db:latest .",
+    "docker:push": "docker push registry.digitalocean.com/posey/vector.db:latest",
+    "docker:deploy": "yarn docker:build && yarn docker:push",
+    "docker:init": "node scripts/init-collections.js",
+    "docker:start": "docker run -d --name qdrant -p 1111:1111 -p 6334:6334 -v $(pwd)/storage:/qdrant/storage registry.digitalocean.com/posey/vector.db:latest",
+    "docker:stop": "docker stop qdrant && docker rm qdrant",
+    "docker:logs": "docker logs qdrant",
+    "k8s:up": "node k8s-manager.js up",
+    "k8s:down": "node k8s-manager.js down",
+    "clean": "node scripts/clean.js",
+    "clean:force": "node scripts/clean.js --force",
+    "healthcheck": "node scripts/healthcheck.js"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.12.0",
+    "dotenv": "^16.4.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

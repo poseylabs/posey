@@ -1,0 +1,51 @@
+[MESSAGES CONTROL]
+# Disable some common warnings to make linting less strict by default.
+# Add/remove codes as per your project needs.
+disable=
+  C0114,  ; Missing module docstring
+  C0115,  ; Missing class docstring
+  C0116,  ; Missing function or method docstring
+  R0903,  ; Too few public methods in class (useful for classes with only __init__)
+  W0511,  ; TODO/FIXME comments warning
+
+[REPORTS]
+# Disable pylint reports at the end of the output (only show issues).
+reports=no
+
+[FORMAT]
+# Set the indentation style to 2 spaces.
+indent-string='  '
+
+# String quote character preference, either ' or "
+# (useful if you want consistent single or double quotes)
+#string-quote='"'
+
+# Maximum length of a line before it's considered too long.
+max-line-length=100
+
+[BASIC]
+# Variable names that can be one letter (e.g., for loop counters).
+good-names=i,j,k,e,x,y,z
+
+# Allow abbreviations and shorter names for functions and methods.
+# Useful in many projects with conventions for function names.
+function-rgx=[a-z_][a-z0-9_]{1,30}$
+
+[DESIGN]
+# Allow up to 20 arguments for functions before warning.
+max-args=5
+
+# Maximum number of attributes allowed for a class.
+max-attributes=10
+
+# Maximum number of boolean expressions in an if statement.
+max-bool-expr=5
+
+[SIMILARITIES]
+# Minimum lines of code for pylint to consider blocks as duplicates.
+# Higher value reduces false positives.
+min-similarity-lines=5
+
+[LOGGING]
+# Adjust the logging format to check for proper logging functions.
+logging-modules=logging

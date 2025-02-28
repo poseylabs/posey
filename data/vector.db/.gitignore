@@ -1,0 +1,17 @@
+# Qdrant storage files
+storage/
+collections/
+snapshots/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Temporary and lock files
+*.lock
+*.tmp
+
+# Logs
+*.log
+
+# Backup files
+*.bak

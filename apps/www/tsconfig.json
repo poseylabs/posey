@@ -1,0 +1,19 @@
+{
+  "extends": "@posey.ai/ts-config/configs/tsconfig.next.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "isolatedModules": true,
+    "jsx": "preserve"
+  },
+  "include": [
+    "app/**/*",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

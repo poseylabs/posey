@@ -1,0 +1,7 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Posey Agent Service
+  description: API for managing Posey orchestrator, minions and tasks
+servers:
+  - url: http://localhost:5555

@@ -1,0 +1,17 @@
+.message-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 1rem 0;
+  /* gap: 1rem; */
+}
+
+.message-footer-left {
+  display: grid;
+  /* gap: 1rem; */
+}
+
+.message-footer-right {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  justify-content: flex-end;
+}

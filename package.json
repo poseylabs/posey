@@ -1,0 +1,43 @@
+{
+  "name": "@posey.ai/posey",
+  "version": "1.0.0-beta.1",
+  "description": "Monorepo for the Posey AI project",
+  "author": "Posey Labs <code@posey.ai>",
+  "license": "AGPL-3.0",
+  "main": "null",
+  "scripts": {
+    "prepare": "husky install",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "lint": "nx run-many --target=lint --all",
+    "test": "nx run-many --target=test --all",
+    "build": "nx run-many --target=build --all"
+  },
+  "devDependencies": {
+    "@nrwl/nx-cloud": "19.1.0",
+    "@nx/js": "20.4.2",
+    "@nx/node": "^20.4.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "nx": "20.4.2",
+    "prettier": "^3.5.0"
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/posey-ai/posey.git"
+  },
+  "bugs": {
+    "url": "https://github.com/posey-ai/posey/issues"
+  },
+  "homepage": "https://github.com/posey-ai/posey#readme",
+  "packageManager": "yarn@4.5.1",
+  "workspaces": [
+    "apps/*",
+    "data",
+    "packages/*",
+    "services/*",
+    "services"
+  ]
+}

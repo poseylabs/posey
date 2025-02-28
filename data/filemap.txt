@@ -1,0 +1,45 @@
+File Map:
+- apps
+  - /dashboard
+  - /api
+  - /web
+- data
+  - /couchbase
+    - docker-compose.yml
+  - /graphql
+    - docker-compose.yml
+    - Dockerfile
+  - /postgres
+    - docker-compose.yml
+    - Dockerfile
+  - /vector.db
+    - docker-compose.yml
+  - .env
+  - docker-compose.yml
+- services
+  - /agents
+    - docker-compose.yml
+    - Dockerfile
+    - .env
+  - /api
+    - docker-compose.yml
+    - Dockerfile
+    - .env
+  - /auth
+    - docker-compose.yml
+    - Dockerfile
+    - .env
+  - /cron
+    - docker-compose.yml
+    - Dockerfile
+    - .env
+  - /voyager
+    - docker-compose.yml
+    - Dockerfile
+    - .env
+    - docker-compose.yml
+  - .env
+- packages
+  - /core
+  - /ui
+- docs

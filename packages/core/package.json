@@ -1,0 +1,75 @@
+{
+  "name": "@posey.ai/core",
+  "version": "0.0.0-beta.1",
+  "license": "AGPL-3.0",
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "dev": "tsup --config tsup.config.ts --watch --dts",
+    "lint": "eslint src/**/*.ts*",
+    "model:fetch": "./src/utils/pull-models.sh",
+    "prepublishOnly": "yarn build",
+    "publish:npm": "npm publish --access restricted",
+    "test": "jest"
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "import": "./dist/config/index.mjs"
+    },
+    "./prompts": {
+      "types": "./dist/prompts/index.d.ts",
+      "import": "./dist/prompts/index.mjs"
+    },
+    "./store": {
+      "types": "./dist/store/index.d.ts",
+      "import": "./dist/store/index.mjs"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.mjs"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.mjs"
+    }
+  },
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "bcrypt": "^5.1.1",
+    "elevenlabs": "^1.50.2",
+    "jsonwebtoken": "^9.0.2",
+    "ollama": "^0.5.13",
+    "openai": "^4.77.4",
+    "pg": "^8.13.2",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5",
+    "@types/jsonwebtoken": "^9",
+    "@types/node": "^20.11.19",
+    "@types/pg": "^8",
+    "dotenv": "^16.4.7",
+    "eslint": "^9.0.0",
+    "jest": "^29.7.0",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.2"
+  },
+  "optionalDependencies": {
+    "mongodb": "^6.9.0"
+  },
+  "browser": {
+    "fs": false,
+    "node:fs": false,
+    "node:path": false,
+    "path": false
+  }
+}

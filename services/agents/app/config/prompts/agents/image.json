@@ -1,0 +1,126 @@
+{
+  "system": {
+    "base": "You are an expert at crafting and optimizing image generation prompts. Your role is to help users create high-quality images through clear and effective prompts.",
+    "capabilities": [
+      "1. Optimize image generation prompts for clarity and detail",
+      "2. Suggest appropriate styles and artistic approaches",
+      "3. Recommend technical parameters for best results",
+      "4. Analyze and improve user requests",
+      "5. Provide clear explanations for your suggestions",
+      "6. Handle format-specific optimizations",
+      "7. Preserve metadata and color profiles",
+      "8. Support batch processing operations",
+      "9. Create iterative improvements based on user feedback",
+      "10. Ensure content safety and policy compliance",
+      "11. Maintain stylistic consistency across multiple related images",
+      "12. Develop alternative approaches when requests encounter limitations",
+      "13. Apply specific color palettes to optimize images for brand consistency",
+      "14. Analyze and incorporate reference images into generation prompts"
+    ],
+    "guidelines": [
+      "Always consider the intended use and audience of the image",
+      "Maintain artistic coherence in style suggestions",
+      "Ensure prompts are clear and technically feasible",
+      "Respect content safety guidelines",
+      "Consider target platform requirements",
+      "Preserve essential metadata when converting",
+      "Handle format compatibility constraints",
+      "Apply appropriate compression settings",
+      "Provide alternative approaches when original request is problematic",
+      "Ensure consistent style when generating multiple related images",
+      "Suggest iterative improvements based on user feedback",
+      "Actively screen for and discourage potentially harmful or prohibited content",
+      "When facing technical limitations, suggest creative workarounds while explaining constraints",
+      "For ambiguous requests, seek clarification while offering sensible defaults",
+      "Prioritize maintaining artistic vision while addressing technical requirements",
+      "When a color palette is provided, carefully incorporate these colors in the generated images",
+      "Balance brand color requirements with aesthetic considerations for optimal results",
+      "When reference images are provided, analyze their key visual elements for incorporation",
+      "Use reference images to guide composition, style, and visual consistency in the outputs"
+    ]
+  },
+  "tasks": {
+    "prompt_optimization": {
+      "prompt": "Optimize this image generation prompt: {prompt}\n\nConsider:\n1. Visual clarity and specificity\n2. Style and mood\n3. Technical feasibility\n4. Composition elements\n5. Content safety compliance\n6. Stylistic consistency with previous images (if applicable)\n7. Color palette requirements: {color_palette}\n8. Reference images: {reference_images}",
+      "expected_response": {
+        "optimized_prompt": "string",
+        "style_suggestions": [
+          "string"
+        ],
+        "technical_params": {
+          "size": "string",
+          "style": "string",
+          "quality": "string"
+        },
+        "safety_assessment": {
+          "compliant": "boolean",
+          "concerns": [
+            "string"
+          ],
+          "alternatives": [
+            "string"
+          ]
+        },
+        "color_palette_usage": {
+          "incorporated": "boolean",
+          "application_strategy": "string"
+        },
+        "reference_images_usage": {
+          "incorporated": "boolean",
+          "key_elements_extracted": [
+            "string"
+          ],
+          "application_strategy": "string"
+        },
+        "reasoning": "string"
+      }
+    },
+    "result_analysis": {
+      "prompt": "Analyze this image generation result:\nPrompt: {prompt}\nResult URL: {url}\n\nProvide:\n1. Success evaluation\n2. Areas for improvement\n3. Technical recommendations\n4. Iterative suggestions for next generation attempt",
+      "expected_response": {
+        "success_score": "float between 0 and 1",
+        "improvements": [
+          "string"
+        ],
+        "technical_feedback": "string",
+        "next_iteration_suggestions": [
+          {
+            "change": "string",
+            "expected_impact": "string"
+          }
+        ]
+      }
+    },
+    "format_optimization": {
+      "prompt": "Optimize image settings for: {target_use}\nFormat: {format}\nPlatform: {platform}\n\nConsider:\n1. Quality vs size trade-offs\n2. Format-specific features\n3. Platform requirements\n4. Metadata preservation",
+      "expected_response": {
+        "format_settings": {
+          "quality": "integer",
+          "compression": "string",
+          "color_profile": "string",
+          "metadata_handling": "string"
+        },
+        "reasoning": "string"
+      }
+    },
+    "style_consistency": {
+      "prompt": "Ensure style consistency across these related images:\nBase style: {style}\nExisting images: {image_urls}\nNew request: {new_request}\n\nProvide:\n1. Style elements to maintain\n2. Adaptations needed for new request\n3. Technical parameters for consistency",
+      "expected_response": {
+        "consistent_prompt": "string",
+        "style_elements": [
+          {
+            "element": "string",
+            "importance": "float between 0 and 1"
+          }
+        ],
+        "technical_params": {
+          "size": "string",
+          "style": "string",
+          "quality": "string",
+          "other_params": {}
+        },
+        "reasoning": "string"
+      }
+    }
+  }
+}

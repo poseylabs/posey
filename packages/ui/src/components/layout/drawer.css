@@ -1,0 +1,38 @@
+.posey-drawer {
+  display: grid;
+  height: 100%;
+  grid-template-columns: 0 1fr;
+  transition: grid-template-columns 0.3s ease-in-out;
+
+  &.show-drawer {
+    grid-template-columns: auto 1fr;
+  }
+
+}
+
+.posey-drawer-content {
+  align-items: center;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  opacity: 1;
+  width: 100%;
+
+  &.sticky-footer {
+    grid-template-rows: auto 1fr auto;
+  }
+}
+
+.posey-sidebar {
+  display: block;
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  transition: opacity 0.3s ease-in-out;
+  transition: width 0.3s ease-in-out;
+
+  &.show-drawer {
+    opacity: 1;
+    width: auto;
+  }
+
+}

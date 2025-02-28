@@ -1,0 +1,15 @@
+{
+  "json_formatter": {
+    "prompt": "Convert this response to valid JSON matching the required format:\n\nInput: {input}\n\nRequired format:\n{format}",
+    "formats": {
+      "standard_response": {
+        "answer": "The natural language response",
+        "confidence": 0.95,
+        "metadata": {
+          "processing_time": "0.1",
+          "agent_count": 1
+        }
+      }
+    }
+  }
+}

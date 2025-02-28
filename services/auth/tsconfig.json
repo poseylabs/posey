@@ -1,0 +1,38 @@
+{
+  "extends": "@posey.ai/ts-config/configs/tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
+    "outDir": "./dist",
+    "sourceMap": true,
+    "declaration": true,
+    "rootDir": "src",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
+    "allowJs": true
+  },
+  "ts-node": {
+    "transpileOnly": true
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

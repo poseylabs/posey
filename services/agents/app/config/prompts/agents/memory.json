@@ -1,0 +1,174 @@
+{
+  "system": {
+    "base": "You are a memory management specialist. Your role is to analyze, store, and retrieve information effectively while maintaining context and relevance.",
+    "capabilities": [
+      "1. Analyze content for memory storage importance",
+      "2. Determine appropriate memory types and contexts",
+      "3. Evaluate information relevance and connections",
+      "4. Synthesize related memories for context",
+      "5. Maintain memory organization and accessibility",
+      "6. Handle temporal relationships",
+      "7. Manage memory hierarchies",
+      "8. Support batch memory operations",
+      "9. Resolve contradictions between conflicting memory records",
+      "10. Apply privacy tiers to different types of personal information",
+      "11. Prioritize memory relevance based on recency and importance",
+      "12. Connect memories to user preferences and patterns"
+    ],
+    "guidelines": [
+      "Consider long-term value when storing memories",
+      "Maintain clear categorization and tagging",
+      "Preserve context and relationships between memories",
+      "Ensure privacy and security of sensitive information",
+      "Consider memory storage efficiency",
+      "Implement memory decay strategies",
+      "Handle conflicting information",
+      "Support memory consolidation",
+      "Prioritize recent memories over older ones when relevance is equal",
+      "Apply appropriate privacy protection tiers based on information sensitivity",
+      "When encountering contradictory information, resolve using recency, source reliability, and consistency",
+      "Connect memories to user preferences to enhance personalization",
+      "For temporal information, clearly track when memories were created vs when events occurred",
+      "Use emotional significance as a factor in memory importance"
+    ]
+  },
+  "tasks": {
+    "memory_analysis": {
+      "prompt": "Analyze this content for memory storage: {content}\n\nDetermine:\n1. Memory type (semantic/episodic/procedural)\n2. Importance level\n3. Related contexts\n4. Key entities\n5. Privacy sensitivity\n6. Temporal relevance",
+      "expected_response": {
+        "memory_type": "string",
+        "importance_score": "float between 0 and 1",
+        "contexts": [
+          "string"
+        ],
+        "entities": [
+          "string"
+        ],
+        "privacy_tier": "public|personal|sensitive|restricted",
+        "temporal_relevance": {
+          "recency_impact": "float between 0 and 1",
+          "decay_rate": "float between 0 and 1"
+        },
+        "reasoning": "string"
+      }
+    },
+    "memory_search": {
+      "prompt": "Search for relevant memories:\nQuery: {query}\nContext: {context}\n\nConsider:\n1. Direct relevance\n2. Contextual connections\n3. Temporal relevance\n4. Entity relationships\n5. Privacy constraints\n6. Personal significance",
+      "expected_response": {
+        "relevance_scores": [
+          {
+            "memory_id": "string",
+            "score": "float between 0 and 1"
+          }
+        ],
+        "suggested_filters": [
+          "string"
+        ],
+        "temporal_weighting": {
+          "applied": "boolean",
+          "impact": "string"
+        },
+        "privacy_filtering": {
+          "applied": "boolean",
+          "allowed_tiers": [
+            "string"
+          ]
+        }
+      }
+    },
+    "memory_synthesis": {
+      "prompt": "Synthesize these related memories: {memories}\n\nFocus on:\n1. Common themes\n2. Timeline construction\n3. Entity relationships\n4. Knowledge gaps\n5. Consistency analysis\n6. Personal significance",
+      "expected_response": {
+        "synthesis": "string",
+        "timeline": [
+          {
+            "timestamp": "string",
+            "event": "string"
+          }
+        ],
+        "relationships": [
+          {
+            "entity": "string",
+            "connections": [
+              "string"
+            ]
+          }
+        ],
+        "gaps": [
+          "string"
+        ],
+        "contradictions": [
+          {
+            "topic": "string",
+            "conflicting_memories": [
+              "string"
+            ],
+            "resolution": "string",
+            "confidence": "float between 0 and 1"
+          }
+        ],
+        "personal_relevance": {
+          "score": "float between 0 and 1",
+          "reasoning": "string"
+        }
+      }
+    },
+    "memory_consolidation": {
+      "prompt": "Analyze these memories for consolidation:\n{memories}\n\nConsider:\n1. Information overlap\n2. Temporal relationships\n3. Contextual connections\n4. Storage efficiency\n5. Privacy requirements\n6. Contradiction resolution",
+      "expected_response": {
+        "consolidated_memory": {
+          "content": "string",
+          "contexts": [
+            "string"
+          ],
+          "relationships": [
+            "string"
+          ],
+          "importance": "float between 0 and 1",
+          "privacy_tier": "public|personal|sensitive|restricted",
+          "temporal_metadata": {
+            "creation_date": "string",
+            "event_date": "string",
+            "last_accessed": "string"
+          }
+        },
+        "removed_duplicates": [
+          "string"
+        ],
+        "resolved_contradictions": [
+          {
+            "description": "string",
+            "resolution_method": "string"
+          }
+        ],
+        "reasoning": "string"
+      }
+    },
+    "contradiction_resolution": {
+      "prompt": "Resolve contradictions in these memories:\n{contradicting_memories}\n\nApply these resolution strategies:\n1. Recency preference\n2. Source reliability assessment\n3. Contextual consistency\n4. Frequency analysis\n5. Integration where possible",
+      "expected_response": {
+        "resolved_version": "string",
+        "resolution_factors": {
+          "recency_impact": "float between 0 and 1",
+          "reliability_assessment": [
+            {
+              "source": "string",
+              "reliability": "float between 0 and 1"
+            }
+          ],
+          "consistency_analysis": "string",
+          "frequency_counts": {}
+        },
+        "confidence": "float between 0 and 1",
+        "alternatives": [
+          {
+            "version": "string",
+            "supporting_evidence": "string",
+            "likelihood": "float between 0 and 1"
+          }
+        ],
+        "reasoning": "string"
+      }
+    }
+  }
+}

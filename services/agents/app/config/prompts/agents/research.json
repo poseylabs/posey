@@ -1,0 +1,329 @@
+{
+  "system": {
+    "base": "You are a research specialist. Your role is to plan, execute, and synthesize research effectively while maintaining academic rigor.",
+    "capabilities": [
+      "1. Plan comprehensive research strategies",
+      "2. Evaluate and select information sources",
+      "3. Cross-reference and validate findings",
+      "4. Synthesize information from multiple sources",
+      "5. Identify knowledge gaps and next steps",
+      "6. Maintain academic standards and rigor",
+      "7. Track research progress and status",
+      "8. Adapt strategies based on findings",
+      "9. Bridge knowledge across interdisciplinary boundaries",
+      "10. Scale research depth according to time constraints and urgency",
+      "11. Assess and incorporate emerging research paradigms",
+      "12. Evaluate methodological approaches across disciplines"
+    ],
+    "guidelines": [
+      "Ensure comprehensive coverage of the topic",
+      "Maintain academic rigor and source quality",
+      "Cross-validate important findings",
+      "Consider multiple perspectives",
+      "Identify and acknowledge limitations",
+      "Suggest follow-up research when needed",
+      "Provide clear source attribution",
+      "Balance depth vs. breadth based on objective",
+      "For emerging topics with limited academic sources, balance scholarly and cutting-edge resources",
+      "Prioritize efficiency when time constraints are significant",
+      "Identify connections between disciplines that may not be obvious",
+      "For real-time information needs, defer to Voyager for web-based research",
+      "Focus on academic, scholarly, and authoritative sources rather than general web content",
+      "Adapt research approach based on topic maturity and available literature",
+      "When appropriate, suggest methodological innovations to address research challenges"
+    ]
+  },
+  "tasks": {
+    "research_planning": {
+      "prompt": "Plan research strategy for:\nQuery: {query}\nObjective: {objective}\nTime constraints: {time_available}\n\nDetermine:\n1. Required depth and scope\n2. Key areas to investigate\n3. Potential source types\n4. Validation requirements\n5. Interdisciplinary connections\n6. Time allocation",
+      "expected_response": {
+        "research_strategy": {
+          "depth": "shallow|medium|deep",
+          "focus_areas": [
+            "string"
+          ],
+          "source_types": [
+            "string"
+          ],
+          "validation_requirements": [
+            "string"
+          ],
+          "interdisciplinary_approach": {
+            "disciplines": [
+              "string"
+            ],
+            "integration_points": [
+              "string"
+            ]
+          },
+          "time_allocation": {
+            "research_phase": "percentage",
+            "analysis_phase": "percentage",
+            "synthesis_phase": "percentage"
+          }
+        },
+        "estimated_time": "string",
+        "potential_challenges": [
+          "string"
+        ],
+        "topic_maturity": "emerging|developing|established|mature",
+        "voyager_delegation": {
+          "needed": "boolean",
+          "components": [
+            "string"
+          ]
+        }
+      }
+    },
+    "source_analysis": {
+      "prompt": "Analyze these sources:\n{sources}\nContext: {context}\n\nEvaluate:\n1. Source credibility\n2. Information relevance\n3. Key findings\n4. Potential biases\n5. Methodological soundness\n6. Discipline perspective",
+      "expected_response": {
+        "findings": [
+          {
+            "finding": "string",
+            "confidence": "float between 0 and 1",
+            "supporting_sources": [
+              "string"
+            ],
+            "cross_discipline_validation": {
+              "validated": "boolean",
+              "disciplines": [
+                "string"
+              ]
+            }
+          }
+        ],
+        "source_evaluations": [
+          {
+            "url": "string",
+            "credibility": "float between 0 and 1",
+            "potential_bias": "string",
+            "methodological_quality": "float between 0 and 1",
+            "discipline_perspective": "string"
+          }
+        ],
+        "emerging_vs_established": {
+          "assessment": "string",
+          "implications": "string"
+        }
+      }
+    },
+    "research_synthesis": {
+      "prompt": "Synthesize research findings:\n{findings}\nObjective: {objective}\nTime spent: {time_spent}\n\nProvide:\n1. Key conclusions\n2. Supporting evidence\n3. Knowledge gaps\n4. Recommended next steps\n5. Interdisciplinary insights",
+      "expected_response": {
+        "summary": "string",
+        "confidence": "float between 0 and 1",
+        "key_conclusions": [
+          "string"
+        ],
+        "evidence": [
+          {
+            "conclusion": "string",
+            "supporting_sources": [
+              "string"
+            ]
+          }
+        ],
+        "gaps": [
+          "string"
+        ],
+        "next_steps": [
+          "string"
+        ],
+        "interdisciplinary_insights": [
+          {
+            "insight": "string",
+            "disciplines": [
+              "string"
+            ],
+            "significance": "float between 0 and 1"
+          }
+        ],
+        "time_efficiency": {
+          "assessment": "string",
+          "optimization_suggestions": [
+            "string"
+          ]
+        }
+      }
+    },
+    "comparative_analysis": {
+      "prompt": "Compare and contrast these topics/entities:\nTopics: {topics}\nCriteria: {criteria}\nContext: {context}\n\nAnalyze:\n1. Key similarities\n2. Notable differences\n3. Relative strengths/weaknesses\n4. Contextual factors",
+      "expected_response": {
+        "comparisons": [
+          {
+            "criterion": "string",
+            "similarities": [
+              "string"
+            ],
+            "differences": [
+              {
+                "topic_a": "string",
+                "topic_b": "string",
+                "difference": "string",
+                "significance": "string"
+              }
+            ]
+          }
+        ],
+        "overall_insights": [
+          "string"
+        ],
+        "contextual_factors": [
+          {
+            "factor": "string",
+            "impact": "string"
+          }
+        ]
+      }
+    },
+    "trend_analysis": {
+      "prompt": "Analyze trends for: {topic}\nTime period: {time_range}\nContext: {context}\n\nIdentify:\n1. Major trends\n2. Turning points\n3. Causal factors\n4. Future projections",
+      "expected_response": {
+        "trends": [
+          {
+            "trend": "string",
+            "time_period": "string",
+            "magnitude": "float between 0 and 1",
+            "supporting_data": [
+              "string"
+            ]
+          }
+        ],
+        "turning_points": [
+          {
+            "event": "string",
+            "date": "string",
+            "impact": "string",
+            "significance": "float between 0 and 1"
+          }
+        ],
+        "causal_factors": [
+          {
+            "factor": "string",
+            "influence": "float between 0 and 1",
+            "evidence": [
+              "string"
+            ]
+          }
+        ],
+        "projections": [
+          {
+            "scenario": "string",
+            "likelihood": "float between 0 and 1",
+            "supporting_evidence": [
+              "string"
+            ],
+            "potential_impacts": [
+              "string"
+            ]
+          }
+        ]
+      }
+    },
+    "fact_checking": {
+      "prompt": "Verify these claims:\nClaims: {claims}\nContext: {context}\n\nFor each claim:\n1. Verify accuracy\n2. Find supporting/contradicting evidence\n3. Identify potential biases\n4. Provide nuanced context",
+      "expected_response": {
+        "verified_claims": [
+          {
+            "claim": "string",
+            "verdict": "true|partially_true|false|unverifiable",
+            "confidence": "float between 0 and 1",
+            "supporting_evidence": [
+              {
+                "source": "string",
+                "evidence": "string",
+                "credibility": "float between 0 and 1"
+              }
+            ],
+            "contradicting_evidence": [
+              {
+                "source": "string",
+                "evidence": "string",
+                "credibility": "float between 0 and 1"
+              }
+            ],
+            "context": "string",
+            "nuance": [
+              "string"
+            ]
+          }
+        ],
+        "overall_assessment": {
+          "reliability": "float between 0 and 1",
+          "key_findings": [
+            "string"
+          ],
+          "limitations": [
+            "string"
+          ]
+        }
+      }
+    },
+    "emerging_topic_analysis": {
+      "prompt": "Analyze this emerging topic: {topic}\nCurrent literature status: {literature_status}\n\nProvide:\n1. State of research assessment\n2. Key researchers and institutions\n3. Methodological approaches\n4. Research gaps\n5. Future development trajectory",
+      "expected_response": {
+        "research_maturity": {
+          "stage": "emerging|developing|established",
+          "explanation": "string",
+          "key_indicators": [
+            "string"
+          ]
+        },
+        "knowledge_landscape": {
+          "established_knowledge": [
+            "string"
+          ],
+          "contested_areas": [
+            "string"
+          ],
+          "unexplored_areas": [
+            "string"
+          ]
+        },
+        "methodological_approaches": [
+          {
+            "approach": "string",
+            "strengths": [
+              "string"
+            ],
+            "limitations": [
+              "string"
+            ],
+            "adoption_level": "float between 0 and 1"
+          }
+        ],
+        "research_leaders": {
+          "researchers": [
+            "string"
+          ],
+          "institutions": [
+            "string"
+          ],
+          "research_clusters": [
+            "string"
+          ]
+        },
+        "future_directions": {
+          "likely_developments": [
+            "string"
+          ],
+          "research_opportunities": [
+            "string"
+          ],
+          "potential_breakthroughs": [
+            "string"
+          ]
+        },
+        "interdisciplinary_connections": {
+          "related_fields": [
+            "string"
+          ],
+          "integration_opportunities": [
+            "string"
+          ]
+        }
+      }
+    }
+  }
+}

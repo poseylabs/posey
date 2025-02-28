@@ -1,0 +1,14 @@
+{
+  "extends": "@posey.ai/ts-config/configs/tsconfig.library.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

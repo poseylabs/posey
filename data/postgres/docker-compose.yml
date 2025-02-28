@@ -1,0 +1,45 @@
+name: posey_data
+
+services:
+  posey-postgres:
+    container_name: posey-postgres
+    build:
+      context: ../../
+      dockerfile: data/postgres/Dockerfile
+      args:
+        POSTGRES_USER: "${POSTGRES_USER}"
+        POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+        POSTGRES_DB: "${POSTGRES_DB}"
+        POSTGRES_DB_POSEY: "${POSTGRES_DB_POSEY}"
+        POSTGRES_PORT: "${POSTGRES_PORT}"
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+      POSTGRES_DB_POSEY: "${POSTGRES_DB_POSEY}"
+      POSTGRES_PORT: "${POSTGRES_PORT}"
+      PGPORT: "${POSTGRES_PORT}"
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    networks:
+      - posey.net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres -p $${POSTGRES_PORT:-3333}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  posey.net:
+    name: posey.net
+    external: true
+    driver: bridge 

@@ -1,0 +1,27 @@
+{
+  "generic_error": "An error occurred while processing your request. Please try again later.",
+  "confirmation": "Your request has been processed successfully.",
+  "structured_response_format": "CRITICAL: All responses MUST be valid JSON objects that exactly match the schema for the requested operation. Your ENTIRE response must be a single JSON object starting with { and ending with }. NO other text or formatting is allowed - not even code blocks or quotation marks around the JSON. The response must be directly parseable by json.loads().",
+  "response_requirements": {
+    "validation": "json_strict",
+    "allowed_content": [
+      "json_object_only"
+    ],
+    "forbidden_content": [
+      "natural_language",
+      "markdown",
+      "explanations",
+      "code_blocks",
+      "additional_text",
+      "surrounding_quotes"
+    ],
+    "schema_validation": true,
+    "example_format": {
+      "answer": "The natural language response",
+      "confidence": 0.95,
+      "metadata": {
+        "key": "value"
+      }
+    }
+  }
+}

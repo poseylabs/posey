@@ -1,0 +1,99 @@
+# Web Framework & API
+fastapi[all]>=0.115.8
+jwt>=1.3.1
+uvicorn[standard]>=0.32.0
+pydantic>=2.9.2
+pydantic-settings>=2.6.1
+starlette>=0.41.2
+
+# Database Drivers
+couchbase>=4.3.3
+asyncpg>=0.29.0,<0.31.0
+psycopg[binary,pool]==3.2.4
+psycopg2-binary
+qdrant-client>=1.12.1
+redis>=5.0.1
+
+# Agent & LLM Dependencies
+accelerate>=1.3.0
+fastembed>=0.5.1
+google-cloud-aiplatform>=1.71.0
+langchain>=0.3.14,<=0.3.18
+langchain-community>=0.3.14,<=0.3.17
+langchain-huggingface>=0.1.2
+langchain-qdrant>=0.2.0
+langgraph>=0.2.72
+mcp>=1.3.0
+py-rust-stemmers>=0.1.0,<0.3.0
+sentence-transformers>=3.4.1
+torch>=2.6.0
+transformers>=4.48.3
+pydantic_ai>=0.0.24
+scikit-learn>=1.6.1
+vertexai>=1.71.1
+
+# Authentication & Security
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6
+python-dotenv>=1.0.0
+# supertokens-python>=0.28.0
+
+# Testing
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+
+# Utilities
+# alembic>=1.14.0
+beautifulsoup4>=4.12.3
+cryptography>=42.0.0
+datasets>=3.1.0
+email-validator>=2.1.0
+einops>=0.8.0
+lxml>=5.3.0
+psutil>=5.9.8
+requests>=2.32.3
+aiohttp>=3.11.11
+sqlalchemy>=2.0.36
+tenacity>=8.2.3
+textblob>=0.19.0
+apscheduler>=3.11.0
+
+# Monitoring & Logging
+structlog>=24.1.0
+prometheus-client>=0.19.0
+
+# LLM Providers
+openai>=1.53.0
+anthropic>=0.38.0
+
+# SSE
+sse-starlette==2.2.1
+
+# SDK's & API's
+boto3>=1.36.12
+botocore>=1.36.12
+
+# File Manipulation and Processing
+pandas>=2.2.0,<2.3.0  # For spreadsheet/CSV manipulation
+python-docx==1.1.2  # For Word documents
+pypdf==5.2.0  # For PDF manipulation
+openpyxl==3.1.5  # For Excel files
+tabula-py==2.10.0  # For extracting tables from PDFs
+python-magic==0.4.27  
+xlrd==2.0.1  # For reading older Excel files (.xls)
+xlsxwriter==3.2.2  # For creating Excel files with advanced formatting
+pyxlsb==1.0.10  # For binary Excel files (.xlsb)
+xlwt==1.3.0  # For writing older Excel files (.xls)
+et-xmlfile==2.0.0  # For optimized Excel XML handling
+numpy>=1.24.4,<2.0.0  # Required for advanced spreadsheet operations
+
+# Development dependencies
+black>=23.11.0
+isort>=5.12.0
+flake8>=6.1.0
+mypy>=1.7.1
+
+

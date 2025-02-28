@@ -1,0 +1,38 @@
+{
+  "name": "@posey.ai/state",
+  "version": "1.0.0-beta.41",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "dev": "tsup --config tsup.config.ts --watch --dts",
+    "lint": "eslint src/**/*.ts*",
+    "prepublishOnly": "yarn build",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@posey.ai/core": "workspace:^",
+    "axios": "^1.7.9",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "@types/react": "19",
+    "dotenv": "^16.4.7",
+    "eslint": "^9.0.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.2"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

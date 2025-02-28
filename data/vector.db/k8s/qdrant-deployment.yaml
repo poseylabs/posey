@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qdrant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qdrant
+  template:
+    metadata:
+      labels:
+        app: qdrant
+    spec:
+      containers:
+      - name: qdrant
+        image: registry.digitalocean.com/posey/vector.db:latest
+        ports:
+        - containerPort: 1111
+        - containerPort: 6334
+        volumeMounts:
+        - name: config
+          mountPath: /qdrant/config
+        - name: storage
+          mountPath: /qdrant/storage
+      volumes:
+      - name: config
+        configMap:
+          name: qdrant-config
+      - name: storage
+        persistentVolumeClaim:
+          claimName: qdrant-storage

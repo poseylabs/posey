@@ -1,0 +1,14 @@
+{
+  "name": "@posey.ai/ts-config",
+  "version": "1.0.0-beta.1",
+  "main": "configs/index.js",
+  "author": "Posey Labs <code@posey.ai>",
+  "files": [
+    "configs/tsconfig.base.json",
+    "configs/tsconfig.electron.json",
+    "configs/tsconfig.library.json",
+    "configs/tsconfig.next.json",
+    "configs/tsconfig.node.json",
+    "configs/tsconfig.react.json"
+  ]
+}
