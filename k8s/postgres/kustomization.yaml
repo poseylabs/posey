@@ -6,7 +6,11 @@ resources:
   - postgres-statefulset.yaml
   - postgres-service.yaml
 
-# Common labels applied to all resources
-commonLabels:
-  app: posey-postgres
-  tier: database
+# Note: We're not using commonLabels because it's deprecated
+# The labels are already defined in the individual resources
+
+# Add annotations but don't change selectors
+commonAnnotations:
+  app.kubernetes.io/part-of: posey
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/created-by: github-actions

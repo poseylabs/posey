@@ -25,7 +25,18 @@ jobs:
       #----------------------------------------------
       - name: Deploy PostgreSQL
         run: |
-          kubectl apply -k k8s/postgres/
+          # Clean up any old resources
+          kubectl delete statefulset posey-postgres --ignore-not-found=true
+          kubectl delete service posey-postgres --ignore-not-found=true
+          kubectl delete pvc -l app=posey-postgres --ignore-not-found=true
+          
+          # Apply the kustomization
+          echo "Applying PostgreSQL resources..."
+          kubectl apply -k k8s/postgres/ || {
+            echo "❌ Failed to apply PostgreSQL resources. Trying direct application..."
+            kubectl apply -f k8s/postgres/postgres-service.yaml
+            kubectl apply -f k8s/postgres/postgres-statefulset.yaml
+          }
           
           echo "PostgreSQL resources created:"
           kubectl get all -l app=posey-postgres
