@@ -7,6 +7,7 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend Applications
     runs-on: ubuntu-latest
+    environment: PRODUCTION
     steps:
       - name: Checkout code
         uses: actions/checkout@v3

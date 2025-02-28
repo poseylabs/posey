@@ -7,6 +7,7 @@ jobs:
   deploy-databases:
     name: Deploy Database Services
     runs-on: ubuntu-latest
+    environment: PRODUCTION
     steps:
       - name: Checkout code
         uses: actions/checkout@v3

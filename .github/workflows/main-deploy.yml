@@ -9,6 +9,7 @@ jobs:
   setup:
     name: Setup Kubernetes Connection
     runs-on: ubuntu-latest
+    environment: PRODUCTION
     outputs:
       cluster-ready: ${{ steps.setup-k8s.outputs.success }}
     steps:
@@ -78,6 +79,7 @@ jobs:
     name: Verify Full Deployment
     needs: [deploy-auxiliary-services, deploy-frontend]
     runs-on: ubuntu-latest
+    environment: PRODUCTION
     steps:
       - name: Set up Kubernetes connection
         uses: digitalocean/action-doctl@v2
