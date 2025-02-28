@@ -41,10 +41,6 @@ class ConfigManager:
             None
         )
 
-    @classmethod
-    def get_port(cls) -> int:
-        return int(os.getenv("AGENT_PORT", str(cls._config.port))) 
-
 # Single instance
 config_manager = ConfigManager()
 config = config_manager.config 

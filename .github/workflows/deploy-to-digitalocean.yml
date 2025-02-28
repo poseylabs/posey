@@ -58,7 +58,6 @@ jobs:
         run: |
           kubectl create configmap services-config \
             --from-literal=AGENTS_SERVICE_URL=http://posey-agents:5555 \
-            --from-literal=AGENT_PORT=5555 \
             --from-literal=CRON_PORT=2222 \
             --from-literal=VOYAGER_PORT=7777 \
             --from-literal=VOYAGER_DOMAIN=${{ secrets.VOYAGER_DOMAIN || 'posey.ai' }} \
@@ -70,7 +69,6 @@ jobs:
       - name: Create ML Models ConfigMap
         run: |
           kubectl create configmap ml-models-config \
-            --from-literal=AGENT_MODEL_ID=${{ secrets.AGENT_MODEL_ID || 'mistralai/Mistral-7B-Instruct-v0.3' }} \
             --from-literal=EMBEDDING_MODEL=${{ secrets.EMBEDDING_MODEL || 'BAAI/bge-large-en-v1.5' }} \
             --from-literal=EMBEDDING_CACHE_DIR=/app/models \
             --dry-run=client -o yaml | kubectl apply -f -

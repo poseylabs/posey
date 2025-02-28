@@ -112,7 +112,6 @@ class Settings(BaseSettings):
     
     # Runtime Settings
     NODE_ENV: str = "development"
-    AGENT_MODEL_ID: str = "llama3.1"
     
     # Database Settings - PostgreSQL
     POSTGRES_CONNECTION_URI: Optional[str] = None
@@ -129,8 +128,6 @@ class Settings(BaseSettings):
 
     # Database Settings - Qdrant
     QDRANT_URL: Optional[str] = None
-    QDRANT_STARTUP_TIMEOUT: int = 120
-    QDRANT_CONNECTION_TIMEOUT: int = 60
 
     # ENABLE_QDRANT=true
     ENABLE_QDRANT: bool = True
@@ -147,14 +144,7 @@ class Settings(BaseSettings):
     # LLM Settings
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
-    DEFAULT_LLM_PROVIDER: str = LLM_CONFIG["default"]["provider"]
     DEFAULT_LLM_MODEL: str = LLM_CONFIG["default"]["model"]
-    
-    # Ollama Settings
-    OLLAMA_BASE_URL: Optional[str] = None
-    OLLAMA_BASE_URL_LLAMA: Optional[str] = None
-    OLLAMA_BASE_URL_DEEPSEEK: Optional[str] = None
-    OLLAMA_CONTEXT_LENGTH: Optional[int] = None
     
     # Memory Settings
     MEMORY_RETENTION_DAYS: int = 30
@@ -165,7 +155,6 @@ class Settings(BaseSettings):
     COMPOSE_DOCKER_CLI_BUILD: Optional[str] = None
     
     # Locale Settings
-    DEFAULT_LANGUAGE: str = "en"
     DEFAULT_TIMEZONE: str = "America/Los_Angeles"
     DEFAULT_CURRENCY: str = "USD"
     DEFAULT_COUNTRY: str = "US"
@@ -177,7 +166,6 @@ class Settings(BaseSettings):
     STABLE_DIFFUSION_API_KEY: Optional[str] = None
     STABLE_DIFFUSION_TOKEN: Optional[str] = None
     STABLE_DIFFUSION_API_URL: Optional[str] = None
-    NEXT_PUBLIC_OPENAI_BASE_URL: Optional[str] = None
     NEXT_PUBLIC_OPENAI_MODEL: Optional[str] = None
     
     # Python Settings

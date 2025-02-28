@@ -26,14 +26,14 @@ jobs:
         run: |
           kubectl create configmap postgres-config \
             --from-literal=POSTGRES_PORT=3333 \
-            --from-literal=POSTGRES_HOST=posey-postgres \
+            --from-literal=POSTGRES_HOST=${{ vars.POSTGRES_HOST || 'posey-postgres' }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create Database URLs ConfigMap
         run: |
           kubectl create configmap database-urls \
-            --from-literal=POSTGRES_DSN_POSEY="postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@posey-postgres:3333/${{ secrets.POSTGRES_DB_POSEY }}" \
-            --from-literal=HASURA_GRAPHQL_DATABASE_URL="postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@posey-postgres:3333/${{ secrets.POSTGRES_DB_POSEY }}" \
+            --from-literal=POSTGRES_DSN_POSEY="postgres://${{ vars.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@${{ vars.POSTGRES_HOST || 'posey-postgres' }}:3333/${{ vars.POSTGRES_DB_POSEY }}" \
+            --from-literal=HASURA_GRAPHQL_DATABASE_URL="postgres://${{ vars.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@${{ vars.POSTGRES_HOST || 'posey-postgres' }}:3333/${{ vars.POSTGRES_DB_POSEY }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create Qdrant ConfigMap
@@ -48,10 +48,9 @@ jobs:
         run: |
           kubectl create configmap services-config \
             --from-literal=AGENTS_SERVICE_URL=http://posey-agents:5555 \
-            --from-literal=AGENT_PORT=5555 \
             --from-literal=CRON_PORT=2222 \
             --from-literal=VOYAGER_PORT=7777 \
-            --from-literal=VOYAGER_DOMAIN=${{ secrets.VOYAGER_DOMAIN || 'posey.ai' }} \
+            --from-literal=VOYAGER_DOMAIN=${{ vars.VOYAGER_DOMAIN || 'posey.ai' }} \
             --from-literal=MCP_PORT=5050 \
             --from-literal=SUPER_TOKENS_PORT=3567 \
             --from-literal=AUTH_PORT=9999 \
@@ -60,8 +59,7 @@ jobs:
       - name: Create ML Models ConfigMap
         run: |
           kubectl create configmap ml-models-config \
-            --from-literal=AGENT_MODEL_ID=${{ secrets.AGENT_MODEL_ID || 'mistralai/Mistral-7B-Instruct-v0.3' }} \
-            --from-literal=EMBEDDING_MODEL=${{ secrets.EMBEDDING_MODEL || 'BAAI/bge-large-en-v1.5' }} \
+            --from-literal=EMBEDDING_MODEL=${{ vars.EMBEDDING_MODEL || 'BAAI/bge-large-en-v1.5' }} \
             --from-literal=EMBEDDING_CACHE_DIR=/app/models \
             --dry-run=client -o yaml | kubectl apply -f -
 
@@ -71,37 +69,37 @@ jobs:
       - name: Create Postgres Secret
         run: |
           kubectl create secret generic postgres-credentials \
-            --from-literal=POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+            --from-literal=POSTGRES_USER=${{ vars.POSTGRES_USER }} \
             --from-literal=POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
-            --from-literal=POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
-            --from-literal=POSTGRES_DB_POSEY=${{ secrets.POSTGRES_DB_POSEY }} \
-            --from-literal=POSTGRES_DB_SUPERTOKENS=${{ secrets.POSTGRES_DB_SUPERTOKENS }} \
+            --from-literal=POSTGRES_DB=${{ vars.POSTGRES_DB }} \
+            --from-literal=POSTGRES_DB_POSEY=${{ vars.POSTGRES_DB_POSEY }} \
+            --from-literal=POSTGRES_DB_SUPERTOKENS=${{ vars.POSTGRES_DB_SUPERTOKENS || 'supertokens' }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create Couchbase Secret
         run: |
           kubectl create secret generic couchbase-credentials \
-            --from-literal=COUCHBASE_USER=${{ secrets.COUCHBASE_USER || 'admin' }} \
+            --from-literal=COUCHBASE_USER=${{ vars.COUCHBASE_USER || 'admin' }} \
             --from-literal=COUCHBASE_PASSWORD=${{ secrets.COUCHBASE_PASSWORD || 'password' }} \
-            --from-literal=COUCHBASE_BUCKET=${{ secrets.COUCHBASE_BUCKET || 'posey' }} \
-            --from-literal=COUCHBASE_URL=${{ secrets.COUCHBASE_URL || 'couchbase://posey-couchbase' }} \
-            --from-literal=COUCHBASE_SCOPE=${{ secrets.COUCHBASE_SCOPE || '_default' }} \
-            --from-literal=COUCHBASE_COLLECTION=${{ secrets.COUCHBASE_COLLECTION || '_default' }} \
+            --from-literal=COUCHBASE_BUCKET=${{ vars.COUCHBASE_BUCKET || 'posey' }} \
+            --from-literal=COUCHBASE_URL=${{ vars.COUCHBASE_URL || 'couchbase://posey-couchbase' }} \
+            --from-literal=COUCHBASE_SCOPE=${{ vars.COUCHBASE_SCOPE || '_default' }} \
+            --from-literal=COUCHBASE_COLLECTION=${{ vars.COUCHBASE_COLLECTION || '_default' }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create Hasura Secret
         run: |
           kubectl create secret generic hasura-credentials \
             --from-literal=HASURA_ADMIN_SECRET=${{ secrets.HASURA_ADMIN_SECRET }} \
-            --from-literal=HASURA_GRAPHQL_DATABASE_URL="postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@posey-postgres:3333/${{ secrets.POSTGRES_DB_POSEY }}" \
+            --from-literal=HASURA_GRAPHQL_DATABASE_URL="postgres://${{ vars.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@${{ vars.POSTGRES_HOST || 'posey-postgres' }}:3333/${{ vars.POSTGRES_DB_POSEY }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create Auth Secret
         run: |
           kubectl create secret generic auth-credentials \
             --from-literal=JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }} \
-            --from-literal=AUTH_BASE_URL=${{ secrets.AUTH_BASE_URL }} \
-            --from-literal=ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }} \
+            --from-literal=AUTH_BASE_URL=${{ vars.AUTH_BASE_URL || 'http://posey-auth:9999' }} \
+            --from-literal=ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS || '*' }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create NPM Token Secret

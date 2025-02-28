@@ -54,7 +54,7 @@ export const DEFAULT_IMG_MODEL_FLUX = 'flux-dev';
 export const DEFAULT_IMG_MODEL_DALLE = 'dall-e-3';
 export const DEFAULT_IMG_MODEL_STABLE_DIFFUSION = 'ultra';
 
-export const DEFAULT_TIMEZONE = 'UTC';
+export const DEFAULT_TIMEZONE = 'America/Los_Angeles';
 export const DEFAULT_LANGUAGE = 'en';
 export const DEFAULT_THEME = 'dark';
 

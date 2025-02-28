@@ -54,7 +54,6 @@ COUCHBASE_URL                    # Default: couchbase://posey-couchbase
 COUCHBASE_SCOPE                  # Default: _default
 COUCHBASE_COLLECTION             # Default: _default
 VOYAGER_DOMAIN                   # Default: posey.ai
-AGENT_MODEL_ID                   # Default: mistralai/Mistral-7B-Instruct-v0.3
 EMBEDDING_MODEL                  # Default: BAAI/bge-large-en-v1.5
 ```
 

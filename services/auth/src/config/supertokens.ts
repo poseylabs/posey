@@ -25,6 +25,9 @@ export const supertokensConfig: any = {
     apiDomain: config.apiDomain,
     websiteDomain: config.websiteDomain,
   },
+  cookieSecure: process.env.NODE_ENV === "production",
+  cookieSameSite: process.env.COOKIE_SAME_SITE || "lax",
+  cookieDomain: process.env.COOKIE_DOMAIN || ".posey.ai",
   getRedirectionURL: (context: any) => {
     let url = context.url;
     if (context.action === "SUCCESS" && context.newSessionCreated) {
