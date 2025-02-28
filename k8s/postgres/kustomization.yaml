@@ -3,13 +3,14 @@ kind: Kustomization
 
 # List all resources that should be applied together
 resources:
-  - postgres-secret.yaml
-  - postgres-pvc.yaml
   - postgres-statefulset.yaml
   - postgres-service.yaml
 
 # Common labels to apply to all resources
-commonLabels:
+labels:
   app.kubernetes.io/name: postgres
   app.kubernetes.io/part-of: posey
-  app.kubernetes.io/managed-by: kustomize 
+  app.kubernetes.io/managed-by: kustomize
+
+# Note: We are not including postgres-secret.yaml here because
+# it's being created via the GitHub Actions workflow 

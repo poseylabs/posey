@@ -5,14 +5,15 @@ metadata:
   namespace: default
   labels:
     app: posey-postgres
+    tier: database
 spec:
   # Selector matches the pods created by the StatefulSet
   selector:
     app: posey-postgres
   # Port mapping
   ports:
-  - port: 5432          # The port exposed by the service
-    targetPort: 5432    # The port the container is listening on
+  - port: 3333          # The port exposed by the service (changed to 3333 to match ConfigMap)
+    targetPort: 5432    # The port the container is listening on (PostgreSQL default)
     name: postgres
   # ClusterIP makes the service only accessible within the cluster
   # This is good for databases that shouldn't be exposed externally

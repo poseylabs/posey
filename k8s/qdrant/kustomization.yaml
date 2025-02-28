@@ -8,7 +8,7 @@ resources:
   - qdrant-service.yaml
 
 # Common labels to apply to all resources
-commonLabels:
+labels:
   app.kubernetes.io/name: qdrant
   app.kubernetes.io/part-of: posey
   app.kubernetes.io/managed-by: kustomize

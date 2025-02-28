@@ -27,9 +27,26 @@ jobs:
         run: |
           kubectl apply -k k8s/postgres/
           
-          # Wait for PostgreSQL to be ready
+          echo "PostgreSQL resources created:"
+          kubectl get all -l app=posey-postgres
+          
+          # Debug: Check the status of PostgreSQL pod
+          echo "Checking initial PostgreSQL pod status:"
+          kubectl describe pod -l app=posey-postgres
+          
+          # Wait for PostgreSQL to be ready with increased timeout
           echo "Waiting for PostgreSQL to be ready..."
-          kubectl wait --for=condition=ready pod -l app=posey-postgres --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=posey-postgres --timeout=600s || {
+            # If timeout occurs, get more debugging information
+            echo "⚠️ Timeout waiting for PostgreSQL. Getting additional debug info:"
+            echo "Pod status:"
+            kubectl get pods -l app=posey-postgres -o wide
+            echo "Pod logs:"
+            kubectl logs -l app=posey-postgres --all-containers --tail=50
+            echo "Pod events:"
+            kubectl describe pod -l app=posey-postgres | grep -A20 Events
+            exit 1
+          }
 
       #----------------------------------------------
       # Deploy Qdrant

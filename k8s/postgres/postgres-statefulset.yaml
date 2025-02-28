@@ -5,6 +5,7 @@ metadata:
   namespace: default
   labels:
     app: posey-postgres
+    tier: database
 spec:
   # Using the service name to create stable network identities
   serviceName: posey-postgres
@@ -16,7 +17,21 @@ spec:
     metadata:
       labels:
         app: posey-postgres
+        tier: database
     spec:
+      # Init container to initialize data directory permissions
+      initContainers:
+      - name: init-postgres-data-dir
+        image: busybox
+        command: 
+        - sh
+        - -c
+        - |
+          chown -R 999:999 /var/lib/postgresql/data
+          chmod 700 /var/lib/postgresql/data
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
       containers:
       - name: postgres
         image: postgres:15  # Specify the version you want to use
@@ -60,8 +75,8 @@ spec:
             command:
             - pg_isready
             - -U
-            - $(POSTGRES_USER)
-          initialDelaySeconds: 30
+            - postgres  # Use a fixed username instead of environment variable interpolation which may cause issues
+          initialDelaySeconds: 60  # Increased from 30 to give more time for startup
           periodSeconds: 30
           timeoutSeconds: 10
           failureThreshold: 3
@@ -71,12 +86,18 @@ spec:
             command:
             - pg_isready
             - -U
-            - $(POSTGRES_USER)
-          initialDelaySeconds: 5
+            - postgres  # Use a fixed username instead of environment variable interpolation
+          initialDelaySeconds: 30  # Increased from 5 to give more time for startup
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
-      volumes:
-      - name: postgres-data
-        persistentVolumeClaim:
-          claimName: postgres-data 
+      # Use volume claims templates for StatefulSets
+      volumeClaimTemplates:
+      - metadata:
+          name: postgres-data
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          resources:
+            requests:
+              storage: 10Gi
+          storageClassName: do-block-storage 
