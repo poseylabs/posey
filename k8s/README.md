@@ -42,7 +42,6 @@ HASURA_ADMIN_SECRET              # Admin secret for Hasura GraphQL
 JWT_SECRET_KEY                   # Secret for JWT authentication
 AUTH_BASE_URL                    # Base URL for authentication service
 ALLOWED_ORIGINS                  # CORS allowed origins
-NPM_AUTH_TOKEN                   # NPM token for private packages (if any)
 ```
 
 Optional secrets (default values will be used if not provided):

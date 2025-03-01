@@ -1,3 +1,9 @@
+"""
+Configuration settings module for the Posey Agents service.
+Provides environment-based configuration, database connection settings,
+and various application parameters using Pydantic for validation.
+"""
+
 import os
 import logging
 import secrets
@@ -5,13 +11,14 @@ import asyncio
 import json
 from datetime import datetime
 
+from typing import Optional, List, Annotated, ClassVar, TypedDict
+from pathlib import Path
+from functools import lru_cache
+
 from pydantic_settings import BaseSettings
 from pydantic import Field, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema, core_schema
-from typing import Optional, List, Annotated, ClassVar, Dict, TypedDict
-from pathlib import Path
-from functools import lru_cache, cached_property
 from app.config.defaults import LLM_CONFIG
 from sqlalchemy import Column, DateTime, Boolean
 
@@ -19,6 +26,11 @@ from sqlalchemy import Column, DateTime, Boolean
 logger = logging.getLogger(__name__)
 
 class CommaSeparatedStrings:
+    """Pydantic custom type for handling comma-separated string lists.
+    
+    Allows values to be provided as either a list of strings or a single
+    comma-separated string, and serializes to a comma-separated string.
+    """
     @classmethod
     def __get_pydantic_core_schema__(
         cls,
@@ -47,25 +59,30 @@ class CommaSeparatedStrings:
 CommaSeparatedList = Annotated[List[str], CommaSeparatedStrings]
 
 class APISettings(BaseSettings):
+    """Configuration for API hosts and CORS settings."""
     ALLOWED_HOSTS: List[str] = ["*"]
     ALLOWED_ORIGINS: List[str] = ["*"]
 
 class SecuritySettings(BaseSettings):
+    """Configuration for JWT authentication and token settings."""
     JWT_SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
     JWT_ALGORITHM: str = "HS256"
     JWT_TOKEN_EXPIRE_MINUTES: int = 60
 
 class MediaLimits(TypedDict):
+    """Typed dictionary for media generation limits."""
     default_daily_limit: int
     max_daily_limit: int
     providers: List[str]
 
 class MediaGenerationConfig(TypedDict):
+    """Typed dictionary for media generation configuration."""
     image: MediaLimits
     video: MediaLimits
     audio: MediaLimits
 
 class Settings(BaseSettings):
+    """Main configuration settings for the application."""
     # TODO: This needs to be more restrictive before production
     ALLOWED_HOSTS: List[str] = Field(default=["*"])
     ALLOWED_ORIGINS: List[str] = Field(
@@ -98,18 +115,19 @@ class Settings(BaseSettings):
 
     # CORS settings
     ALLOWED_ORIGINS: list = ["*"]
-    
+
     # Logging
     LOG_LEVEL: str = "INFO"
-    
+
     class Config:
+        """Configuration for Pydantic settings."""
         env_file = ".env"
         case_sensitive = False
 
     # App Settings
     SYSTEM_VERSION: str = "1.0.0-beta.1"
     LOG_LEVEL: str = "INFO"
-    
+
     # Runtime Settings
     NODE_ENV: str = "development"
     
@@ -150,7 +168,6 @@ class Settings(BaseSettings):
     MEMORY_RETENTION_DAYS: int = 30
     
     # Build Settings
-    NPM_AUTH_TOKEN: Optional[str] = None
     DOCKER_BUILDKIT: Optional[str] = None
     COMPOSE_DOCKER_CLI_BUILD: Optional[str] = None
     

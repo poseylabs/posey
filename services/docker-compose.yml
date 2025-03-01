@@ -5,7 +5,7 @@ x-environment:
   &shared-environment
   AGENTS_SERVICE_URL: ${AGENTS_SERVICE_URL:-http://posey-agents:5555}
   AUTH_BASE_URL: ${AUTH_BASE_URL}
-  NPM_AUTH_TOKEN: "${NPM_AUTH_TOKEN}"
+
   NODE_ENV: "${NODE_ENV}"
 
   # Couchbase
@@ -57,7 +57,6 @@ services:
       context: ../
       dockerfile: services/agents/Dockerfile
       args:
-        NPM_AUTH_TOKEN: ${NPM_AUTH_TOKEN}
         NODE_ENV: ${NODE_ENV:-development}
         POSTGRES_USER: ${POSTGRES_USER}
         POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -96,7 +95,6 @@ services:
       context: ../
       dockerfile: services/auth/Dockerfile
       args:
-        NPM_AUTH_TOKEN: ${NPM_AUTH_TOKEN}
         NODE_ENV: ${NODE_ENV:-development}
     ports:
       - '${AUTH_PORT:-9999}:${AUTH_PORT:-9999}'

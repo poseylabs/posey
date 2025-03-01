@@ -32,8 +32,6 @@ COPY services/auth/scripts/run-migrations.sh /app/services/auth/scripts/
 RUN chmod +x /app/services/auth/scripts/run-migrations.sh
 
 # Install all dependencies from monorepo root
-# NPM_AUTH_TOKEN is only used during build
-ARG NPM_AUTH_TOKEN
 ARG POSTGRES_DSN_POSEY
 ARG POSTGRES_USER
 
@@ -45,9 +43,7 @@ ENV POSTGRES_DSN_SUPERTOKENS=$POSTGRES_DSN_SUPERTOKENS
 ENV POSTGRES_DSN_POSEY=$POSTGRES_DSN_POSEY
 
 # Install dependencies at the root level
-RUN yarn install && \
-  # Clear NPM_AUTH_TOKEN after install
-  unset NPM_AUTH_TOKEN
+RUN yarn install
 
 WORKDIR /app/services/auth
 

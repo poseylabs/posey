@@ -1,2 +1,9 @@
 [tool.poetry.scripts]
 dev = "uvicorn app.main:app --reload --host 0.0.0.0 --port 5555" 
+
+[tool.pylint.messages_control]
+disable = [
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "missing-module-docstring"
+] 

@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.744.0",
-    "@posey.ai/core": "workspace:*",
+    "@posey.ai/core": "workspace:^",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
@@ -22,7 +22,7 @@
     "supertokens-web-js": "^0.14.0"
   },
   "devDependencies": {
-    "@posey.ai/ts-config": "workspace:*",
+    "@posey.ai/ts-config": "workspace:^",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^22.13.5",

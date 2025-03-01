@@ -35,9 +35,9 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@posey.ai/eslint-config": "workspace:*",
-    "@posey.ai/prettier-config": "workspace:*",
-    "@posey.ai/ts-config": "workspace:*",
+    "@posey.ai/eslint-config": "workspace:^",
+    "@posey.ai/prettier-config": "workspace:^",
+    "@posey.ai/ts-config": "workspace:^",
     "@types/node": "^20",
     "@types/pg": "^8.11.10",
     "@types/react": "^19",

@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@posey.ai/core": "workspace:^",
-    "@posey.ai/state": "workspace:*",
+    "@posey.ai/state": "workspace:^",
     "lodash": "^4.17.21",
     "lucide-react": "^0.469.0",
     "ollama": "^0.5.13",
