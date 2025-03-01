@@ -1,0 +1,109 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-otel-collector-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-otel-collector
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+data:
+  config.yaml: |
+    receivers:
+{{ toYaml .Values.otelCollector.config.receivers | indent 6 }}
+    
+    processors:
+{{ toYaml .Values.otelCollector.config.processors | indent 6 }}
+    
+    exporters:
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+      
+      otlp:
+        endpoint: "{{ .Release.Name }}-tempo.{{ .Release.Namespace }}.svc.cluster.local:4317"
+        tls:
+          insecure: true
+      
+      loki:
+        endpoint: "http://{{ .Release.Name }}-loki.{{ .Release.Namespace }}.svc.cluster.local:3100/loki/api/v1/push"
+        tenant_id: "posey"
+        labels:
+          resource:
+            service.name: "service_name"
+            service.namespace: "service_namespace"
+          attributes:
+            level: "severity"
+    
+    service:
+{{ toYaml .Values.otelCollector.config.service | indent 6 }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-otel-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-otel-collector
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-otel-collector
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-otel-collector
+    spec:
+      containers:
+        - name: otel-collector
+          image: {{ .Values.otelCollector.image.repository }}:{{ .Values.otelCollector.image.tag }}
+          args:
+            - "--config=/etc/otel/config.yaml"
+          ports:
+            - containerPort: 4317
+              name: otlp-grpc
+            - containerPort: 4318
+              name: otlp-http
+            - containerPort: 8888
+              name: metrics
+            - containerPort: 8889
+              name: prometheus
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otel
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-otel-collector-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-otel-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-otel-collector
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+    - name: metrics
+      port: 8888
+      targetPort: 8888
+    - name: prometheus
+      port: 8889
+      targetPort: 8889
+  selector:
+    app: {{ .Release.Name }}-otel-collector
+{{- end }} 

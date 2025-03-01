@@ -1,0 +1,92 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your Posey AI stack has been deployed with the following components:
+
+Core Services (Internal Kubernetes References):
+1. MCP Service: {{ .Release.Name }}-mcp.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.mcp.port }}
+2. Auth Service: {{ .Release.Name }}-auth.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.auth.port }}
+3. Voyager Service: {{ .Release.Name }}-voyager.{{ .Release.Namespace }}.svc.cluster.local:3030
+4. Agents Service: {{ .Release.Name }}-agents.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.agents.port }}
+5. Cron Service: {{ .Release.Name }}-cron.{{ .Release.Namespace }}.svc.cluster.local:3040
+6. SuperTokens Service: {{ .Release.Name }}-supertokens.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.superTokens.port }}
+
+Databases:
+1. PostgreSQL: {{ .Release.Name }}-postgres.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.postgres.port }}
+2. Qdrant (Vector DB): {{ .Release.Name }}-qdrant.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.qdrant.port }}
+3. Couchbase: {{ .Release.Name }}-couchbase.{{ .Release.Namespace }}.svc.cluster.local:8091
+
+{{- if .Values.monitoring.enabled }}
+Monitoring:
+The monitoring stack is enabled.
+{{- end }}
+
+-------------------------------------------
+🔗 External Access Instructions
+-------------------------------------------
+
+{{- if eq (.Values.services.serviceType | default "ClusterIP") "ClusterIP" }}
+Your services are deployed with type: ClusterIP (default), which means they are only accessible within the Kubernetes cluster.
+
+To access these services from your local machine, use kubectl port-forward:
+
+1. Access MCP Service:
+   kubectl port-forward svc/{{ .Release.Name }}-mcp {{ .Values.services.mcp.port }}:{{ .Values.services.mcp.port }}
+   Then visit: http://localhost:{{ .Values.services.mcp.port }}
+
+2. Access Auth Service:
+   kubectl port-forward svc/{{ .Release.Name }}-auth {{ .Values.services.auth.port }}:{{ .Values.services.auth.port }}
+   Then visit: http://localhost:{{ .Values.services.auth.port }}
+
+3. Access Voyager Service:
+   kubectl port-forward svc/{{ .Release.Name }}-voyager 3030:3030
+   Then visit: http://localhost:3030
+
+{{- if .Values.monitoring.enabled }}
+4. Access Grafana Dashboard:
+   kubectl port-forward svc/{{ .Release.Name }}-grafana 3000:3000
+   Then visit: http://localhost:3000
+   Default credentials: admin/admin
+{{- end }}
+
+For database access:
+   kubectl port-forward svc/{{ .Release.Name }}-postgres {{ .Values.services.postgres.port }}:{{ .Values.services.postgres.port }}
+   kubectl port-forward svc/{{ .Release.Name }}-qdrant {{ .Values.services.qdrant.port }}:{{ .Values.services.qdrant.port }}
+   kubectl port-forward svc/{{ .Release.Name }}-couchbase 8091:8091
+{{- end }}
+
+{{- if eq (.Values.services.serviceType | default "ClusterIP") "NodePort" }}
+Your services are deployed with type: NodePort, which means they are accessible via your cluster node's IP and specific NodePorts.
+
+Find your cluster node's IP:
+   kubectl get nodes -o wide
+
+Then access services at:
+1. MCP Service: http://<node-ip>:{{ .Values.services.mcp.nodePort | default 30050 }}
+2. Auth Service: http://<node-ip>:{{ .Values.services.auth.nodePort | default 30999 }}
+{{- if .Values.monitoring.enabled }}
+3. Grafana Dashboard: http://<node-ip>:30000 (Default credentials: admin/admin)
+{{- end }}
+
+For localhost access with minikube, run:
+   minikube service {{ .Release.Name }}-mcp --url
+   minikube service {{ .Release.Name }}-auth --url
+{{- if .Values.monitoring.enabled }}
+   minikube service {{ .Release.Name }}-grafana --url
+{{- end }}
+{{- end }}
+
+{{- if eq (.Values.services.serviceType | default "ClusterIP") "LoadBalancer" }}
+Your services are deployed with type: LoadBalancer, which will provision external IPs for direct access.
+
+Check external IPs with:
+   kubectl get svc
+
+Then access services at:
+1. MCP Service: http://<external-ip>:{{ .Values.services.mcp.port }}
+2. Auth Service: http://<external-ip>:{{ .Values.services.auth.port }}
+{{- if .Values.monitoring.enabled }}
+3. Grafana Dashboard: http://<external-ip>:3000 (Default credentials: admin/admin)
+{{- end }}
+{{- end }}
+
+For more information and documentation, visit https://github.com/posey-ai/posey 

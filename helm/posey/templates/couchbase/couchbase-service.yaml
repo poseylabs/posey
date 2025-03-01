@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-couchbase
+  labels:
+    app: {{ .Release.Name }}-couchbase
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8091
+      targetPort: ui
+      protocol: TCP
+      name: ui
+    - port: 8092
+      targetPort: api
+      protocol: TCP
+      name: api
+    - port: 8093
+      targetPort: query
+      protocol: TCP
+      name: query
+    - port: 8094
+      targetPort: search
+      protocol: TCP
+      name: search
+    - port: 11210
+      targetPort: data
+      protocol: TCP
+      name: data
+  selector:
+    app: {{ .Release.Name }}-couchbase 

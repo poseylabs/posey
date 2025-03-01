@@ -1,0 +1,15 @@
+apiVersion: v2
+name: posey
+description: Helm chart for the Posey AI project
+type: application
+version: 0.1.0
+appVersion: "1.0.0-beta.1"
+maintainers:
+  - name: Posey Labs
+    email: code@posey.ai
+
+dependencies:
+  - name: posey-monitoring
+    version: "0.1.0"
+    repository: "file://../../services/monitoring/helm"
+    condition: monitoring.enabled 

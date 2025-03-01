@@ -130,10 +130,10 @@ class Settings(BaseSettings):
 
     # Runtime Settings
     NODE_ENV: str = "development"
-    
+
     # Database Settings - PostgreSQL
     POSTGRES_CONNECTION_URI: Optional[str] = None
-    
+
     # Database Settings - Couchbase
     COUCHBASE_SCOPE: str = "_default"
     COUCHBASE_COLLECTION: str = "_default"
@@ -151,32 +151,32 @@ class Settings(BaseSettings):
     ENABLE_QDRANT: bool = True
     QDRANT_PORT: int = 1111
     QDRANT_HOST: str = "http://qdrant:1111"
-    
+
     # API Settings
     ALLOWED_ORIGINS: List[str] = Field(default_factory=lambda: ["*"])
 
     # Service Settings
     VOYAGER_PORT: Optional[int] = None
     VOYAGER_DOMAIN: Optional[str] = None
-    
+
     # LLM Settings
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     DEFAULT_LLM_MODEL: str = LLM_CONFIG["default"]["model"]
-    
+
     # Memory Settings
     MEMORY_RETENTION_DAYS: int = 30
-    
+
     # Build Settings
     DOCKER_BUILDKIT: Optional[str] = None
     COMPOSE_DOCKER_CLI_BUILD: Optional[str] = None
-    
+
     # Locale Settings
     DEFAULT_TIMEZONE: str = "America/Los_Angeles"
     DEFAULT_CURRENCY: str = "USD"
     DEFAULT_COUNTRY: str = "US"
     DEFAULT_STATE: str = "WA"
-    
+
     # Integration Settings
     NEXT_PUBLIC_FLUX_API_URL: Optional[str] = None
     NEXT_PUBLIC_FLUX_API_KEY: Optional[str] = None
@@ -184,12 +184,12 @@ class Settings(BaseSettings):
     STABLE_DIFFUSION_TOKEN: Optional[str] = None
     STABLE_DIFFUSION_API_URL: Optional[str] = None
     NEXT_PUBLIC_OPENAI_MODEL: Optional[str] = None
-    
+
     # Python Settings
     PYTHONDONTWRITEBYTECODE: Optional[str] = 1
     PYTHONUNBUFFERED: Optional[str] = 1
     PYTHONPATH: Optional[str] = "/app/service"
-    
+
     # Storage Settings
     DO_STORAGE_BUCKET: Optional[str] = None
     DO_STORAGE_BUCKET_KEY: Optional[str] = None

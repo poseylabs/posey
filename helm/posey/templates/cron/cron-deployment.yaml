@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-cron
+  labels:
+    app: {{ .Release.Name }}-cron
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-cron
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-cron
+    spec:
+      containers:
+        - name: cron
+          image: "{{ .Values.image.registry }}/posey-cron:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 3040
+              name: http
+          env:
+            - name: NODE_ENV
+              value: {{ .Values.environment.nodeEnv | quote }}
+            - name: DEBUG
+              value: {{ .Values.environment.debug | quote }}
+            - name: DATABASE_URL
+              value: {{ .Values.databases.postgres.dsnPosey | quote }}
+            - name: MEMORY_PRUNING_SCHEDULE
+              value: {{ .Values.cronSchedules.memoryPruning | quote }}
+            - name: MEMORY_CONSOLIDATION_SCHEDULE
+              value: {{ .Values.cronSchedules.memoryConsolidation | quote }}
+            - name: CACHE_CLEANUP_SCHEDULE
+              value: {{ .Values.cronSchedules.cacheCleanup | quote }}
+            - name: MEMORY_STATS_SCHEDULE
+              value: {{ .Values.cronSchedules.memoryStats | quote }}
+            # Add additional environment variables as needed
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5 

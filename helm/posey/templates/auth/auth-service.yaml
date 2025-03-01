@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-auth
+  labels:
+    app: {{ .Release.Name }}-auth
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  type: {{ .Values.services.serviceType | default "ClusterIP" }}
+  ports:
+    - port: {{ .Values.services.auth.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- if eq (.Values.services.serviceType | default "ClusterIP") "NodePort" }}
+      nodePort: {{ .Values.services.auth.nodePort | default 30999 }}
+      {{- end }}
+  selector:
+    app: {{ .Release.Name }}-auth 

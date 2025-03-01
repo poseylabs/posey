@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-supertokens
+  labels:
+    app: {{ .Release.Name }}-supertokens
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.superTokens.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ .Release.Name }}-supertokens 

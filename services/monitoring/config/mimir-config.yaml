@@ -1,0 +1,46 @@
+multitenancy_enabled: false
+
+blocks_storage:
+  backend: filesystem
+  bucket_store:
+    sync_dir: /data/tsdb-sync
+  filesystem:
+    dir: /data/blocks
+  tsdb:
+    dir: /data/tsdb
+
+compactor:
+  data_dir: /data/compactor
+  sharding_ring:
+    kvstore:
+      store: inmemory
+
+distributor:
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
+
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    final_sleep: 0s
+  chunk_idle_period: 5m
+  chunk_retain_period: 30s
+
+server:
+  http_listen_port: 9009
+
+ruler:
+  alertmanager_url: http://alertmanager:9093
+  ring:
+    kvstore:
+      store: inmemory
+  rule_path: /data/rules
+  storage:
+    type: local
+    local:
+      directory: /data/rules 

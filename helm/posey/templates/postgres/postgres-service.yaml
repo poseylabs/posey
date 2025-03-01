@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: posey-postgres
+  namespace: {{ .Release.Namespace | default "default" }}
+  labels:
+    app: posey-postgres
+    tier: database
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  type: NodePort
+  ports:
+  - port: {{ .Values.services.postgres.port }}
+    targetPort: 5432
+    nodePort: 30432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: posey-postgres 

@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-couchbase
+  labels:
+    app: {{ .Release.Name }}-couchbase
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  serviceName: {{ .Release.Name }}-couchbase
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-couchbase
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-couchbase
+    spec:
+      containers:
+        - name: couchbase
+          image: couchbase/server:7.2.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8091
+              name: ui
+            - containerPort: 8092
+              name: api
+            - containerPort: 8093
+              name: query
+            - containerPort: 8094
+              name: search
+            - containerPort: 8095
+              name: analytics
+            - containerPort: 8096
+              name: eventing
+            - containerPort: 11210
+              name: data
+            - containerPort: 11207
+              name: ssl
+          env:
+            - name: CB_USER
+              value: {{ .Values.databases.couchbase.user | quote }}
+            - name: CB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-couchbase-secrets
+                  key: couchbase-password
+            - name: CB_BUCKET
+              value: {{ .Values.databases.couchbase.bucket | quote }}
+            - name: CB_SCOPE
+              value: {{ .Values.databases.couchbase.scope | quote }}
+            - name: CB_COLLECTION
+              value: {{ .Values.databases.couchbase.collection | quote }}
+            - name: CB_SERVICES
+              value: "data,index,query"
+            - name: CB_RAMSIZE
+              value: "1024"
+            - name: CB_INDEX_RAMSIZE
+              value: "512"
+          volumeMounts:
+            - name: couchbase-data
+              mountPath: /opt/couchbase/var
+          resources:
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /ui/index.html
+              port: ui
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ui/index.html
+              port: ui
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: couchbase-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi 

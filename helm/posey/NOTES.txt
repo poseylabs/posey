@@ -1,0 +1,22 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }}
+  $ helm get all {{ .Release.Name }}
+
+The PostgreSQL database can be accessed on port {{ .Values.services.postgres.port }}:
+
+  PostgreSQL Host: {{ .Release.Name }}-postgres.{{ .Release.Namespace }}.svc.cluster.local
+  PostgreSQL Port: {{ .Values.services.postgres.port }}
+  PostgreSQL User: {{ .Values.services.postgres.user }}
+  PostgreSQL Database: {{ .Values.databases.postgres.dbPosey }}
+
+The Agents service is available at:
+
+  http://{{ .Release.Name }}-agents.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.agents.port }}
+
+For more information, see the README.md file or visit:
+https://github.com/poseylabs/posey

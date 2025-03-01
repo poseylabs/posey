@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+  # OpenTelemetry Collector
+  otel-collector:
+    image: grafana/alloy:latest
+    container_name: posey-otel-collector
+    restart: unless-stopped
+    command: [ "--config=/etc/otel/config.yaml" ]
+    volumes:
+      - ./config/otel-collector-config.yaml:/etc/otel/config.yaml
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "8888:8888" # Metrics endpoint
+    networks:
+      - posey-monitoring
+
+  # Prometheus for short-term metrics storage
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: posey-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-lifecycle
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - posey-monitoring
+
+  # Loki for logs
+  loki:
+    image: grafana/loki:latest
+    container_name: posey-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./config/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - posey-monitoring
+
+  # Tempo for traces
+  tempo:
+    image: grafana/tempo:latest
+    container_name: posey-tempo
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/tempo-local.yaml
+    volumes:
+      - ./config/tempo-config.yaml:/etc/tempo/tempo-local.yaml
+      - tempo-data:/tmp/tempo
+    ports:
+      - "3200:3200" # Tempo endpoint
+      - "4317:4317" # OTLP gRPC, already exposed by otel-collector
+      - "4318:4318" # OTLP HTTP, already exposed by otel-collector
+    networks:
+      - posey-monitoring
+
+  # Mimir for long-term metrics storage
+  mimir:
+    image: grafana/mimir:latest
+    container_name: posey-mimir
+    restart: unless-stopped
+    command: -config.file=/etc/mimir/mimir-local.yaml
+    volumes:
+      - ./config/mimir-config.yaml:/etc/mimir/mimir-local.yaml
+      - mimir-data:/data
+    ports:
+      - "9009:9009" # Mimir API
+    networks:
+      - posey-monitoring
+
+  # Pyroscope for continuous profiling
+  pyroscope:
+    image: grafana/pyroscope:latest
+    container_name: posey-pyroscope
+    restart: unless-stopped
+    command: -config.file=/etc/pyroscope/pyroscope-local.yaml
+    volumes:
+      - ./config/pyroscope-config.yaml:/etc/pyroscope/pyroscope-local.yaml
+      - pyroscope-data:/data
+    ports:
+      - "4040:4040" # Pyroscope UI
+    networks:
+      - posey-monitoring
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: posey-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_FEATURE_TOGGLES_ENABLE=traceQLStreaming
+    volumes:
+      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./config/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - posey-monitoring
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+      - mimir
+      - pyroscope
+
+networks:
+  posey-monitoring:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  mimir-data:
+  pyroscope-data:
+  grafana-data:
