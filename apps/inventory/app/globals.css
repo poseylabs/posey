@@ -1,0 +1,207 @@
+@import "tailwindcss";
+
+/* 
+  These variables override the values from @posey.ai/ui
+  to maintain the same look and feel across all Posey apps
+  while allowing for customization specific to the inventory app
+*/
+:root {
+  --background: #0f172a;
+  /* slate-900 */
+  --foreground: #f8fafc;
+  /* slate-50 */
+  --primary: #3b82f6;
+  /* blue-500 */
+  --primary-content: #ffffff;
+  --secondary: #8b5cf6;
+  /* violet-500 */
+  --secondary-content: #ffffff;
+  --accent: #f59e0b;
+  /* amber-500 */
+  --accent-content: #ffffff;
+  --base-100: #1e293b;
+  /* slate-800 */
+  --base-200: #334155;
+  /* slate-700 */
+  --base-300: #475569;
+  /* slate-600 */
+  --base-content: #f1f5f9;
+  /* slate-100 */
+  --neutral: #64748b;
+  /* slate-500 */
+  --neutral-content: #f8fafc;
+  /* slate-50 */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-content: var(--primary-content);
+  --color-secondary: var(--secondary);
+  --color-secondary-content: var(--secondary-content);
+  --color-accent: var(--accent);
+  --color-accent-content: var(--accent-content);
+  --color-base-100: var(--base-100);
+  --color-base-200: var(--base-200);
+  --color-base-300: var(--base-300);
+  --color-base-content: var(--base-content);
+  --color-neutral: var(--neutral);
+  --color-neutral-content: var(--neutral-content);
+  --font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  --font-mono: var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+  --rounded-box: var(--radius-lg);
+  --rounded-btn: var(--radius-md);
+  --rounded-badge: var(--radius-sm);
+}
+
+/* Inventory app specific overrides and customizations */
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+/* Custom drawer styles to fix layout issues */
+.drawer {
+  display: grid;
+  width: 100%;
+  height: 100vh;
+  grid-auto-columns: max-content auto;
+}
+
+.drawer-toggle {
+  position: absolute;
+  opacity: 0;
+  left: -100vw;
+  height: 0;
+  width: 0;
+}
+
+.drawer-content {
+  grid-column-start: 2;
+  grid-row-start: 1;
+}
+
+.drawer-side {
+  grid-column-start: 1;
+  grid-row-start: 1;
+  height: 100vh;
+  @apply border-r border-base-300;
+}
+
+@media (max-width: 1023px) {
+  .drawer-side {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    width: 100%;
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+  }
+
+  .drawer-toggle:checked~.drawer-side {
+    transform: translateX(0);
+  }
+
+  .drawer-toggle:checked~.drawer-content {
+    overflow: hidden;
+  }
+}
+
+/* Component styling */
+.menu {
+  @apply rounded-lg;
+}
+
+.menu li>a {
+  @apply rounded-md;
+}
+
+.menu li>a:hover {
+  @apply bg-base-200;
+}
+
+.menu li>a.active {
+  @apply bg-primary/10 text-primary font-medium;
+}
+
+.btn {
+  @apply font-medium shadow-sm;
+  text-transform: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  @apply shadow;
+}
+
+.card {
+  @apply rounded-lg shadow-sm border border-base-300 overflow-hidden transition-shadow duration-200;
+}
+
+.card:hover {
+  @apply shadow-md;
+}
+
+/* Add more padding to all card-body elements */
+.card-body {
+  @apply p-6;
+}
+
+.stats {
+  @apply rounded-lg shadow-sm border border-base-300 bg-base-100;
+}
+
+.stat-title {
+  @apply text-sm font-medium opacity-70;
+}
+
+.stat-value {
+  @apply text-3xl font-bold;
+}
+
+.stat-desc {
+  @apply text-sm opacity-70 mt-1;
+}
+
+.table {
+  @apply bg-base-100 rounded-lg border border-base-300 shadow-sm overflow-hidden;
+}
+
+.table :where(th) {
+  @apply px-4 py-3 bg-base-200 font-semibold text-base-content/70 text-sm;
+}
+
+.table :where(td) {
+  @apply px-4 py-3 border-t border-base-300;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply font-semibold text-foreground;
+}
+
+h1 {
+  @apply text-3xl md:text-4xl mb-6;
+}
+
+a {
+  @apply transition-colors duration-200;
+}
+
+a:hover {
+  @apply text-primary;
+}

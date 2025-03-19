@@ -1,0 +1,64 @@
+name: Deploy to Docker Swarm
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.ENV_FILE }}" > services/.env
+          
+      - name: Transfer files to server
+        run: |
+          scp -o StrictHostKeyChecking=no services/docker-compose.yml services/.env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/posey/
+      
+      - name: Deploy Portainer to Swarm
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Remove existing standalone Portainer if any
+            docker rm -f portainer || true
+            
+            # Create Portainer service in Swarm if it doesn't exist
+            if ! docker service ls | grep -q portainer; then
+              docker service create \
+                --name portainer \
+                --publish 9000:9000 \
+                --publish 9443:9443 \
+                --constraint 'node.role == manager' \
+                --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+                --mount type=volume,src=portainer_data,dst=/data \
+                portainer/portainer-ce:latest
+            fi
+
+      - name: Deploy to Docker Swarm
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/posey
+            
+            # Create network if it doesn't exist
+            docker network create --driver overlay posey.net || true
+            
+            # Deploy the stack
+            docker stack deploy -c docker-compose.yml posey --with-registry-auth

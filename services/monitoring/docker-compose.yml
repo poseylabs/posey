@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # OpenTelemetry Collector
   otel-collector:
@@ -14,7 +12,7 @@ services:
       - "4318:4318" # OTLP HTTP
       - "8888:8888" # Metrics endpoint
     networks:
-      - posey-monitoring
+      - posey.net
 
   # Prometheus for short-term metrics storage
   prometheus:
@@ -33,7 +31,7 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - posey-monitoring
+      - posey.net
 
   # Loki for logs
   loki:
@@ -47,7 +45,7 @@ services:
     ports:
       - "3100:3100"
     networks:
-      - posey-monitoring
+      - posey.net
 
   # Tempo for traces
   tempo:
@@ -60,10 +58,8 @@ services:
       - tempo-data:/tmp/tempo
     ports:
       - "3200:3200" # Tempo endpoint
-      - "4317:4317" # OTLP gRPC, already exposed by otel-collector
-      - "4318:4318" # OTLP HTTP, already exposed by otel-collector
     networks:
-      - posey-monitoring
+      - posey.net
 
   # Mimir for long-term metrics storage
   mimir:
@@ -77,7 +73,7 @@ services:
     ports:
       - "9009:9009" # Mimir API
     networks:
-      - posey-monitoring
+      - posey.net
 
   # Pyroscope for continuous profiling
   pyroscope:
@@ -91,7 +87,7 @@ services:
     ports:
       - "4040:4040" # Pyroscope UI
     networks:
-      - posey-monitoring
+      - posey.net
 
   # Grafana for visualization
   grafana:
@@ -106,12 +102,14 @@ services:
     volumes:
       - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
       - ./config/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./config/docker-swarm.yaml:/etc/grafana/provisioning/dashboards/docker-swarm.yaml
       - ./dashboards:/var/lib/grafana/dashboards
+      - ./dashboards/docker-swarm:/var/lib/grafana/dashboards/docker-swarm
       - grafana-data:/var/lib/grafana
     ports:
       - "3000:3000"
     networks:
-      - posey-monitoring
+      - posey.net
     depends_on:
       - prometheus
       - loki
@@ -119,9 +117,43 @@ services:
       - mimir
       - pyroscope
 
-networks:
-  posey-monitoring:
-    driver: bridge
+  # Add these services to your existing docker-compose.yml
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: posey-node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    networks:
+      - posey.net
+    deploy:
+      mode: global
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: posey-cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    privileged: true
+    ports:
+      - "8081:8080"
+    networks:
+      - posey.net
+    deploy:
+      mode: global
 
 volumes:
   prometheus-data:

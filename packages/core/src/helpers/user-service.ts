@@ -67,7 +67,7 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
  */
 export async function updateUserData(userData: Partial<User>): Promise<User> {
 
-  const response = await fetch(`${AGENT_API}/user/${userData.id}`, {
+  const response = await fetch(`${AGENT_API}/auth/user`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',

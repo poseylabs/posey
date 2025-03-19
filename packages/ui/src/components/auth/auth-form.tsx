@@ -85,19 +85,19 @@ export function AuthForm({ onSubmit, mode = 'login' }: AuthFormProps) {
   };
 
   const validatePassword = async (password: string) => {
-    if (password.length < 8) {
-      return "Password must be at least 8 characters long";
+    if (password.length < 5) {
+      return "Password must be at least 5 characters long";
     }
 
     // Require at least 2 numbers
-    if ((password.match(/\d/g) || []).length < 2) {
-      return "Password must contain at least 2 numbers";
-    }
+    // if ((password.match(/\d/g) || []).length < 2) {
+    //   return "Password must contain at least 2 numbers";
+    // }
 
     // Require special characters
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      return "Password must contain at least one special character";
-    }
+    // if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    //   return "Password must contain at least one special character";
+    // }
 
     // No validation error
     return undefined;

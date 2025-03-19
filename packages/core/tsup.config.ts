@@ -42,7 +42,12 @@ export default defineConfig({
     'timers',
     'child_process',
     'tls',
-    'timers/promises'
+    'timers/promises',
+    'node:events',
+    'node:process',
+    'node:util',
+    'assert',
+    'tty'
   ],
   esbuildOptions(options) {
     options.bundle = true
@@ -65,7 +70,12 @@ export default defineConfig({
       'timers',
       'child_process',
       'tls',
-      'timers/promises'
+      'timers/promises',
+      'node:events',
+      'node:process',
+      'node:util',
+      'assert',
+      'tty'
     ]
     options.logOverride = {
       'equals-negative-zero': 'silent',

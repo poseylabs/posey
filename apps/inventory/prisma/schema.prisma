@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  name         String?
+  passwordHash String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  storagePods  StoragePod[]
+  items        Item[]
+  locations    Location[]
+}
+
+model Location {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  address     String?
+  address2    String?
+  city        String?
+  state       String?
+  zip         String?
+  country     String?
+  latitude    Float?
+  longitude   Float?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  storagePods StoragePod[]
+
+  @@index([userId])
+}
+
+model StoragePod {
+  id          String       @id @default(uuid())
+  title       String
+  contents    String?
+  description String?
+  size        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  parentId    String?
+  parent      StoragePod?  @relation("PodToPod", fields: [parentId], references: [id])
+  childPods   StoragePod[] @relation("PodToPod")
+  items       Item[]
+  locationId  String?
+  location    Location?    @relation(fields: [locationId], references: [id])
+
+  @@index([userId])
+  @@index([parentId])
+  @@index([locationId])
+}
+
+model Item {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  quantity    Int        @default(1)
+  color       String?
+  size        String?
+  location    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  podId       String?
+  pod         StoragePod? @relation(fields: [podId], references: [id])
+
+  @@index([userId])
+  @@index([podId])
+}

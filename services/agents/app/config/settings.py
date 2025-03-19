@@ -90,8 +90,9 @@ class Settings(BaseSettings):
             "http://localhost:3000", 
             "http://localhost:5173",
             "http://localhost:5555",
-            "http://127.0.0.1:9999",
-            "http://localhost:8888"
+            "http://localhost:8000",
+            "http://localhost:8888",
+            "http://localhost:9999",
         ]
     )
 

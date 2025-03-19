@@ -1,16 +1,22 @@
--- Connect to default postgres database first
-\c postgres;
+-- This file is now just for additional setup that needs to happen after the databases are created
+-- Database creation is now handled by create-databases.sh
 
--- Terminate existing connections to databases we want to drop
-SELECT pg_terminate_backend(pid) 
-FROM pg_stat_activity 
-WHERE datname IN ('posey', 'supertokens')
-AND pid <> pg_backend_pid();
+-- You can add database-specific extensions or initial tables here
+-- For example:
 
--- Drop existing databases if they exist
--- TODO: Remove this after initial database schema is finalized
-DROP DATABASE IF EXISTS posey;
-DROP DATABASE IF EXISTS supertokens;
+-- Connect to posey database
+\c posey;
 
-CREATE DATABASE posey;
-CREATE DATABASE supertokens;
+-- Create any extensions needed
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Connect to supertokens database
+\c supertokens;
+
+-- Create any extensions needed
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Output message
+\echo 'Database initialization complete'

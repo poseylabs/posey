@@ -17,6 +17,19 @@ scrape_configs:
     static_configs:
       - targets: ['host.docker.internal:9464']  # Default Node.js exporter port
 
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['posey-node-exporter:9100']
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['posey-cadvisor:8080']
+
+  # Docker Swarm metrics
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['posey-agents:5555', 'posey-auth:9999', 'posey-mcp:5050', 'posey-voyager:7777']
+
 remote_write:
   - url: "http://mimir:9009/api/v1/push"
     name: mimir 

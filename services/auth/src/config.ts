@@ -25,6 +25,7 @@ export interface Config {
 
 const allowedOrigins: string[] = [
   'http://localhost:5555',
+  'http://localhost:8000',
   'http://localhost:8888',
 ]
 

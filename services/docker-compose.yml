@@ -138,6 +138,26 @@ services:
       timeout: 10s
       retries: 3
 
+  # This is a wrapper service that depends on all monitoring services
+  posey-monitoring:
+    image: alpine:latest
+    container_name: posey-monitoring-control
+    command: "sh -c 'echo Monitoring stack started && tail -f /dev/null'"
+    profiles:
+      - monitoring
+    depends_on:
+      - otel-collector
+      - prometheus
+      - loki
+      - tempo
+      - mimir
+      - pyroscope
+      - grafana
+      - node-exporter
+      - cadvisor
+    networks:
+      - posey.net
+
   # SuperTokens auth service
   posey-supertokens:
     container_name: posey-supertokens
@@ -229,5 +249,8 @@ volumes:
 networks:
   posey.net:
     name: posey.net
-    external: true
     driver: bridge
+    external: true
+
+include:
+  - ./monitoring/docker-compose.yml

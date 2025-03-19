@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const allowedPorts = [2222, 5173, 5555, 8888, 9999]
+const allowedPorts = [2222, 3000, 3333, 5173, 5555, 8000, 8888, 9999]
 const allowedOrigins = allowedPorts.map(port => `http://localhost:${port}`)
 
 const securityHeaders = [
@@ -23,11 +23,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  devIndicators: {
-    appIsrStatus: false,
-    buildActivity: process.env.NODE_ENV === 'development' ? true : false,
-    buildActivityPosition: 'top-right'
-  },
   transpilePackages: ["@posey.ai/ui", "@posey.ai/core", "@posey.ai/state"],
   experimental: {
     serverActions: {

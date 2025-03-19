@@ -11,6 +11,20 @@ import { poseyPool, validateDatabaseConnection } from './database';
 import { supertokensConfig } from './config/supertokens';
 import { syncUserToDatabase, updateLastLogin } from './user-utils';
 
+const DEFAULT_USER_PREFERENCES = {
+  language: 'en',
+  theme: 'light',
+  notifications: true,
+  emailNotifications: true,
+  smsNotifications: false
+};
+
+const DEFAULT_USER_PROFILE = {
+  name: '',
+  image: '',
+  bio: '',
+};
+
 // Console log for debugging imports
 console.log('Loaded modules:', {
   express: !!express,
@@ -335,43 +349,43 @@ app.post("/auth/signout", verifySession(), async (req: SessionRequest, res) => {
 
 // Add update user endpoint
 app.put("/auth/user", verifySession(), async (req: SessionRequest, res) => {
-  // try {
-  //   const session = req.session!;
-  //   const userId = session.getUserId();
-  //   const updates = req.body;
+  try {
+    const session = req.session!;
+    const userId = session.getUserId();
+    const updates = req.body;
 
-  //   // Update metadata with new user data
-  //   const currentMetadata = await UserMetadata.getUserMetadata(userId);
-  //   const cleanedMetadata = {
-  //     ...currentMetadata.metadata,
-  //     ...updates,
-  //   };
+    // Update metadata with new user data
+    const currentMetadata = await UserMetadata.getUserMetadata(userId);
+    const cleanedMetadata = {
+      ...currentMetadata.metadata,
+      ...updates,
+    };
 
-  //   // Get fresh user data
-  //   const userInfo = await SuperTokens.getUser(userId);
-  //   const updatedMetadata = await UserMetadata.getUserMetadata(userId);
+    // Get fresh user data
+    const userInfo = await SuperTokens.getUser(userId);
+    const updatedMetadata = await UserMetadata.getUserMetadata(userId);
 
-  //   // Clean metadata
-  //   const cleanedUpdatedMetadata = {
-  //     ...cleanedMetadata,
-  //     preferences: updatedMetadata.metadata?.preferences || DEFAULT_USER_PREFERENCES,
-  //     profile: updatedMetadata.metadata?.profile || DEFAULT_USER_PROFILE
-  //   };
+    // Clean metadata
+    const cleanedUpdatedMetadata = {
+      ...cleanedMetadata,
+      preferences: updatedMetadata.metadata?.preferences || DEFAULT_USER_PREFERENCES,
+      profile: updatedMetadata.metadata?.profile || DEFAULT_USER_PROFILE
+    };
 
-  //   // Update user metadata in database
-  //   await UserMetadata.updateUserMetadata(userId, cleanedUpdatedMetadata);
+    // Update user metadata in database
+    await UserMetadata.updateUserMetadata(userId, cleanedUpdatedMetadata);
 
-  //   return res.json({
-  //     status: "OK",
-  //     user: formatUserData(userId, userInfo, updatedMetadata)
-  //   });
-  // } catch (err) {
-  //   console.error("Error updating user:", err);
-  //   return res.status(500).json({
-  //     status: "ERROR",
-  //     message: "Failed to update user"
-  //   });
-  // }
+    return res.json({
+      status: "OK",
+      user: formatUserData(userId, userInfo, updatedMetadata)
+    });
+  } catch (err) {
+    console.error("Error updating user:", err);
+    return res.status(500).json({
+      status: "ERROR",
+      message: "Failed to update user"
+    });
+  }
 });
 
 // Add this endpoint to expose the JWT verification key
