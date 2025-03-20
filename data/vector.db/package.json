@@ -15,7 +15,14 @@
     "k8s:down": "node k8s-manager.js down",
     "clean": "node scripts/clean.js",
     "clean:force": "node scripts/clean.js --force",
-    "healthcheck": "node scripts/healthcheck.js"
+    "healthcheck": "node scripts/healthcheck.js",
+    "build:local": "echo '🔨 Building Docker image posey-qdrant:latest...' && docker build -t posey-qdrant:latest .",
+    "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
+    "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f k8s/namespace.yaml && kubectl apply -k k8s",
+    "verify": "yarn k8s:check && kubectl get pods -n posey -l app=qdrant && kubectl get services -n posey | grep qdrant",
+    "clean:local": "yarn k8s:check && kubectl delete -k k8s",
+    "redeploy": "yarn clean:local && yarn build:local && yarn deploy:local",
+    "connect": "echo 'Qdrant is available at: http://localhost:1111'"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.12.0",

@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: qdrant
+  namespace: posey
 spec:
   replicas: 1
   selector:
@@ -14,15 +15,48 @@ spec:
     spec:
       containers:
       - name: qdrant
-        image: registry.digitalocean.com/posey/vector.db:latest
+        image: posey-qdrant:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 1111
+          name: http
         - containerPort: 6334
+          name: grpc
+        env:
+        - name: QDRANT_CONFIG_PATH
+          value: "/qdrant/config/config.yaml"
         volumeMounts:
         - name: config
           mountPath: /qdrant/config
         - name: storage
           mountPath: /qdrant/storage
+        - name: scripts
+          mountPath: /qdrant/scripts
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 1111
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 1111
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "node /qdrant/scripts/init-collections.js"]
       volumes:
       - name: config
         configMap:
@@ -30,3 +64,6 @@ spec:
       - name: storage
         persistentVolumeClaim:
           claimName: qdrant-storage
+      - name: scripts
+        configMap:
+          name: qdrant-scripts

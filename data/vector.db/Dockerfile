@@ -12,17 +12,17 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /qdrant
 
 # Copy our custom config
-COPY vector.db/config.yaml config/production.yaml
+COPY config.yaml config/production.yaml
 
 # Copy initialization scripts and package files
-COPY vector.db/scripts /qdrant/scripts/
-COPY vector.db/package*.json ./
+COPY scripts /qdrant/scripts/
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
 # Create startup script
-COPY vector.db/docker-entrypoint.sh /docker-entrypoint.sh
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 # Expose ports (REST API, GRPC, and our custom port)
