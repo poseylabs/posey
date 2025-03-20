@@ -14,6 +14,7 @@ spec:
       labels:
         app: postgres
     spec:
+      dnsPolicy: ClusterFirstWithHostNet
       securityContext:
         fsGroup: 999
       initContainers:
@@ -52,46 +53,52 @@ spec:
             secretKeyRef:
               name: postgres-credentials
               key: POSTGRES_DB
+        - name: POSTGRES_DB_POSEY
+          value: "posey"
         - name: PGPORT
-          valueFrom:
-            configMapKeyRef:
-              name: postgres-config
-              key: POSTGRES_PORT
+          value: "3333"
         - name: PGDATA
-          value: /var/lib/postgresql/data/pgdata
-        args:
-        - "-c"
-        - "config_file=/etc/postgresql/postgresql.conf"
+          value: "/var/lib/postgresql/data/pgdata"
+        - name: POSTGRES_HOST_AUTH_METHOD
+          value: "trust"
         ports:
         - containerPort: 3333
           name: postgres
         volumeMounts:
         - name: postgres-data
           mountPath: /var/lib/postgresql/data
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sh", "-c", "pg_ctl -D /var/lib/postgresql/data/pgdata stop -m fast"]
         readinessProbe:
           exec:
             command:
             - pg_isready
             - -U
-            - $(POSTGRES_USER)
+            - pocketdb
             - -d
             - postgres
             - -p
             - "3333"
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
         livenessProbe:
           exec:
             command:
             - pg_isready
             - -U
-            - $(POSTGRES_USER)
+            - pocketdb
             - -d
             - postgres
             - -p
             - "3333"
           initialDelaySeconds: 60
           periodSeconds: 10
+          timeoutSeconds: 5
       volumes:
       - name: postgres-data
-        emptyDir: {} 
+        emptyDir:
+          medium: ""
+          sizeLimit: "2Gi" 

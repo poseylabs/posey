@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: posey-supertokens
+  namespace: posey
+spec:
+  selector:
+    app: posey-supertokens
+  ports:
+  - port: 3567
+    targetPort: 3567
+  type: ClusterIP 

@@ -39,3 +39,27 @@ CREATE INDEX IF NOT EXISTS hdb_cron_events_status_idx ON hdb_catalog.hdb_cron_ev
 EOF
 
 echo "Hasura metadata tables initialized"
+
+# Ensure PostgreSQL listens on all interfaces
+echo "Configuring PostgreSQL to listen on all interfaces"
+
+# If the configuration file exists, modify it
+if [ -f "$PGDATA/postgresql.conf" ]; then
+  # Backup the original file
+  cp "$PGDATA/postgresql.conf" "$PGDATA/postgresql.conf.bak"
+  
+  # Update the configuration
+  sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" "$PGDATA/postgresql.conf"
+  sed -i "s/#port = 5432/port = 3333/" "$PGDATA/postgresql.conf"
+  
+  # Allow all connections on port 3333
+  echo "host all all 0.0.0.0/0 trust" >> "$PGDATA/pg_hba.conf"
+  
+  echo "PostgreSQL configuration updated"
+else
+  echo "PostgreSQL configuration file not found at $PGDATA/postgresql.conf"
+fi
+
+# Start PostgreSQL with modified configuration
+echo "Starting PostgreSQL with specific configuration options"
+exec postgres -c listen_addresses='*' -c port=3333 "$@"

@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: posey-auth
+  namespace: posey
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: posey-auth
+  template:
+    metadata:
+      labels:
+        app: posey-auth
+    spec:
+      containers:
+      - name: posey-auth
+        image: posey-auth:latest  # You'll need to build and push this image
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9999
+        resources:
+          limits:
+            memory: 1Gi
+            cpu: "0.5"
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+        envFrom:
+        - configMapRef:
+            name: posey-shared-env
+        - secretRef:
+            name: posey-secrets
+        env:
+        - name: AUTH_PORT
+          value: "9999"
+        - name: SUPERTOKENS_CONNECTION_URI
+          value: "http://posey-supertokens:3567"
+        volumeMounts:
+        - name: auth-data
+          mountPath: /app/data
+      volumes:
+      - name: auth-data
+        persistentVolumeClaim:
+          claimName: auth-data-pvc 

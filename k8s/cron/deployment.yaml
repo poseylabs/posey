@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: posey-cron
+  namespace: posey
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: posey-cron
+  template:
+    metadata:
+      labels:
+        app: posey-cron
+    spec:
+      containers:
+      - name: posey-cron
+        image: posey-cron:latest  # You'll need to build and push this image
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 2222
+        resources:
+          limits:
+            memory: 1Gi
+            cpu: "0.5"
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+        envFrom:
+        - configMapRef:
+            name: posey-shared-env
+        - secretRef:
+            name: posey-secrets
+        volumeMounts:
+        - name: cron-data
+          mountPath: /app/data
+        - name: cron-logs
+          mountPath: /app/logs
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 2222
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+      volumes:
+      - name: cron-data
+        persistentVolumeClaim:
+          claimName: cron-data-pvc
+      - name: cron-logs
+        persistentVolumeClaim:
+          claimName: cron-logs-pvc 

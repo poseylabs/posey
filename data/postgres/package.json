@@ -18,7 +18,8 @@
     "clean": "yarn k8s:check && kubectl delete -k k8s",
     "clean:local": "yarn k8s:check && kubectl delete -k k8s/local",
     "connect": "echo \"Connection string (using dev proxy): postgresql://pocketdb:BNI_HGgs6F33IUY4BUN0Z@localhost:3333/posey\"\necho \"Connection string (direct NodePort): postgresql://pocketdb:BNI_HGgs6F33IUY4BUN0Z@localhost:30333/posey\"",
-    "redeploy": "yarn clean:local && yarn build:local && yarn deploy:local"
+    "redeploy": "yarn clean:local && yarn build:local && yarn deploy:local",
+    "db:reset": "yarn k8s:check && echo '🔄 Resetting all databases in PostgreSQL...' && bash scripts/reset_k8s_databases.sh"
   },
   "dependencies": {
     "dotenv": "^16.4.5"

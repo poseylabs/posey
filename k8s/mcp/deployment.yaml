@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: posey-mcp
+  namespace: posey
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: posey-mcp
+  template:
+    metadata:
+      labels:
+        app: posey-mcp
+    spec:
+      containers:
+      - name: posey-mcp
+        image: posey-mcp:latest  # You'll need to build and push this image
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5050
+        resources:
+          limits:
+            memory: 1Gi
+            cpu: "0.5"
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
+        env:
+        - name: AGENTS_SERVICE_URL
+          value: "http://posey-agents:5555"
+        - name: MCP_PORT
+          value: "5050"
+        - name: LOG_LEVEL
+          value: "INFO"
+        volumeMounts:
+        - name: mcp-data
+          mountPath: /src/data
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5050
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+      volumes:
+      - name: mcp-data
+        persistentVolumeClaim:
+          claimName: mcp-data-pvc 

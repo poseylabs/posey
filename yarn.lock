@@ -5944,6 +5944,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@posey.ai/couchbase@workspace:data/couchbase":
+  version: 0.0.0-use.local
+  resolution: "@posey.ai/couchbase@workspace:data/couchbase"
+  dependencies:
+    dotenv: "npm:^16.4.5"
+  languageName: unknown
+  linkType: soft
+
 "@posey.ai/cron@workspace:services/cron":
   version: 0.0.0-use.local
   resolution: "@posey.ai/cron@workspace:services/cron"

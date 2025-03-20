@@ -14,28 +14,29 @@ spec:
       labels:
         app: postgres
     spec:
+      dnsPolicy: ClusterFirstWithHostNet
       securityContext:
         fsGroup: 999
-      # Add init container to set correct permissions
       initContainers:
-      - name: init-permissions
+      - name: init-pgdata
         image: busybox
-        securityContext:
-          runAsUser: 0
         command:
         - sh
         - -c
         - |
-          mkdir -p /var/lib/postgresql/data
-          chmod 0700 /var/lib/postgresql/data
+          mkdir -p /var/lib/postgresql/data/pgdata
           chown -R 999:999 /var/lib/postgresql/data
+          chmod -R 0700 /var/lib/postgresql/data
         volumeMounts:
-        - name: postgres-storage
+        - name: postgres-data
           mountPath: /var/lib/postgresql/data
       containers:
       - name: postgres
         image: posey-postgres:latest
         imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 999
+          runAsGroup: 999
         env:
         - name: POSTGRES_USER
           valueFrom:
@@ -52,72 +53,52 @@ spec:
             secretKeyRef:
               name: postgres-credentials
               key: POSTGRES_DB
-        - name: POSTGRES_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: postgres-config
-              key: POSTGRES_PORT
-        - name: POSTGRES_INITDB_WALDIR
-          value: "/var/lib/postgresql/wal"
-        # Use config file only
-        args:
-        - "-c"
-        - "config_file=/etc/postgresql/postgresql.conf"
-        # Add post-start lifecycle hook to create postgres user if it doesn't exist
-        lifecycle:
-          postStart:
-            exec:
-              command:
-              - "bash"
-              - "-c"
-              - |
-                sleep 10
-                psql -U "$POSTGRES_USER" -d posey -p "$POSTGRES_PORT" -c "DO \$\$
-                BEGIN
-                  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'postgres') THEN
-                    CREATE ROLE postgres WITH LOGIN SUPERUSER PASSWORD 'postgres';
-                  END IF;
-                END
-                \$\$;"
+        - name: POSTGRES_DB_POSEY
+          value: "posey"
+        - name: PGPORT
+          value: "3333"
+        - name: PGDATA
+          value: "/var/lib/postgresql/data/pgdata"
+        - name: POSTGRES_HOST_AUTH_METHOD
+          value: "trust"
         ports:
         - containerPort: 3333
           name: postgres
         volumeMounts:
-        - name: postgres-storage
+        - name: postgres-data
           mountPath: /var/lib/postgresql/data
-        securityContext:
-          runAsUser: 999
-          runAsGroup: 999
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sh", "-c", "pg_ctl -D /var/lib/postgresql/data/pgdata stop -m fast"]
         readinessProbe:
           exec:
             command:
             - pg_isready
             - -U
-            - $(POSTGRES_USER)
+            - pocketdb
             - -d
             - postgres
             - -p
             - "3333"
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
         livenessProbe:
           exec:
             command:
             - pg_isready
             - -U
-            - $(POSTGRES_USER)
+            - pocketdb
             - -d
             - postgres
             - -p
             - "3333"
           initialDelaySeconds: 60
           periodSeconds: 10
-      volumes: []
-  volumeClaimTemplates:
-  - metadata:
-      name: postgres-storage
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 1Gi 
+          timeoutSeconds: 5
+      volumes:
+      - name: postgres-data
+        emptyDir:
+          medium: ""
+          sizeLimit: "2Gi" 
