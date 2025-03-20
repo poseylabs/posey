@@ -1,4 +1,5 @@
-FROM node:20 as builder
+FROM node:20 AS builder
+
 WORKDIR /app
 
 ARG NODE_ENV
@@ -6,12 +7,12 @@ ENV NODE_ENV=$NODE_ENV
 
 COPY src /app
 
+# Final stage
 FROM hasura/graphql-engine:v2.15.2
 
 COPY --from=builder /app /app
 COPY src/migrations /app/src/migrations/
 COPY scripts/run-migrations.sh /app/scripts/
-COPY scripts/entrypoint.sh /app/scripts/
 
 USER root
 
@@ -24,7 +25,7 @@ RUN apt-get update && \
   apt-get update && \
   apt-get install -y postgresql-client-15 && \
   rm -rf /var/lib/apt/lists/* && \
-  chmod +x /app/scripts/run-migrations.sh /app/scripts/entrypoint.sh
+  chmod +x /app/scripts/run-migrations.sh
 
 # Add PostgreSQL binaries to PATH
 ENV PATH="/usr/lib/postgresql/15/bin:${PATH}"
@@ -39,4 +40,4 @@ USER hasura
 ENV PORT=4444
 EXPOSE 4444
 
-ENTRYPOINT ["/bin/sh", "-c", "/app/scripts/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "-c", "/app/scripts/run-migrations.sh && graphql-engine serve"] 

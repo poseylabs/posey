@@ -10,14 +10,14 @@
     "build": "yarn docker:build && yarn docker:push",
     "build:local": "echo '🔨 Building Docker image posey-couchbase:latest...' && docker build --no-cache -t posey-couchbase:latest . && docker images posey-couchbase:latest",
     "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
-    "deploy": "yarn k8s:check && kubectl apply -f k8s/namespace.yaml && kubectl apply -k k8s",
+    "deploy": "bash ../../scripts/k8s-deploy.sh couchbase",
     "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f k8s/namespace.yaml && kubectl apply -k k8s",
-    "verify": "yarn k8s:check && echo '🔍 Checking pods:' && kubectl get pods -n posey -l app=posey-couchbase && echo '🔍 Checking services:' && kubectl get services -n posey -o wide | grep couchbase",
-    "debug": "echo '🔍 Checking Docker images:' && docker images | grep couchbase && echo '🔍 Checking Kubernetes pods:' && kubectl get pods -n posey -l app=posey-couchbase -o wide && echo '🔍 Checking pod details:' && kubectl describe pod -n posey -l app=posey-couchbase || echo 'No pods found' && echo '🔍 Checking PVC status:' && kubectl get pvc -n posey | grep couchbase && echo '🔍 Checking Kubernetes events:' && kubectl get events -n posey --sort-by=.metadata.creationTimestamp | tail -n 15",
+    "verify": "kubectl get pods -n posey -l app=couchbase && kubectl get services -n posey -l app=couchbase",
+    "debug": "echo '🔍 Checking Docker images:' && docker images | grep couchbase && echo '🔍 Checking Kubernetes pods:' && kubectl get pods -n posey -l app=couchbase -o wide && echo '🔍 Checking pod details:' && kubectl describe pod -n posey -l app=couchbase || echo 'No pods found' && echo '🔍 Checking PVC status:' && kubectl get pvc -n posey | grep couchbase && echo '🔍 Checking Kubernetes events:' && kubectl get events -n posey --sort-by=.metadata.creationTimestamp | tail -n 15",
     "clean": "yarn k8s:check && kubectl delete -k k8s",
-    "connect": "echo 'Couchbase UI is available at: http://localhost:8091 (when port-forwarded)' && echo 'To port-forward: kubectl port-forward service/posey-couchbase 8091:8091 -n posey'",
-    "port-forward": "kubectl port-forward service/posey-couchbase 8091:8091 8092:8092 8093:8093 8094:8094 11210:11210 -n posey",
-    "redeploy": "yarn clean && yarn deploy:local"
+    "connect": "echo 'Couchbase UI is available at: http://localhost:8091 (when port-forwarded)' && echo 'To port-forward: kubectl port-forward service/couchbase 8091:8091 -n posey'",
+    "port-forward": "kubectl port-forward service/couchbase 8091:8091 8092:8092 8093:8093 8094:8094 11210:11210 -n posey",
+    "redeploy": "bash ../../scripts/k8s-deploy.sh --clean couchbase"
   },
   "dependencies": {
     "dotenv": "^16.4.5"

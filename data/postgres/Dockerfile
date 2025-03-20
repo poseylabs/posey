@@ -26,7 +26,6 @@ RUN chmod -R +x /docker-entrypoint-initdb.d/
 
 # Set PostgreSQL to listen on port 3333 during initialization
 ENV PGPORT=3333
-ENV POSTGRES_HOST_AUTH_METHOD=trust
 ENV ENVIRONMENT=development
 
 USER postgres

@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: posey-couchbase
+  name: couchbase
   namespace: posey
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: posey-couchbase
+      app: couchbase
   template:
     metadata:
       labels:
-        app: posey-couchbase
+        app: couchbase
     spec:
       containers:
       - name: couchbase

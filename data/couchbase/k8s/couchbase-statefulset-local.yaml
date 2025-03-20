@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: couchbase
+  namespace: posey
+spec:
+  serviceName: "couchbase"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: couchbase
+  template:
+    metadata:
+      labels:
+        app: couchbase
+    spec:
+      dnsPolicy: ClusterFirstWithHostNet
+      initContainers:
+      - name: init-couchbase-data
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          mkdir -p /opt/couchbase/var
+          chmod -R 0755 /opt/couchbase/var
+        volumeMounts:
+        - name: couchbase-data
+          mountPath: /opt/couchbase/var
+      containers:
+      - name: couchbase
+        image: posey-couchbase:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8091
+          name: web
+        - containerPort: 8092
+          name: api
+        - containerPort: 8093
+          name: query
+        - containerPort: 8094
+          name: search
+        - containerPort: 11210
+          name: data
+        env:
+        - name: CB_REST_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: couchbase-credentials
+              key: CB_REST_USERNAME
+        - name: CB_REST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: couchbase-credentials
+              key: CB_REST_PASSWORD
+        - name: COUCHBASE_ADMINISTRATOR_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: couchbase-credentials
+              key: COUCHBASE_ADMINISTRATOR_USERNAME
+        - name: COUCHBASE_ADMINISTRATOR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: couchbase-credentials
+              key: COUCHBASE_ADMINISTRATOR_PASSWORD
+        - name: COUCHBASE_BUCKET
+          value: "posey"
+        volumeMounts:
+        - name: couchbase-data
+          mountPath: /opt/couchbase/var
+        readinessProbe:
+          httpGet:
+            path: /ui/index.html
+            port: 8091
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /ui/index.html
+            port: 8091
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "300m"
+          limits:
+            memory: "2Gi"
+            cpu: "1"
+      volumes:
+      - name: couchbase-data
+        emptyDir:
+          medium: ""
+          sizeLimit: "4Gi" 

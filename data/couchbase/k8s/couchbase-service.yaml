@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: posey-couchbase
+  name: couchbase
   namespace: posey
 spec:
   selector:
-    app: posey-couchbase
+    app: couchbase
   ports:
   - name: web-ui
     port: 8091

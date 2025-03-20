@@ -3,7 +3,9 @@
   "version": "0.0.0-beta.1",
   "type": "module",
   "scripts": {
-    "deploy": "doctl kubernetes cluster kubeconfig save pockets && yarn k8s:up",
+    "deploy": "bash ../../scripts/k8s-deploy.sh qdrant",
+    "redeploy": "bash ../../scripts/k8s-deploy.sh --clean qdrant",
+    "verify": "kubectl get pods -n posey -l app=qdrant && kubectl get services -n posey -l app=qdrant",
     "docker:build": "docker build -t registry.digitalocean.com/posey/vector.db:latest .",
     "docker:push": "docker push registry.digitalocean.com/posey/vector.db:latest",
     "docker:deploy": "yarn docker:build && yarn docker:push",
@@ -11,17 +13,11 @@
     "docker:start": "docker run -d --name qdrant -p 1111:1111 -p 6334:6334 -v $(pwd)/storage:/qdrant/storage registry.digitalocean.com/posey/vector.db:latest",
     "docker:stop": "docker stop qdrant && docker rm qdrant",
     "docker:logs": "docker logs qdrant",
-    "k8s:up": "node k8s-manager.js up",
-    "k8s:down": "node k8s-manager.js down",
     "clean": "node scripts/clean.js",
     "clean:force": "node scripts/clean.js --force",
     "healthcheck": "node scripts/healthcheck.js",
     "build:local": "echo '🔨 Building Docker image posey-qdrant:latest...' && docker build -t posey-qdrant:latest .",
     "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
-    "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f k8s/namespace.yaml && kubectl apply -k k8s",
-    "verify": "yarn k8s:check && kubectl get pods -n posey -l app=qdrant && kubectl get services -n posey | grep qdrant",
-    "clean:local": "yarn k8s:check && kubectl delete -k k8s",
-    "redeploy": "yarn clean:local && yarn build:local && yarn deploy:local",
     "connect": "echo 'Qdrant is available at: http://localhost:1111'"
   },
   "dependencies": {

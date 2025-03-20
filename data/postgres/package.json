@@ -11,14 +11,14 @@
     "build": "yarn docker:build && yarn docker:push",
     "build:local": "echo '🔨 Building Docker image posey-postgres:latest...' && docker build --no-cache -t posey-postgres:latest . && docker images posey-postgres:latest",
     "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
-    "deploy": "yarn k8s:check && kubectl apply -f k8s/namespace.yaml && kubectl apply -k k8s",
+    "deploy": "bash ../../scripts/k8s-deploy.sh postgres",
     "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f k8s/namespace.yaml && mkdir -p k8s/local && cp k8s/postgres-statefulset-local.yaml k8s/local/ && cp k8s/postgres-secret.yaml k8s/local/ && cp k8s/postgres-configmap.yaml k8s/local/ && cp k8s/postgres-storage.yaml k8s/local/ && cp k8s/postgres-service.yaml k8s/local/ && kubectl delete statefulset postgres -n posey --ignore-not-found && kubectl delete pvc postgres-storage-postgres-0 -n posey --ignore-not-found && kubectl apply -k k8s/local",
-    "verify": "yarn k8s:check && kubectl get pods -n posey && kubectl get services -n posey",
+    "verify": "kubectl get pods -n posey -l app=postgres && kubectl get services -n posey -l app=postgres",
     "debug": "echo '🔍 Checking Docker images:' && docker images | grep postgres && echo '🔍 Checking StatefulSet:' && kubectl get statefulset -n posey && echo '🔍 Checking Kubernetes pods:' && kubectl get pods -n posey -o wide && echo '🔍 Checking pod details:' && kubectl describe pod -n posey -l app=postgres || echo 'No pods found' && echo '🔍 Checking PVC status:' && kubectl get pvc -n posey && echo '🔍 Checking Kubernetes events:' && kubectl get events -n posey --sort-by=.metadata.creationTimestamp | tail -n 15",
     "clean": "yarn k8s:check && kubectl delete -k k8s",
     "clean:local": "yarn k8s:check && kubectl delete -k k8s/local",
     "connect": "echo \"Connection string (using dev proxy): postgresql://pocketdb:BNI_HGgs6F33IUY4BUN0Z@localhost:3333/posey\"\necho \"Connection string (direct NodePort): postgresql://pocketdb:BNI_HGgs6F33IUY4BUN0Z@localhost:30333/posey\"",
-    "redeploy": "yarn clean:local && yarn build:local && yarn deploy:local",
+    "redeploy": "bash ../../scripts/k8s-deploy.sh --clean postgres",
     "db:reset": "yarn k8s:check && echo '🔄 Resetting all databases in PostgreSQL...' && bash scripts/reset_k8s_databases.sh"
   },
   "dependencies": {

@@ -32,7 +32,7 @@ spec:
           mountPath: /var/lib/postgresql/data
       containers:
       - name: postgres
-        image: posey-postgres:latest
+        image: posey-postgres:fixed
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsUser: 999
@@ -59,8 +59,6 @@ spec:
           value: "3333"
         - name: PGDATA
           value: "/var/lib/postgresql/data/pgdata"
-        - name: POSTGRES_HOST_AUTH_METHOD
-          value: "trust"
         ports:
         - containerPort: 3333
           name: postgres

@@ -7,7 +7,13 @@
     "docker:push": "docker push registry.digitalocean.com/posey/graphql:latest",
     "docker:start": "docker run -p 4444:4444 registry.digitalocean.com/posey/graphql:latest",
     "docker:stop": "docker stop $(docker ps -q)",
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:local": "echo '🔨 Building Docker image posey-graphql:latest...' && docker build -t posey-graphql:latest -f Dockerfile.local .",
+    "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
+    "deploy": "bash ../../scripts/k8s-deploy.sh graphql",
+    "redeploy": "bash ../../scripts/k8s-deploy.sh --clean graphql",
+    "verify": "kubectl get pods -n posey -l app=graphql && kubectl get services -n posey -l app=graphql",
+    "connect": "echo 'GraphQL UI is available at: http://localhost:4444/console'"
   },
   "dependencies": {
     "apollo-server-express": "^3.13.0",

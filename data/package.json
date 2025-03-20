@@ -4,14 +4,25 @@
   "type": "module",
   "license": "AGPL-3.0",
   "scripts": {
-    "build": "npx nx build",
-    "deploy": "docker-compose up -d",
-    "dev": "node postgres/k8s/dev-proxy.js",
-    "init": "if [ -f docker-compose.yml ]; then docker-compose down; fi"
+    "build": "node --loader ts-node/esm scripts/build.ts",
+    "build:local": "node --loader ts-node/esm scripts/build.ts --local",
+    "deploy": "node --loader ts-node/esm scripts/deploy.ts",
+    "deploy:local": "node --loader ts-node/esm scripts/deploy.ts --local",
+    "dev": "node --loader ts-node/esm scripts/dev.ts",
+    "start": "node --loader ts-node/esm scripts/start.ts",
+    "clean": "node --loader ts-node/esm scripts/clean.ts",
+    "cleanup-init": "node --loader ts-node/esm scripts/cleanup-init.ts"
   },
   "private": true,
   "dependencies": {
     "dotenv": "^16.3.1",
     "nx": "16.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "chalk": "^5.3.0",
+    "execa": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }

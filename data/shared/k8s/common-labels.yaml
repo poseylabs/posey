@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: common-labels
+  namespace: posey
+data:
+  labels: |
+    part-of: posey-platform
+    managed-by: posey-k8s-scripts
+    environment: development
+    created-by: posey-deployment 

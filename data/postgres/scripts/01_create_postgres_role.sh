@@ -8,4 +8,4 @@ BEGIN
   END IF;
 END
 \$\$;
-EOF 
+EOF
