@@ -3,10 +3,12 @@ kind: Service
 metadata:
   name: posey-agents
   namespace: posey
+  labels:
+    app: posey-agents
 spec:
   selector:
     app: posey-agents
   ports:
   - port: 5555
     targetPort: 5555
-  type: ClusterIP 
+  type: LoadBalancer

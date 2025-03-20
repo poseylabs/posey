@@ -2,7 +2,7 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-COPY services/agents/requirements.txt .
+COPY requirements.txt .
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
@@ -43,8 +43,8 @@ RUN mkdir -p /app/models /app/data && \
     chown -R posey-agents:posey-agents /app
 
 # Copy application code
-COPY services/agents /app/service/
-COPY services/agents/scripts/entrypoint.sh /app/entrypoint.sh
+COPY . /app/service/
+COPY scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 RUN chown posey-agents:posey-agents /app/entrypoint.sh
 

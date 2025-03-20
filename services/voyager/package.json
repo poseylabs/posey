@@ -1,0 +1,24 @@
+{
+  "name": "@posey.ai/voyager",
+  "version": "0.0.0-beta.1",
+  "scripts": {
+    "docker:build": "docker build -t registry.digitalocean.com/posey/posey-voyager:latest .",
+    "docker:push": "docker push registry.digitalocean.com/posey/posey-voyager:latest",
+    "docker:start": "docker run -p 7777:7777 registry.digitalocean.com/posey/posey-voyager:latest",
+    "docker:stop": "docker stop $(docker ps -q --filter ancestor=registry.digitalocean.com/posey/posey-voyager:latest)",
+    "build:docker": "yarn docker:build && yarn docker:push",
+    "build:local": "echo '🔨 Building Docker image posey-voyager:latest...' && docker build -t posey-voyager:latest . && docker images posey-voyager:latest",
+    "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
+    "deploy": "bash ../../scripts/k8s-deploy.sh voyager",
+    "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f ./k8s/voyager-pvc.yaml -n posey && kubectl apply -f ./k8s/service.yaml -n posey && kubectl apply -f ./k8s/deployment-local.yaml -n posey",
+    "verify": "kubectl get pods -n posey -l app=posey-voyager && kubectl get services -n posey -l app=posey-voyager",
+    "debug": "echo '🔍 Checking Docker images:' && docker images | grep voyager && echo '🔍 Checking Kubernetes pods:' && kubectl get pods -n posey -l app=posey-voyager -o wide && echo '🔍 Checking pod details:' && kubectl describe pod -n posey -l app=posey-voyager || echo 'No pods found' && echo '🔍 Checking PVC status:' && kubectl get pvc -n posey | grep voyager && echo '🔍 Checking Kubernetes events:' && kubectl get events -n posey --sort-by=.metadata.creationTimestamp | tail -n 15",
+    "clean": "yarn k8s:check && kubectl delete -f ./k8s/ -n posey --ignore-not-found",
+    "connect": "echo 'Voyager service is available at: http://localhost:7777 (when port-forwarded)' && echo 'To port-forward: kubectl port-forward service/posey-voyager 7777:7777 -n posey'",
+    "port-forward": "kubectl port-forward service/posey-voyager 7777:7777 -n posey",
+    "redeploy": "yarn clean && yarn deploy:local"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}

@@ -3,10 +3,12 @@ kind: Service
 metadata:
   name: posey-voyager
   namespace: posey
+  labels:
+    app: posey-voyager
 spec:
   selector:
     app: posey-voyager
   ports:
   - port: 7777
     targetPort: 7777
-  type: ClusterIP 
+  type: LoadBalancer 

@@ -1,0 +1,4 @@
+# Auto-generated Kubernetes config files
+config-map.yaml
+secrets.yaml
+*-secrets.yaml 

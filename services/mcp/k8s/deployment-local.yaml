@@ -1,45 +1,43 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: posey-voyager
+  name: posey-mcp
   namespace: posey
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: posey-voyager
+      app: posey-mcp
   template:
     metadata:
       labels:
-        app: posey-voyager
+        app: posey-mcp
     spec:
       containers:
-      - name: posey-voyager
-        image: registry.digitalocean.com/posey/posey-voyager:latest
-        imagePullPolicy: Always
+      - name: posey-mcp
+        image: posey-mcp:latest
+        imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 7777
+        - containerPort: 5050
         resources:
           limits:
-            memory: 4Gi
-            cpu: "1"
-          requests:
             memory: 1Gi
             cpu: "0.5"
+          requests:
+            memory: 256Mi
+            cpu: "0.2"
         envFrom:
         - configMapRef:
             name: posey-shared-env
         - secretRef:
             name: posey-secrets
         volumeMounts:
-        - name: voyager-data
-          mountPath: /src/data
-        - name: voyager-cache
-          mountPath: /src/cache
+        - name: mcp-data
+          mountPath: /app/data
         livenessProbe:
           httpGet:
             path: /health
-            port: 7777
+            port: 5050
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 10
@@ -47,13 +45,10 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 7777
+            port: 5050
           initialDelaySeconds: 15
           periodSeconds: 10
       volumes:
-      - name: voyager-data
+      - name: mcp-data
         persistentVolumeClaim:
-          claimName: voyager-data-pvc
-      - name: voyager-cache
-        persistentVolumeClaim:
-          claimName: voyager-cache-pvc 
+          claimName: mcp-data-pvc 

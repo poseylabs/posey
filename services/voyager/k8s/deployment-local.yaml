@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
       - name: posey-voyager
-        image: registry.digitalocean.com/posey/posey-voyager:latest
-        imagePullPolicy: Always
+        image: posey-voyager:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 7777
         resources:

@@ -30,7 +30,38 @@ fi
 # Create namespace if it doesn't exist
 kubectl get namespace $NAMESPACE > /dev/null 2>&1 || kubectl create namespace $NAMESPACE
 
-echo "🔒 Creating shared secrets from environment variables"
+echo "🔒 Creating shared ConfigMap and Secrets from environment variables"
+
+# Create shared ConfigMap
+echo "📦 Creating shared ConfigMap"
+
+# Create a temporary file with non-sensitive variables
+# Filter out sensitive data (passwords, keys, tokens, secrets)
+TMP_CONFIGMAP=$(mktemp)
+grep -v -E '(PASSWORD|SECRET|KEY|TOKEN|DSN)' $ENV_FILE | grep -v -E '^[[:space:]]*#' | grep -v -E '^[[:space:]]*$' > $TMP_CONFIGMAP
+
+# Create ConfigMap
+kubectl create configmap posey-shared-env \
+  -n $NAMESPACE \
+  --from-env-file=$TMP_CONFIGMAP \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+rm $TMP_CONFIGMAP
+
+# Create shared Secrets
+echo "🔒 Creating shared Secrets"
+
+# Create a temporary file with sensitive variables
+TMP_SECRETS=$(mktemp)
+grep -E '(PASSWORD|SECRET|KEY|TOKEN|DSN)' $ENV_FILE | grep -v -E '^[[:space:]]*#' | grep -v -E '^[[:space:]]*$' > $TMP_SECRETS
+
+# Create Secret
+kubectl create secret generic posey-secrets \
+  -n $NAMESPACE \
+  --from-env-file=$TMP_SECRETS \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+rm $TMP_SECRETS
 
 # Extract and create app-specific secrets
 # Function to create secrets for a specific app
@@ -69,12 +100,26 @@ if [ -n "$APP_NAME" ]; then
     "couchbase")
       create_app_secrets "couchbase" "COUCHBASE" "COUCHBASE"
       ;;
+    "cron")
+      create_app_secrets "cron" "CRON" "CRON"
+      ;;
+    "auth")
+      create_app_secrets "auth" "AUTH" "AUTH"
+      ;;
+    "supertokens")
+      create_app_secrets "supertokens" "SUPER_TOKENS" "SUPER_TOKENS"
+      ;;
+    "voyager")
+      create_app_secrets "voyager" "VOYAGER" "VOYAGER"
+      ;;
+    "mcp")
+      create_app_secrets "mcp" "MCP" "MCP"
+      ;;
+    "agents")
+      create_app_secrets "agents" "AGENT" "AGENT"
+      ;;
     *)
-      echo "⚠️ Unknown app name: $APP_NAME, creating all secrets"
-      create_app_secrets "graphql" "HASURA" "(HASURA|POSTGRES)"
-      create_app_secrets "postgres" "POSTGRES" "POSTGRES"
-      create_app_secrets "qdrant" "QDRANT" "QDRANT"
-      create_app_secrets "couchbase" "COUCHBASE" "COUCHBASE"
+      echo "⚠️ Unknown app name: $APP_NAME, creating shared resources only"
       ;;
   esac
 else
@@ -83,6 +128,12 @@ else
   create_app_secrets "postgres" "POSTGRES" "POSTGRES"
   create_app_secrets "qdrant" "QDRANT" "QDRANT"
   create_app_secrets "couchbase" "COUCHBASE" "COUCHBASE"
+  create_app_secrets "cron" "CRON" "CRON"
+  create_app_secrets "auth" "AUTH" "AUTH"
+  create_app_secrets "supertokens" "SUPER_TOKENS" "SUPER_TOKENS"
+  create_app_secrets "voyager" "VOYAGER" "VOYAGER"
+  create_app_secrets "mcp" "MCP" "MCP"
+  create_app_secrets "agents" "AGENT" "AGENT"
 fi
 
 echo "✅ Environment setup complete!" 

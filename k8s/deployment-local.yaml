@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: posey-mcp
+  name: posey-cron
   namespace: posey
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: posey-mcp
+      app: posey-cron
   template:
     metadata:
       labels:
-        app: posey-mcp
+        app: posey-cron
     spec:
       containers:
-      - name: posey-mcp
-        image: registry.digitalocean.com/posey/posey-mcp:latest
-        imagePullPolicy: Always
+      - name: posey-cron
+        image: posey-cron:latest
+        imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 5050
+        - containerPort: 2222
         resources:
           limits:
             memory: 1Gi
@@ -32,23 +32,22 @@ spec:
         - secretRef:
             name: posey-secrets
         volumeMounts:
-        - name: mcp-data
+        - name: cron-data
           mountPath: /app/data
+        - name: cron-logs
+          mountPath: /app/logs
         livenessProbe:
           httpGet:
             path: /health
-            port: 5050
+            port: 2222
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 10
           failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 5050
-          initialDelaySeconds: 15
-          periodSeconds: 10
       volumes:
-      - name: mcp-data
+      - name: cron-data
         persistentVolumeClaim:
-          claimName: mcp-data-pvc 
+          claimName: cron-data-pvc
+      - name: cron-logs
+        persistentVolumeClaim:
+          claimName: cron-logs-pvc 

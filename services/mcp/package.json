@@ -1,0 +1,24 @@
+{
+  "name": "@posey.ai/mcp",
+  "version": "0.0.0-beta.1",
+  "scripts": {
+    "docker:build": "docker build -t registry.digitalocean.com/posey/posey-mcp:latest .",
+    "docker:push": "docker push registry.digitalocean.com/posey/posey-mcp:latest",
+    "docker:start": "docker run -p 5050:5050 registry.digitalocean.com/posey/posey-mcp:latest",
+    "docker:stop": "docker stop $(docker ps -q --filter ancestor=registry.digitalocean.com/posey/posey-mcp:latest)",
+    "build:docker": "yarn docker:build && yarn docker:push",
+    "build:local": "echo '🔨 Building Docker image posey-mcp:latest...' && docker build -t posey-mcp:latest . && docker images posey-mcp:latest",
+    "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
+    "deploy": "bash ../../scripts/k8s-deploy.sh mcp",
+    "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f ./k8s/mcp-pvc.yaml -n posey && kubectl apply -f ./k8s/service.yaml -n posey && kubectl apply -f ./k8s/deployment-local.yaml -n posey",
+    "verify": "kubectl get pods -n posey -l app=posey-mcp && kubectl get services -n posey -l app=posey-mcp",
+    "debug": "echo '🔍 Checking Docker images:' && docker images | grep mcp && echo '🔍 Checking Kubernetes pods:' && kubectl get pods -n posey -l app=posey-mcp -o wide && echo '🔍 Checking pod details:' && kubectl describe pod -n posey -l app=posey-mcp || echo 'No pods found' && echo '🔍 Checking PVC status:' && kubectl get pvc -n posey | grep mcp && echo '🔍 Checking Kubernetes events:' && kubectl get events -n posey --sort-by=.metadata.creationTimestamp | tail -n 15",
+    "clean": "yarn k8s:check && kubectl delete -f ./k8s/ -n posey --ignore-not-found",
+    "connect": "echo 'MCP service is available at: http://localhost:5050 (when port-forwarded)' && echo 'To port-forward: kubectl port-forward service/posey-mcp 5050:5050 -n posey'",
+    "port-forward": "kubectl port-forward service/posey-mcp 5050:5050 -n posey",
+    "redeploy": "yarn clean && yarn deploy:local"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}

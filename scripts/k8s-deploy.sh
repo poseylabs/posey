@@ -11,7 +11,7 @@ usage() {
   echo "  -c, --clean       Clean existing deployments first"
   echo "  -s, --skip-build  Skip Docker build"
   echo ""
-  echo "Available apps: graphql, postgres, qdrant, couchbase"
+  echo "Available apps: graphql, postgres, qdrant, couchbase, cron, auth, supertokens, voyager, mcp, agents"
   exit 1
 }
 
@@ -53,7 +53,7 @@ if [ -z "$APP_NAME" ]; then
 fi
 
 # Validate app name
-VALID_APPS=("graphql" "postgres" "qdrant" "couchbase")
+VALID_APPS=("graphql" "postgres" "qdrant" "couchbase" "cron" "auth" "supertokens" "voyager" "mcp" "agents")
 if [[ ! " ${VALID_APPS[@]} " =~ " ${APP_NAME} " ]]; then
   echo "❌ Error: Invalid app name: $APP_NAME"
   usage
@@ -115,8 +115,21 @@ if [ "$SKIP_BUILD" = false ]; then
     DOCKERFILE="Dockerfile"
   fi
   
-  echo "🔨 Building Docker image posey-${APP_NAME}:latest using ${DOCKERFILE}"
-  docker build -t posey-${APP_NAME}:latest -f $DOCKERFILE .
+  # Determine the base path for building Docker images
+  if [ "$APP_TYPE" = "data" ]; then
+    echo "🔨 Building Docker image posey-${APP_NAME}:latest using ${DOCKERFILE}"
+    docker build -t posey-${APP_NAME}:latest -f $DOCKERFILE .
+  else
+    echo "🔨 Building Docker image posey-${APP_NAME}:latest using ${DOCKERFILE} with context at ../../"
+    docker build -t posey-${APP_NAME}:latest -f $DOCKERFILE ../..
+  fi
+
+  # Tag and push to registry if we're not in local development
+  if [ "$SKIP_BUILD" = false ] && [ -n "$DOCKER_REGISTRY" ]; then
+    echo "📤 Pushing image to registry: ${DOCKER_REGISTRY}/posey-${APP_NAME}:latest"
+    docker tag posey-${APP_NAME}:latest ${DOCKER_REGISTRY}/posey-${APP_NAME}:latest
+    docker push ${DOCKER_REGISTRY}/posey-${APP_NAME}:latest
+  fi
 fi
 
 # Apply app-specific Kubernetes manifests
@@ -132,7 +145,7 @@ done
 
 # Verify deployment
 echo "🔍 Verifying deployment"
-kubectl get pods -n $NAMESPACE -l app=$APP_NAME
-kubectl get services -n $NAMESPACE -l app=$APP_NAME
+kubectl get pods -n $NAMESPACE -l app=posey-${APP_NAME}
+kubectl get services -n $NAMESPACE -l app=posey-${APP_NAME}
 
 echo "✅ Deployment of ${APP_NAME} complete!" 

@@ -2,7 +2,7 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /src
 
-COPY services/voyager/requirements.txt .
+COPY requirements.txt .
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   gcc \
@@ -38,8 +38,8 @@ RUN pip install /wheels/* \
 # Install Playwright browser
 RUN playwright install chromium
 
-# Copy application code
-COPY services/voyager/src/* /src/
+# Copy application code - recursive copy to include subdirectories
+COPY src/ /src/
 RUN chown -R voyager:voyager /src
 
 # Switch to non-root user

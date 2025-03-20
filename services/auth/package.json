@@ -6,7 +6,22 @@
     "dev:node": "NODE_ENV=development",
     "build": "node --require ts-node/register src/main.ts",
     "start:container": "scripts/run-migrations.sh && NODE_PATH=./src node --require ts-node/register --no-warnings src/main.ts",
-    "start": "docker compose up -d"
+    "start": "docker compose up -d",
+    "docker:build": "docker build -t registry.digitalocean.com/posey/posey-auth:latest -f Dockerfile ../..",
+    "docker:push": "docker push registry.digitalocean.com/posey/posey-auth:latest",
+    "docker:start": "docker run -p 9999:9999 registry.digitalocean.com/posey/posey-auth:latest",
+    "docker:stop": "docker stop $(docker ps -q --filter ancestor=registry.digitalocean.com/posey/posey-auth:latest)",
+    "build:docker": "yarn docker:build && yarn docker:push",
+    "build:local": "echo '🔨 Building Docker image posey-auth:latest...' && docker build -t posey-auth:latest -f Dockerfile ../.. && docker images posey-auth:latest",
+    "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
+    "deploy": "bash ../../scripts/k8s-deploy.sh auth",
+    "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f ./k8s/auth-pvc.yaml -n posey && kubectl apply -f ./k8s/service.yaml -n posey && kubectl apply -f ./k8s/deployment-local.yaml -n posey",
+    "verify": "kubectl get pods -n posey -l app=posey-auth && kubectl get services -n posey -l app=posey-auth",
+    "debug": "echo '🔍 Checking Docker images:' && docker images | grep auth && echo '🔍 Checking Kubernetes pods:' && kubectl get pods -n posey -l app=posey-auth -o wide && echo '🔍 Checking pod details:' && kubectl describe pod -n posey -l app=posey-auth || echo 'No pods found' && echo '🔍 Checking PVC status:' && kubectl get pvc -n posey | grep auth && echo '🔍 Checking Kubernetes events:' && kubectl get events -n posey --sort-by=.metadata.creationTimestamp | tail -n 15",
+    "clean": "yarn k8s:check && kubectl delete -f ./k8s/ -n posey --ignore-not-found",
+    "connect": "echo 'Auth service is available at: http://localhost:9999 (when port-forwarded)' && echo 'To port-forward: kubectl port-forward service/posey-auth 9999:9999 -n posey'",
+    "port-forward": "kubectl port-forward service/posey-auth 9999:9999 -n posey",
+    "redeploy": "yarn clean && yarn deploy:local"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.744.0",

@@ -1,45 +1,48 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: posey-voyager
+  name: posey-agents
   namespace: posey
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: posey-voyager
+      app: posey-agents
   template:
     metadata:
       labels:
-        app: posey-voyager
+        app: posey-agents
     spec:
       containers:
-      - name: posey-voyager
-        image: registry.digitalocean.com/posey/posey-voyager:latest
-        imagePullPolicy: Always
+      - name: posey-agents
+        image: posey-agents:latest
+        imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 7777
+        - containerPort: 5555
         resources:
           limits:
-            memory: 4Gi
+            memory: 2Gi
             cpu: "1"
           requests:
-            memory: 1Gi
+            memory: 512Mi
             cpu: "0.5"
         envFrom:
         - configMapRef:
             name: posey-shared-env
         - secretRef:
             name: posey-secrets
+        env:
+        - name: COUCHBASE_ADMIN_URL
+          value: http://couchbase:8091
         volumeMounts:
-        - name: voyager-data
-          mountPath: /src/data
-        - name: voyager-cache
-          mountPath: /src/cache
+        - name: agents-data
+          mountPath: /app/data
+        - name: agents-models
+          mountPath: /app/models
         livenessProbe:
           httpGet:
             path: /health
-            port: 7777
+            port: 5555
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 10
@@ -47,13 +50,13 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 7777
+            port: 5555
           initialDelaySeconds: 15
           periodSeconds: 10
       volumes:
-      - name: voyager-data
+      - name: agents-data
         persistentVolumeClaim:
-          claimName: voyager-data-pvc
-      - name: voyager-cache
+          claimName: agents-data-pvc
+      - name: agents-models
         persistentVolumeClaim:
-          claimName: voyager-cache-pvc 
+          claimName: agents-models-pvc 

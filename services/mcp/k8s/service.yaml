@@ -3,10 +3,12 @@ kind: Service
 metadata:
   name: posey-mcp
   namespace: posey
+  labels:
+    app: posey-mcp
 spec:
   selector:
     app: posey-mcp
   ports:
   - port: 5050
     targetPort: 5050
-  type: ClusterIP 
+  type: LoadBalancer

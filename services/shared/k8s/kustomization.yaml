@@ -4,6 +4,4 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - network-policy.yaml
-  - config-map.yaml
-  - secrets.yaml
   - persistent-volumes.yaml 

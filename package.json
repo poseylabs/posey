@@ -10,7 +10,12 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "lint": "turbo lint",
     "test": "turbo test",
-    "build": "turbo build"
+    "build": "turbo build",
+    "build:local": "echo '🔨 Building Docker image posey-cron:latest...' && docker build -t posey-cron:latest -f Dockerfile ../.. && docker images posey-cron:latest",
+    "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
+    "deploy": "bash ../../scripts/k8s-deploy.sh cron",
+    "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f ./k8s/service.yaml -n posey && kubectl apply -f ./k8s/deployment-local.yaml -n posey",
+    "verify": "kubectl get pods -n posey -l app=posey-cron && kubectl get services -n posey -l app=posey-cron"
   },
   "devDependencies": {
     "@nrwl/nx-cloud": "19.1.0",

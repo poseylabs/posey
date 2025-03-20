@@ -6107,6 +6107,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@posey.ai/mcp@workspace:services/mcp":
+  version: 0.0.0-use.local
+  resolution: "@posey.ai/mcp@workspace:services/mcp"
+  dependencies:
+    dotenv: "npm:^16.4.5"
+  languageName: unknown
+  linkType: soft
+
 "@posey.ai/posey@workspace:.":
   version: 0.0.0-use.local
   resolution: "@posey.ai/posey@workspace:."
@@ -6161,6 +6169,14 @@ __metadata:
   peerDependencies:
     react: ^19.0.0
     react-dom: ^19.0.0
+  languageName: unknown
+  linkType: soft
+
+"@posey.ai/supertokens@workspace:services/supertokens":
+  version: 0.0.0-use.local
+  resolution: "@posey.ai/supertokens@workspace:services/supertokens"
+  dependencies:
+    dotenv: "npm:^16.4.5"
   languageName: unknown
   linkType: soft
 
@@ -6257,6 +6273,14 @@ __metadata:
     dotenv: "npm:^16.4.5"
     ts-node: "npm:^10.9.2"
     typescript: "npm:^5.3.3"
+  languageName: unknown
+  linkType: soft
+
+"@posey.ai/voyager@workspace:services/voyager":
+  version: 0.0.0-use.local
+  resolution: "@posey.ai/voyager@workspace:services/voyager"
+  dependencies:
+    dotenv: "npm:^16.4.5"
   languageName: unknown
   linkType: soft
 

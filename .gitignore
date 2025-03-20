@@ -57,3 +57,8 @@ out
 
 # Build
 dist
+
+# Kubernetes
+config-map.yaml
+secrets.yaml
+*-secrets.yaml

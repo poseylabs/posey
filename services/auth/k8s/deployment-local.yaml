@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
       - name: posey-auth
-        image: registry.digitalocean.com/posey/posey-auth:latest
-        imagePullPolicy: Always
+        image: posey-auth:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9999
         resources:
