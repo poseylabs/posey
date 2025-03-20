@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: posey
+spec:
+  serviceName: "postgres"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        fsGroup: 999
+      initContainers:
+      - name: init-pgdata
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          mkdir -p /var/lib/postgresql/data/pgdata
+          chown -R 999:999 /var/lib/postgresql/data
+          chmod -R 0700 /var/lib/postgresql/data
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+      containers:
+      - name: postgres
+        image: posey-postgres:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 999
+          runAsGroup: 999
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: POSTGRES_DB
+        - name: PGPORT
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_PORT
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        args:
+        - "-c"
+        - "config_file=/etc/postgresql/postgresql.conf"
+        ports:
+        - containerPort: 3333
+          name: postgres
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - $(POSTGRES_USER)
+            - -d
+            - postgres
+            - -p
+            - "3333"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - $(POSTGRES_USER)
+            - -d
+            - postgres
+            - -p
+            - "3333"
+          initialDelaySeconds: 60
+          periodSeconds: 10
+      volumes:
+      - name: postgres-data
+        emptyDir: {} 

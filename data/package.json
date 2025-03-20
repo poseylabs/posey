@@ -4,9 +4,14 @@
   "type": "module",
   "license": "AGPL-3.0",
   "scripts": {
-    "build": "docker compose build",
-    "start": "docker compose up -d",
-    "stop": "docker compose down",
-    "docker:dev": "docker compose up --build"
+    "build": "npx nx build",
+    "deploy": "docker-compose up -d",
+    "dev": "node postgres/k8s/dev-proxy.js",
+    "init": "if [ -f docker-compose.yml ]; then docker-compose down; fi"
+  },
+  "private": true,
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "nx": "16.9.1"
   }
 }

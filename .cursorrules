@@ -5,6 +5,7 @@ Critical requirements:
 - Absolutely never under any circustance are you to code work-around when an error is encountered. You must always find and fix the root issue.
 - Never create test users or test data unless specifically requested
 - Always assume a production environment where we expect to have all data required, if something unexpected happens, you should find the root cause and not just the easiest solution to get around the error
+- ALWAYS use yarn over npm
 
 ## Overview
 We are building an agentic framework that enables the creation of specialized AI agents for various tasks.

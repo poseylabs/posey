@@ -53,9 +53,8 @@
   "packageManager": "yarn@4.5.1",
   "workspaces": [
     "apps/*",
-    "data",
+    "data/*",
     "packages/*",
-    "services/*",
-    "services"
+    "services/*"
   ]
 }
