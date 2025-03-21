@@ -166,17 +166,7 @@ jobs:
         run: |
           echo "Available Docker images:"
           docker images
-          
-          # Build the images manually
-          cd data
-          
-          # Try using docker-compose directly
-          docker-compose build
-          
-          # List images again
-          echo "Docker images after docker-compose build:"
-          docker images
-          
+        
       - name: Tag and push Docker images
         run: |
           # Get the short SHA of the commit
