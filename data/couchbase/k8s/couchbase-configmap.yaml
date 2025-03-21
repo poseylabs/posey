@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: couchbase-config
+  namespace: posey
+data:
+  COUCHBASE_URL: "couchbase://couchbase:8091"
+  COUCHBASE_HOST: "couchbase"
+  ENVIRONMENT: "production" 

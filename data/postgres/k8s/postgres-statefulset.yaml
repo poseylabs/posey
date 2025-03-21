@@ -27,7 +27,10 @@ spec:
             name: postgres-config
         volumeMounts:
         - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
+          mountPath: /var/lib/postgresql/data/pgdata
+        env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
         readinessProbe:
           exec:
             command:
