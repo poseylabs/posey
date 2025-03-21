@@ -33,9 +33,9 @@ export interface AuthFormProps {
  * />
  */
 export function AuthForm({ onSubmit, mode = 'login' }: AuthFormProps) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('jesse@posey.ai');
+  const [password, setPassword] = useState('wormsoup');
+  const [username, setUsername] = useState('jesse');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 

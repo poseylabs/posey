@@ -22,7 +22,9 @@ const services = [
 
 // Parse arguments
 const isLocal = process.argv.includes('--local');
-const environment = isLocal ? 'local' : 'production';
+const isStaging = process.argv.includes('--staging');
+const environment = isLocal ? 'local' : isStaging ? 'staging' : 'production';
+const namespace = process.env.KUBE_NAMESPACE || (isStaging ? 'posey-staging' : 'posey');
 
 /**
  * Executes a command with proper logging
@@ -75,14 +77,14 @@ async function deployService(service: string): Promise<void> {
     return;
   }
 
-  console.log(chalk.green(`\n🚀 Deploying ${service} for ${environment}...\n`));
+  console.log(chalk.green(`\n🚀 Deploying ${service} for ${environment} to namespace ${namespace}...\n`));
 
   try {
     // Apply ConfigMap if it exists
     const configMapPath = path.join(k8sDir, `${service.replace('.', '-')}-configmap.yaml`);
     if (fs.existsSync(configMapPath)) {
       const processedTemplate = processTemplate(configMapPath);
-      await execa.execa('kubectl', ['apply', '-f', '-'], {
+      await execa.execa('kubectl', ['apply', '-f', '-', '-n', namespace], {
         input: processedTemplate
       });
     }
@@ -91,7 +93,7 @@ async function deployService(service: string): Promise<void> {
     const secretPath = path.join(k8sDir, `${service.replace('.', '-')}-secrets.yaml`);
     if (fs.existsSync(secretPath)) {
       const processedTemplate = processTemplate(secretPath);
-      await execa.execa('kubectl', ['apply', '-f', '-'], {
+      await execa.execa('kubectl', ['apply', '-f', '-', '-n', namespace], {
         input: processedTemplate
       });
     }
@@ -99,47 +101,63 @@ async function deployService(service: string): Promise<void> {
     // Apply Service
     const servicePath = path.join(k8sDir, `${service.replace('.', '-')}-service.yaml`);
     if (fs.existsSync(servicePath)) {
-      await runCommand('kubectl', ['apply', '-f', servicePath]);
+      await runCommand('kubectl', ['apply', '-f', servicePath, '-n', namespace]);
     }
 
-    // Apply StatefulSet/Deployment depending on environment
+    // Determine which deployment file to use based on environment
+    let deploymentFile;
     if (isLocal) {
       const statefulSetLocalPath = path.join(k8sDir, `${service.replace('.', '-')}-statefulset-local.yaml`);
       const deploymentLocalPath = path.join(k8sDir, `${service.replace('.', '-')}-deployment-local.yaml`);
 
       if (fs.existsSync(statefulSetLocalPath)) {
-        const processedTemplate = processTemplate(statefulSetLocalPath);
-        await execa.execa('kubectl', ['apply', '-f', '-'], {
-          input: processedTemplate
-        });
+        deploymentFile = statefulSetLocalPath;
       } else if (fs.existsSync(deploymentLocalPath)) {
-        const processedTemplate = processTemplate(deploymentLocalPath);
-        await execa.execa('kubectl', ['apply', '-f', '-'], {
-          input: processedTemplate
-        });
+        deploymentFile = deploymentLocalPath;
+      }
+    } else if (isStaging) {
+      // Check for staging-specific files first
+      const statefulSetStagingPath = path.join(k8sDir, `${service.replace('.', '-')}-statefulset-staging.yaml`);
+      const deploymentStagingPath = path.join(k8sDir, `${service.replace('.', '-')}-deployment-staging.yaml`);
+
+      if (fs.existsSync(statefulSetStagingPath)) {
+        deploymentFile = statefulSetStagingPath;
+      } else if (fs.existsSync(deploymentStagingPath)) {
+        deploymentFile = deploymentStagingPath;
       } else {
-        console.warn(chalk.yellow(`No local deployment/statefulset config found for ${service}`));
+        // Fall back to production files
+        const statefulSetPath = path.join(k8sDir, `${service.replace('.', '-')}-statefulset.yaml`);
+        const deploymentPath = path.join(k8sDir, `${service.replace('.', '-')}-deployment.yaml`);
+
+        if (fs.existsSync(statefulSetPath)) {
+          deploymentFile = statefulSetPath;
+        } else if (fs.existsSync(deploymentPath)) {
+          deploymentFile = deploymentPath;
+        }
       }
     } else {
+      // Production environment
       const statefulSetPath = path.join(k8sDir, `${service.replace('.', '-')}-statefulset.yaml`);
       const deploymentPath = path.join(k8sDir, `${service.replace('.', '-')}-deployment.yaml`);
 
       if (fs.existsSync(statefulSetPath)) {
-        const processedTemplate = processTemplate(statefulSetPath);
-        await execa.execa('kubectl', ['apply', '-f', '-'], {
-          input: processedTemplate
-        });
+        deploymentFile = statefulSetPath;
       } else if (fs.existsSync(deploymentPath)) {
-        const processedTemplate = processTemplate(deploymentPath);
-        await execa.execa('kubectl', ['apply', '-f', '-'], {
-          input: processedTemplate
-        });
-      } else {
-        console.warn(chalk.yellow(`No production deployment/statefulset config found for ${service}`));
+        deploymentFile = deploymentPath;
       }
     }
 
-    console.log(chalk.green(`✅ Successfully deployed ${service} for ${environment}`));
+    // Apply the deployment file if found
+    if (deploymentFile) {
+      const processedTemplate = processTemplate(deploymentFile);
+      await execa.execa('kubectl', ['apply', '-f', '-', '-n', namespace], {
+        input: processedTemplate
+      });
+    } else {
+      console.warn(chalk.yellow(`No deployment/statefulset config found for ${service} in ${environment} environment`));
+    }
+
+    console.log(chalk.green(`✅ Successfully deployed ${service} for ${environment} to namespace ${namespace}`));
   } catch (error: any) {
     console.error(chalk.red(`Failed to deploy ${service}:`));
     console.error(chalk.red(error.message));
@@ -158,12 +176,12 @@ async function applySharedResources(): Promise<void> {
     return;
   }
 
-  console.log(chalk.green('\n🔄 Applying shared Kubernetes resources...\n'));
+  console.log(chalk.green(`\n🔄 Applying shared Kubernetes resources to namespace ${namespace}...\n`));
 
   try {
     // Apply using kustomize to process all resources defined in kustomization.yaml
-    await runCommand('kubectl', ['apply', '-k', sharedK8sDir]);
-    console.log(chalk.green('✅ Successfully applied shared resources'));
+    await runCommand('kubectl', ['apply', '-k', sharedK8sDir, '-n', namespace]);
+    console.log(chalk.green(`✅ Successfully applied shared resources to namespace ${namespace}`));
   } catch (error: any) {
     console.error(chalk.red('Failed to apply shared resources:'));
     console.error(chalk.red(error.message));
@@ -307,18 +325,30 @@ async function cleanupInitContainers(): Promise<void> {
  * Main deploy function
  */
 async function deploy(): Promise<void> {
-  console.log(chalk.green(`🚀 Deploying all services for ${environment}...\n`));
+  console.log(chalk.blue(`
+=================================================
+🚀 Starting deployment of Posey Data Services 🚀
+=================================================
+Environment: ${environment}
+Namespace: ${namespace}
+=================================================
+`));
 
   try {
-    // Ensure posey namespace exists
-    const namespaceResult = await execa.execa('kubectl',
-      ['create', 'namespace', 'posey', '--dry-run=client', '-o', 'yaml'],
-      { stdio: 'pipe' }
-    );
-
-    await execa.execa('kubectl', ['apply', '-f', '-'], {
-      input: namespaceResult.stdout
-    });
+    // Create the namespace if it doesn't exist
+    try {
+      await runCommand('kubectl', ['create', 'namespace', namespace, '--dry-run=client', '-o', 'yaml']);
+      await runCommand('kubectl', ['apply', '-f', '-'], {
+        input: `apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${namespace}
+  labels:
+    name: ${namespace}`
+      });
+    } catch (error) {
+      // Namespace might already exist, continue
+    }
 
     // Apply shared resources first
     await applySharedResources();
@@ -328,7 +358,7 @@ async function deploy(): Promise<void> {
       await deployService(service);
     }
 
-    console.log(chalk.green(`\n✅ All services deployed successfully for ${environment}`));
+    console.log(chalk.green(`\n✅ All services deployed successfully for ${environment} to namespace ${namespace}`));
 
     // Print out service information
     console.log(chalk.cyan('\nService endpoints:'));
@@ -344,4 +374,8 @@ async function deploy(): Promise<void> {
 }
 
 // Start the deploy process
-deploy(); 
+deploy().catch(error => {
+  console.error(chalk.red('Deployment failed:'));
+  console.error(error);
+  process.exit(1);
+}); 

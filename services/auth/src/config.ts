@@ -35,7 +35,8 @@ export const config: Config = {
   apiDomain: process.env.AUTH_API_DOMAIN || 'http://localhost:9999',
   websiteDomain: process.env.UI_BASE_URL || 'http://localhost:8888',
   supertokens: {
-    connectionURI: process.env.SUPERTOKENS_CONNECTION_URI || 'http://posey-supertokens:3567',
+    connectionURI: process.env.SUPERTOKENS_CONNECTION_URI ||
+      (process.env.NODE_ENV === 'production' ? 'http://posey-supertokens:3567' : 'http://localhost:3567'),
     apiKey: process.env.SUPERTOKENS_API_KEY,
   },
   dashboard: {

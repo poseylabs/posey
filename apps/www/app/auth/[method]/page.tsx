@@ -37,6 +37,13 @@ export default function AuthPage() {
         return;
       }
 
+      // Add debugging info
+      console.log('Submitting auth form:', {
+        method,
+        formData: { ...formData, password: '******' },
+        API_ENDPOINT: process.env.NEXT_PUBLIC_AUTH_API_ENDPOINT
+      });
+
       // Add rate limiting
       const rateLimitKey = `auth_attempts_${method}_${Date.now()}`;
       const attempts = localStorage.getItem(rateLimitKey) || '0';
@@ -46,6 +53,46 @@ export default function AuthPage() {
       }
       localStorage.setItem(rateLimitKey, (parseInt(attempts) + 1).toString());
 
+      // Temporary direct API call for debugging
+      try {
+        const endpoint = `${process.env.NEXT_PUBLIC_AUTH_API_ENDPOINT || 'http://localhost:9999'}/auth/${method === 'login' ? 'signin' : 'signup'}`;
+        console.log('Making direct API call to:', endpoint);
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            formFields: [
+              { id: "email", value: formData.email },
+              { id: "password", value: formData.password },
+              ...(method === 'register' ? [{ id: "username", value: formData.username }] : [])
+            ]
+          }),
+        });
+
+        console.log('API response:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries([...response.headers.entries()]),
+        });
+
+        const data = await response.json();
+        console.log('API response data:', data);
+
+        if (data?.status === 'OK' && data?.user) {
+          await setUser({ user: data.user });
+          router.push('/');
+          return;
+        } else {
+          setErrorMessage(`Auth failed: ${data?.message || 'Unknown error'}`);
+          return;
+        }
+      } catch (directApiError: any) {
+        console.error('Direct API call error:', directApiError);
+      }
+
+      // Fall back to regular flow if direct API call fails
       let session;
       if (method === 'login') {
         session = await userLogin(formData.email, formData.password);

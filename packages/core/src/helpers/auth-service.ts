@@ -3,7 +3,14 @@ import { AuthResponse, SuperTokensResponse, FormField, AuthError } from '@/types
 import { DEFAULT_USER } from '@/config/defaults';
 import { UserPreferences } from '@/types/user';
 
-const AUTH_API = process.env.NEXT_PUBLIC_AUTH_API_ENDPOINT || 'http://localhost:3001';
+const AUTH_API = process.env.NEXT_PUBLIC_AUTH_API_ENDPOINT || 'http://localhost:9999';
+
+// Log the AUTH_API endpoint for debugging
+console.log('Auth Service Configuration:', {
+  AUTH_API,
+  NODE_ENV: process.env.NODE_ENV,
+  NEXT_PUBLIC_AUTH_API_ENDPOINT: process.env.NEXT_PUBLIC_AUTH_API_ENDPOINT
+});
 
 /**
  * Formats the SuperTokens response into our standard AuthResponse format

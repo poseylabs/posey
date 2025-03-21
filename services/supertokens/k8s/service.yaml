@@ -9,4 +9,4 @@ spec:
   ports:
   - port: 3567
     targetPort: 3567
-  type: ClusterIP 
+  type: LoadBalancer

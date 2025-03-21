@@ -138,9 +138,39 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     return next(err);
   }
 
-  res.status(err.status || 500).json({
+  // Improve error handling with more detailed responses
+  let errorMessage = 'Internal server error';
+  let errorDetails = null;
+  let statusCode = 500;
+
+  // Handle specific error types
+  if (err.code === 'ECONNREFUSED' && err.syscall === 'connect') {
+    errorMessage = 'Database connection failed';
+    errorDetails = {
+      service: 'PostgreSQL',
+      host: err.address,
+      port: err.port
+    };
+    statusCode = 503; // Service Unavailable
+  } else if (err.message && err.message.includes('POSTGRES_DSN_POSEY')) {
+    errorMessage = 'Database configuration missing';
+    errorDetails = {
+      missingEnv: 'POSTGRES_DSN_POSEY',
+      envVars: {
+        NODE_ENV: process.env.NODE_ENV || 'undefined',
+        POSTGRES_DSN_POSEY: process.env.POSTGRES_DSN_POSEY ? 'defined' : 'undefined',
+      }
+    };
+    statusCode = 500;
+  }
+
+  // Send detailed error response
+  res.status(statusCode).json({
     status: "ERROR",
-    message: err.message || "Internal server error"
+    message: errorMessage,
+    details: errorDetails,
+    timestamp: new Date().toISOString(),
+    requestPath: req.path
   });
 });
 
