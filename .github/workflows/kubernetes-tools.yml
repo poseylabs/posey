@@ -20,6 +20,7 @@ on:
           - update-deployments
           - cleanup-resources
           - backup-databases
+          - restart-services
       namespace:
         description: 'Kubernetes namespace'
         required: false
@@ -42,6 +43,24 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        if: github.event.inputs.action == 'restart-services'
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          
+      - name: Enable Corepack
+        if: github.event.inputs.action == 'restart-services'
+        run: |
+          corepack enable
+          yarn --version
+          
+      - name: Install dependencies
+        if: github.event.inputs.action == 'restart-services'
+        run: |
+          cd data
+          yarn install
         
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
@@ -92,6 +111,29 @@ jobs:
           
           echo "🔄 Checking rollout status..."
           kubectl get deployments -n ${{ env.NAMESPACE }} -o name | xargs -I{} kubectl rollout status {} -n ${{ env.NAMESPACE }} --timeout=300s
+          
+      - name: Restart Services
+        if: github.event.inputs.action == 'restart-services'
+        run: |
+          cd data
+          
+          if [[ -n "${{ github.event.inputs.resource_name }}" ]]; then
+            echo "🔄 Redeploying service ${{ github.event.inputs.resource_name }} in namespace ${{ env.NAMESPACE }}"
+            
+            # Override to use the specified namespace
+            export KUBE_NAMESPACE=${{ env.NAMESPACE }}
+            
+            # Deploy specific service
+            yarn deploy ${{ github.event.inputs.resource_name }} ${{ github.event.inputs.cluster == 'staging' && '--staging' || '' }}
+          else
+            echo "🔄 Redeploying all services in namespace ${{ env.NAMESPACE }}"
+            
+            # Override to use the specified namespace
+            export KUBE_NAMESPACE=${{ env.NAMESPACE }}
+            
+            # Deploy all services
+            yarn deploy ${{ github.event.inputs.cluster == 'staging' && '--staging' || '' }}
+          fi
           
       - name: Cleanup Resources
         if: github.event.inputs.action == 'cleanup-resources'

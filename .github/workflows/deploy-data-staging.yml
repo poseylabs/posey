@@ -28,6 +28,7 @@ jobs:
       COUCHBASE_USER: ${{ secrets.COUCHBASE_USER }}
       COUCHBASE_PASSWORD: ${{ secrets.COUCHBASE_PASSWORD }}
       COUCHBASE_BUCKET: ${{ secrets.COUCHBASE_BUCKET }}
+      QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
       GRAPH_API_SECRET: ${{ secrets.GRAPH_API_SECRET }}
       ENVIRONMENT: staging
     
@@ -39,7 +40,11 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          cache: 'yarn'
+          
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          yarn --version
           
       - name: Install dependencies
         run: |
@@ -109,6 +114,7 @@ jobs:
           COUCHBASE_USER=${{ secrets.COUCHBASE_USER }}
           COUCHBASE_PASSWORD=${{ secrets.COUCHBASE_PASSWORD }}
           COUCHBASE_BUCKET=${{ secrets.COUCHBASE_BUCKET }}
+          QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
           GRAPH_API_SECRET=${{ secrets.GRAPH_API_SECRET }}
           ENVIRONMENT=staging
           DOCKER_REGISTRY=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
