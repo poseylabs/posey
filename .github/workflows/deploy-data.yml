@@ -50,47 +50,47 @@ jobs:
           if [ -n "${{ secrets.POSTGRES_PORT }}" ]; then echo "POSTGRES_PORT: exists"; else echo "POSTGRES_PORT: missing"; fi
           if [ -n "${{ secrets.POSTGRES_DB_POSEY }}" ]; then echo "POSTGRES_DB_POSEY: exists"; else echo "POSTGRES_DB_POSEY: missing"; fi
           if [ -n "${{ secrets.POSTGRES_HOST }}" ]; then echo "POSTGRES_HOST: exists"; else echo "POSTGRES_HOST: missing"; fi
-          
+
           # Check for alternative names seen in your variables screenshot
           if [ -n "${{ secrets.POSTGRES_DB }}" ]; then echo "POSTGRES_DB: exists"; else echo "POSTGRES_DB: missing"; fi
           if [ -n "${{ secrets.POSTGRES_USER }}" ]; then echo "POSTGRES_USER: exists"; else echo "POSTGRES_USER: missing"; fi
-          
+
           # Debug GitHub context to understand available data
           echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
           echo "GITHUB_REF_NAME: $GITHUB_REF_NAME"
           echo "GITHUB_WORKFLOW: $GITHUB_WORKFLOW"
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          
+
       - name: Enable Corepack
         run: |
           corepack enable
           yarn --version
-          
+
       - name: Install dependencies
         run: |
           cd data
           yarn install
-        
+
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DO_API_TOKEN }}
-          
+
       - name: Login to DigitalOcean Container Registry
         run: |
           # Debug API token availability (don't print the actual token!)
           if [ -n "${{ secrets.DO_API_TOKEN }}" ]; then echo "DO_API_TOKEN exists"; else echo "DO_API_TOKEN missing"; fi
-          
+
           # Debug registry name
           echo "Registry name: ${{ secrets.DO_REGISTRY_NAME }}"
-          
+
           # Login with longer expiry to ensure enough time
           doctl registry login --expiry-seconds 3600
-          
+
           # Verify login worked
           echo "Checking registry access..."
           doctl registry repository list || echo "Failed to list repositories"
@@ -203,7 +203,7 @@ jobs:
           # Refresh registry login just before pushing
           echo "Refreshing registry login..."
           doctl registry login --expiry-seconds 3600
-
+          
           # Tag and push all posey images
           for IMAGE in $POSEY_IMAGES; do
             echo "Tagging and pushing $IMAGE"
@@ -211,20 +211,16 @@ jobs:
             # Extract the image name without registry prefix
             IMAGE_NAME=$(echo $IMAGE | sed 's|registry.digitalocean.com/posey/||')
             echo "Extracted image name: $IMAGE_NAME"
-
-            # Set correct registry path using the registry name from secrets
-            REGISTRY_PATH="registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}"
-            echo "Using registry path: $REGISTRY_PATH"
             
-            # Tag with SHA and latest
-            docker tag $IMAGE $REGISTRY_PATH/$IMAGE_NAME:$SHORT_SHA
-            docker tag $IMAGE $REGISTRY_PATH/$IMAGE_NAME:latest
+            # Use only the image name for tagging with registry from secrets
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${SHORT_SHA}
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:latest
             
             echo "Tagged images. Pushing to registry..."
             
             # Push both tags
-            docker push $REGISTRY_PATH/$IMAGE_NAME:$SHORT_SHA && echo "Successfully pushed SHA tag"
-            docker push $REGISTRY_PATH/$IMAGE_NAME:latest && echo "Successfully pushed latest tag"
+            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${SHORT_SHA} && echo "Successfully pushed SHA tag"
+            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:latest && echo "Successfully pushed latest tag"
           done
         
       - name: Deploy to Kubernetes
