@@ -117,6 +117,13 @@ jobs:
           if [ -z "$POSTGRES_HOST" ]; then
             echo "POSTGRES_HOST=posey-postgres" >> $GITHUB_ENV
           fi
+          
+          # Set environment based on branch
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            echo "DEPLOY_ENV=production" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_ENV=staging" >> $GITHUB_ENV
+          fi
         
       - name: Verify environment variables
         run: |
@@ -125,6 +132,7 @@ jobs:
           echo "POSTGRES_PORT: $POSTGRES_PORT"
           echo "POSTGRES_DB_POSEY: $POSTGRES_DB_POSEY"
           echo "POSTGRES_HOST: $POSTGRES_HOST"
+          echo "DEPLOY_ENV: $DEPLOY_ENV"
         
       - name: Build Docker images
         run: |
@@ -139,7 +147,7 @@ jobs:
           COUCHBASE_USER=$COUCHBASE_USER
           COUCHBASE_PASSWORD=$COUCHBASE_PASSWORD
           COUCHBASE_BUCKET=$COUCHBASE_BUCKET
-          ENVIRONMENT=${GITHUB_REF_NAME == 'main' ? 'production' : 'staging'}
+          ENVIRONMENT=$DEPLOY_ENV
           DOCKER_REGISTRY=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
           EOF
           
@@ -210,7 +218,7 @@ jobs:
           COUCHBASE_USER=$COUCHBASE_USER
           COUCHBASE_PASSWORD=$COUCHBASE_PASSWORD
           COUCHBASE_BUCKET=$COUCHBASE_BUCKET
-          ENVIRONMENT=${GITHUB_REF_NAME == 'main' ? 'production' : 'staging'}
+          ENVIRONMENT=$DEPLOY_ENV
           DOCKER_REGISTRY=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
           EOF
           
