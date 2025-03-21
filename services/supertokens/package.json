@@ -1,6 +1,6 @@
 {
   "name": "@posey.ai/supertokens",
-  "version": "0.0.0-beta.1",
+  "version": "1.0.0-beta.1",
   "scripts": {
     "start": "docker-compose up -d",
     "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
