@@ -21,6 +21,7 @@ on:
           - cleanup-resources
           - backup-databases
           - restart-services
+          - manage-ingress
       namespace:
         description: 'Kubernetes namespace'
         required: false
@@ -95,6 +96,13 @@ jobs:
           echo -e "\nPersistent Volume Claims:"
           kubectl get pvc -n ${{ env.NAMESPACE }}
           
+          echo -e "\nIngress Resources:"
+          kubectl get ingress -n ${{ env.NAMESPACE }}
+          
+          echo -e "\nIngress Controller Status:"
+          kubectl get pods -n ingress-nginx
+          kubectl get svc -n ingress-nginx
+          
           echo -e "\nCluster Events (last 10):"
           kubectl get events -n ${{ env.NAMESPACE }} --sort-by=.metadata.creationTimestamp | tail -10
           
@@ -134,6 +142,42 @@ jobs:
             # Deploy all services
             yarn deploy ${{ github.event.inputs.cluster == 'staging' && '--staging' || '' }}
           fi
+          
+      - name: Manage Ingress
+        if: github.event.inputs.action == 'manage-ingress'
+        run: |
+          echo "🔄 Managing Ingress Resources for namespace ${{ env.NAMESPACE }}"
+          
+          # Display current ingress status
+          echo "Current Ingress Resources:"
+          kubectl get ingress -n ${{ env.NAMESPACE }}
+          
+          echo "Current Ingress Controller Status:"
+          kubectl get pods -n ingress-nginx
+          kubectl get svc -n ingress-nginx
+          
+          # Verify if NGINX Ingress Controller is installed
+          if ! kubectl get ns ingress-nginx > /dev/null 2>&1; then
+            echo "⚠️ NGINX Ingress Controller is not installed"
+            echo "Installing NGINX Ingress Controller..."
+            kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/do/deploy.yaml
+          else
+            echo "✅ NGINX Ingress Controller is already installed"
+          fi
+          
+          # Verify if cert-manager is installed (for TLS)
+          if ! kubectl get ns cert-manager > /dev/null 2>&1; then
+            echo "⚠️ cert-manager is not installed (required for HTTPS)"
+            echo "To install cert-manager, use the deploy-ingress workflow"
+          else
+            echo "✅ cert-manager is already installed"
+            echo "TLS Certificates status:"
+            kubectl get certificates -n ${{ env.NAMESPACE }}
+            kubectl get certificaterequests -n ${{ env.NAMESPACE }}
+          fi
+          
+          echo ""
+          echo "To update ingress configuration, use the deploy-ingress workflow"
           
       - name: Cleanup Resources
         if: github.event.inputs.action == 'cleanup-resources'

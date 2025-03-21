@@ -1,0 +1,119 @@
+name: Deploy Ingress Configuration
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - prod
+          - local
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - dryrun
+
+env:
+  CLUSTER_ID: ${{ secrets.DO_KUBERNETES_CLUSTER_ID }}
+
+jobs:
+  deploy-ingress:
+    name: Deploy Ingress Configuration
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_API_TOKEN }}
+          
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+          
+      - name: Save DigitalOcean kubeconfig
+        run: doctl kubernetes cluster kubeconfig save ${{ env.CLUSTER_ID }}
+        
+      - name: Install cert-manager (for prod environment)
+        if: github.event.inputs.environment == 'prod'
+        run: |
+          echo "Installing cert-manager for TLS support..."
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.3/cert-manager.yaml
+          
+          # Wait for cert-manager to be ready
+          kubectl wait --namespace cert-manager \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=180s || echo "Cert-manager might not be fully ready yet"
+      
+      - name: Install NGINX Ingress Controller
+        run: |
+          echo "Installing NGINX Ingress Controller..."
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/do/deploy.yaml
+          
+          # Wait for NGINX Ingress to be ready
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=180s || echo "NGINX controller might not be fully ready yet"
+      
+      - name: Configure Let's Encrypt email (for prod environment)
+        if: github.event.inputs.environment == 'prod'
+        run: |
+          # Use a proper email address for LetsEncrypt notifications
+          sed -i "s/YOUR_EMAIL@posey.ai/${{ secrets.LETSENCRYPT_EMAIL || 'admin@posey.ai' }}/g" k8s/ingress/overlays/prod/letsencrypt-issuer.yaml
+      
+      - name: Convert LoadBalancer services to ClusterIP
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "Converting LoadBalancer services to ClusterIP..."
+          kubectl get svc -n posey -o name | grep -v "kubernetes" | xargs -I {} kubectl patch {} -n posey -p '{"spec": {"type": "ClusterIP"}}' || echo "No services to patch"
+      
+      - name: Apply Ingress Configuration
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "Applying ingress configuration for ${{ github.event.inputs.environment }} environment..."
+          kubectl apply -k k8s/ingress/overlays/${{ github.event.inputs.environment }}
+          
+          # If production, apply the LetsEncrypt issuer
+          if [ "${{ github.event.inputs.environment }}" == "prod" ]; then
+            kubectl apply -f k8s/ingress/overlays/prod/letsencrypt-issuer.yaml
+          fi
+      
+      - name: Dry Run Ingress Configuration
+        if: github.event.inputs.action == 'dryrun'
+        run: |
+          echo "Dry run of ingress configuration for ${{ github.event.inputs.environment }} environment:"
+          kubectl kustomize k8s/ingress/overlays/${{ github.event.inputs.environment }}
+      
+      - name: Display Ingress Service IP
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "Ingress controller service information:"
+          kubectl get svc -n ingress-nginx
+          
+          echo ""
+          echo "✅ Ingress configuration applied successfully!"
+          echo ""
+          if [ "${{ github.event.inputs.environment }}" == "prod" ]; then
+            echo "Next steps:"
+            echo "1. Get the External-IP of the ingress-nginx-controller service from above"
+            echo "2. Create DNS A records for all your domains pointing to this IP"
+            echo "3. Certificates will be automatically provisioned by Let's Encrypt"
+          else
+            echo "For local development testing:"
+            echo "1. Add entries to your /etc/hosts file for the .local domains"
+            echo "2. Use port-forward to access the ingress controller locally:"
+            echo "   kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80"
+          fi 

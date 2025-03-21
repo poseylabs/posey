@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agents-ingress
+  namespace: posey
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # Add this for HTTPS
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  rules:
+  - host: agents.api.posey.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: agents
+            port:
+              number: 5555

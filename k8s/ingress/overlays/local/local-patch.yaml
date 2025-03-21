@@ -1,0 +1,8 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: not-used
+spec:
+  rules:
+  - host: __PLACEHOLDER__
+    http: {} 

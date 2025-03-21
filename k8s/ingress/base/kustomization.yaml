@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- postgres-ingress.yaml
+- graphql-ingress.yaml
+- couchbase-ingress.yaml
+- vector-db-ingress.yaml
+- agents-ingress.yaml
+- auth-ingress.yaml
+- cron-ingress.yaml
+- mcp-ingress.yaml
+- supertokens-ingress.yaml
+- voyager-ingress.yaml
+
+commonAnnotations:
+  kubernetes.io/ingress.class: "nginx" 

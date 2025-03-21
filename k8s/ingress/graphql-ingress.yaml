@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: graphql-ingress
+  namespace: posey
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # Uncomment for HTTPS:
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  # Uncomment for HTTPS:
+  # tls:
+  # - hosts:
+  #   - graphql.api.posey.ai
+  #   secretName: graphql-tls
+  rules:
+  - host: graphql.api.posey.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: graphql
+            port:
+              number: 4444 
