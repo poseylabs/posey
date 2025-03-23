@@ -240,22 +240,58 @@ jobs:
           DOCKER_REGISTRY=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
           EOF
           
-          # Check if StatefulSets exist and back up PVCs before potential deletion
+          # Check for existing StatefulSets and handle them
           echo "Checking for existing StatefulSets..."
+          
+          # Handle Postgres StatefulSet
           if kubectl get statefulset postgres -n posey &>/dev/null; then
             echo "⚠️ Existing postgres StatefulSet found. Handling StatefulSet update..."
             
             # Get PVCs associated with the StatefulSet to ensure we don't lose data
             PVC_LIST=$(kubectl get pvc -n posey -l app=postgres -o jsonpath='{.items[*].metadata.name}')
-            echo "Found PVCs: $PVC_LIST"
+            echo "Found Postgres PVCs: $PVC_LIST"
             
             # Delete the StatefulSet but keep the PVCs
             echo "Deleting postgres StatefulSet while preserving PVCs..."
             kubectl delete statefulset postgres -n posey --cascade=orphan
             
-            # Wait for StatefulSet to be fully deleted
-            echo "Waiting for StatefulSet deletion to complete..."
-            kubectl wait --for=delete statefulset/postgres -n posey --timeout=120s
+            # Wait for StatefulSet deletion to complete
+            echo "Waiting for postgres StatefulSet deletion to complete..."
+            kubectl wait --for=delete statefulset/postgres -n posey --timeout=120s || echo "Timed out waiting for postgres deletion, continuing anyway..."
+          fi
+          
+          # Handle Couchbase StatefulSet
+          if kubectl get statefulset couchbase -n posey &>/dev/null; then
+            echo "⚠️ Existing couchbase StatefulSet found. Handling StatefulSet update..."
+            
+            # Get PVCs associated with the StatefulSet to ensure we don't lose data
+            PVC_LIST=$(kubectl get pvc -n posey -l app=couchbase -o jsonpath='{.items[*].metadata.name}')
+            echo "Found Couchbase PVCs: $PVC_LIST"
+            
+            # Delete the StatefulSet but keep the PVCs
+            echo "Deleting couchbase StatefulSet while preserving PVCs..."
+            kubectl delete statefulset couchbase -n posey --cascade=orphan
+            
+            # Wait for StatefulSet deletion to complete
+            echo "Waiting for couchbase StatefulSet deletion to complete..."
+            kubectl wait --for=delete statefulset/couchbase -n posey --timeout=120s || echo "Timed out waiting for couchbase deletion, continuing anyway..."
+          fi
+          
+          # Check for Vector.db/Qdrant StatefulSet too
+          if kubectl get statefulset qdrant -n posey &>/dev/null; then
+            echo "⚠️ Existing qdrant StatefulSet found. Handling StatefulSet update..."
+            
+            # Get PVCs associated with the StatefulSet to ensure we don't lose data
+            PVC_LIST=$(kubectl get pvc -n posey -l app=qdrant -o jsonpath='{.items[*].metadata.name}')
+            echo "Found Qdrant PVCs: $PVC_LIST"
+            
+            # Delete the StatefulSet but keep the PVCs
+            echo "Deleting qdrant StatefulSet while preserving PVCs..."
+            kubectl delete statefulset qdrant -n posey --cascade=orphan
+            
+            # Wait for StatefulSet deletion to complete
+            echo "Waiting for qdrant StatefulSet deletion to complete..."
+            kubectl wait --for=delete statefulset/qdrant -n posey --timeout=120s || echo "Timed out waiting for qdrant deletion, continuing anyway..."
           fi
           
           # Apply deployment

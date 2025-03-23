@@ -185,22 +185,58 @@ jobs:
           # Set namespace for deployment
           export KUBE_NAMESPACE=$NAMESPACE
           
-          # Check if StatefulSets exist and back up PVCs before potential deletion
+          # Check for existing StatefulSets and handle them
           echo "Checking for existing StatefulSets in namespace $NAMESPACE..."
+          
+          # Handle Postgres StatefulSet
           if kubectl get statefulset postgres -n $NAMESPACE &>/dev/null; then
             echo "⚠️ Existing postgres StatefulSet found. Handling StatefulSet update..."
             
             # Get PVCs associated with the StatefulSet to ensure we don't lose data
             PVC_LIST=$(kubectl get pvc -n $NAMESPACE -l app=postgres -o jsonpath='{.items[*].metadata.name}')
-            echo "Found PVCs: $PVC_LIST"
+            echo "Found Postgres PVCs: $PVC_LIST"
             
             # Delete the StatefulSet but keep the PVCs
             echo "Deleting postgres StatefulSet while preserving PVCs..."
             kubectl delete statefulset postgres -n $NAMESPACE --cascade=orphan
             
             # Wait for StatefulSet deletion to complete
-            echo "Waiting for StatefulSet deletion to complete..."
-            kubectl wait --for=delete statefulset/postgres -n $NAMESPACE --timeout=120s
+            echo "Waiting for postgres StatefulSet deletion to complete..."
+            kubectl wait --for=delete statefulset/postgres -n $NAMESPACE --timeout=120s || echo "Timed out waiting for postgres deletion, continuing anyway..."
+          fi
+          
+          # Handle Couchbase StatefulSet
+          if kubectl get statefulset couchbase -n $NAMESPACE &>/dev/null; then
+            echo "⚠️ Existing couchbase StatefulSet found. Handling StatefulSet update..."
+            
+            # Get PVCs associated with the StatefulSet to ensure we don't lose data
+            PVC_LIST=$(kubectl get pvc -n $NAMESPACE -l app=couchbase -o jsonpath='{.items[*].metadata.name}')
+            echo "Found Couchbase PVCs: $PVC_LIST"
+            
+            # Delete the StatefulSet but keep the PVCs
+            echo "Deleting couchbase StatefulSet while preserving PVCs..."
+            kubectl delete statefulset couchbase -n $NAMESPACE --cascade=orphan
+            
+            # Wait for StatefulSet deletion to complete
+            echo "Waiting for couchbase StatefulSet deletion to complete..."
+            kubectl wait --for=delete statefulset/couchbase -n $NAMESPACE --timeout=120s || echo "Timed out waiting for couchbase deletion, continuing anyway..."
+          fi
+          
+          # Check for Vector.db/Qdrant StatefulSet too
+          if kubectl get statefulset qdrant -n $NAMESPACE &>/dev/null; then
+            echo "⚠️ Existing qdrant StatefulSet found. Handling StatefulSet update..."
+            
+            # Get PVCs associated with the StatefulSet to ensure we don't lose data
+            PVC_LIST=$(kubectl get pvc -n $NAMESPACE -l app=qdrant -o jsonpath='{.items[*].metadata.name}')
+            echo "Found Qdrant PVCs: $PVC_LIST"
+            
+            # Delete the StatefulSet but keep the PVCs
+            echo "Deleting qdrant StatefulSet while preserving PVCs..."
+            kubectl delete statefulset qdrant -n $NAMESPACE --cascade=orphan
+            
+            # Wait for StatefulSet deletion to complete
+            echo "Waiting for qdrant StatefulSet deletion to complete..."
+            kubectl wait --for=delete statefulset/qdrant -n $NAMESPACE --timeout=120s || echo "Timed out waiting for qdrant deletion, continuing anyway..."
           fi
           
           # Deploy with appropriate flags

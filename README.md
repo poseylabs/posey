@@ -1,3 +1,7 @@
+Service status: [![Deploy Services](https://github.com/poseylabs/posey/actions/workflows/deploy-services.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/deploy-services.yml)
+
+Data Service: [![Deploy Data Services](https://github.com/poseylabs/posey/actions/workflows/deploy-data.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/deploy-data.yml)
+
 # Posey Monorepo
 
 This repository contains the source code for Posey – a lifelong personalized AI agent companion system.
