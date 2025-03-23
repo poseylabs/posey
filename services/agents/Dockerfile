@@ -11,8 +11,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && pip install --upgrade pip \
     && pip install wheel \
-    && pip wheel --only-binary :all: -r requirements.txt -w /wheels \
-    && rm -rf /var/lib/apt/lists/*
+    # Create subdirectories for better organization and smaller image layers
+    && mkdir -p /wheels/ai /wheels/core /wheels/db /wheels/utils \
+    # Install dependencies in smaller chunks to avoid running out of space
+    && grep -v "langchain\|transformers\|torch\|huggingface\|sentence-transformers" requirements.txt > /app/core_requirements.txt \
+    && grep "langchain\|transformers\|torch\|huggingface\|sentence-transformers" requirements.txt > /app/ai_requirements.txt \
+    # First install core requirements
+    && pip wheel --only-binary :all: -r /app/core_requirements.txt -w /wheels/core \
+    # Then install AI requirements
+    && pip wheel --only-binary :all: -r /app/ai_requirements.txt -w /wheels/ai \
+    # Clean up to save space
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /root/.cache
 
 # Production stage
 FROM python:3.12-slim
@@ -20,19 +30,22 @@ FROM python:3.12-slim
 WORKDIR /app
 ENV PYTHONPATH=/app/service
 
-# Install curl for healthcheck
+# Install curl for healthcheck and other necessary packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     curl \
     ca-certificates \
     libmagic1 \
     postgresql-server-dev-all \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy wheels and install dependencies
-COPY --from=builder /wheels /wheels
-RUN pip install /wheels/* \
-    && rm -rf /wheels
+# Copy wheels and install dependencies in stages to avoid space issues
+COPY --from=builder /wheels/core /wheels/core
+RUN pip install --no-cache-dir /wheels/core/* && rm -rf /wheels/core
+
+COPY --from=builder /wheels/ai /wheels/ai
+RUN pip install --no-cache-dir /wheels/ai/* && rm -rf /wheels/ai
 
 # Create posey-agents user and group
 RUN groupadd -r posey-agents && useradd -r -g posey-agents posey-agents
@@ -45,8 +58,8 @@ RUN mkdir -p /app/models /app/data && \
 # Copy application code
 COPY . /app/service/
 COPY scripts/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-RUN chown posey-agents:posey-agents /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh && \
+    chown posey-agents:posey-agents /app/entrypoint.sh
 
 # Switch to non-root user
 USER posey-agents

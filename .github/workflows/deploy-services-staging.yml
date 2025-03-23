@@ -21,7 +21,7 @@ on:
 jobs:
   build-and-deploy-staging:
     name: Build and Deploy Services to Staging
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-4-cores
     
     env:
       DOCTL_VERSION: 1.92.1
@@ -103,6 +103,22 @@ jobs:
           EOF
           
           echo "Created .env file for services staging deployment"
+
+      - name: Free disk space
+        run: |
+          echo "Checking available disk space before cleanup:"
+          df -h
+          
+          # Remove unnecessary large directories
+          echo "Removing unnecessary large directories..."
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          
+          # Clean Docker cache
+          echo "Cleaning Docker cache..."
+          docker system prune -af
+          
+          echo "Available disk space after cleanup:"
+          df -h
         
       - name: Build Docker images
         run: |
@@ -219,4 +235,4 @@ jobs:
       - name: Notify on failure
         if: failure()
         run: |
-          echo "❌ Services deployment to staging failed" 
+          echo "❌ Services deployment to staging failed"

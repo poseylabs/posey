@@ -106,6 +106,22 @@ jobs:
           EOF
           
           echo "Created .env file for data deployment"
+
+      - name: Free disk space
+        run: |
+          echo "Checking available disk space before cleanup:"
+          df -h
+          
+          # Remove unnecessary large directories
+          echo "Removing unnecessary large directories..."
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          
+          # Clean Docker cache
+          echo "Cleaning Docker cache..."
+          docker system prune -af
+          
+          echo "Available disk space after cleanup:"
+          df -h
         
       - name: Build Docker images
         run: |
@@ -210,7 +226,7 @@ jobs:
   deploy-services:
     name: Deploy Platform Services
     if: github.event.inputs.components == 'services' || github.event.inputs.components == 'all'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-4-cores
     environment: ${{ github.event.inputs.environment }}
     needs: [deploy-data]
     
@@ -294,6 +310,22 @@ jobs:
           EOF
           
           echo "Created .env file for services deployment"
+
+      - name: Free disk space
+        run: |
+          echo "Checking available disk space before cleanup:"
+          df -h
+          
+          # Remove unnecessary large directories
+          echo "Removing unnecessary large directories..."
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          
+          # Clean Docker cache
+          echo "Cleaning Docker cache..."
+          docker system prune -af
+          
+          echo "Available disk space after cleanup:"
+          df -h
         
       - name: Build Docker images
         run: |
