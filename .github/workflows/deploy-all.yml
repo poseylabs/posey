@@ -1,0 +1,456 @@
+name: Deploy All Components
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      components:
+        description: 'Components to deploy'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - data
+          - services
+      update_ingress:
+        description: 'Update ingress configuration'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  deploy-data:
+    name: Deploy Data Services
+    if: github.event.inputs.components == 'data' || github.event.inputs.components == 'all'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    env:
+      DOCTL_VERSION: 1.92.1
+      KUBE_CLUSTER_ID: ${{ github.event.inputs.environment == 'production' && secrets.DO_KUBERNETES_CLUSTER_ID || secrets.DO_KUBERNETES_CLUSTER_ID_STAGING }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+      POSTGRES_DB_POSEY: ${{ secrets.POSTGRES_DB_POSEY }}
+      POSTGRES_HOST: ${{ secrets.POSTGRES_HOST || 'posey-postgres' }}
+      COUCHBASE_USER: ${{ secrets.COUCHBASE_USER }}
+      COUCHBASE_PASSWORD: ${{ secrets.COUCHBASE_PASSWORD }}
+      COUCHBASE_BUCKET: ${{ secrets.COUCHBASE_BUCKET }}
+      GRAPH_API_SECRET: ${{ secrets.GRAPH_API_SECRET }}
+      QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+      ENVIRONMENT: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          yarn --version
+
+      - name: Install dependencies
+        run: |
+          cd data
+          yarn install
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_API_TOKEN }}
+
+      - name: Login to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 3600
+        
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+          
+      - name: Save DigitalOcean kubeconfig
+        run: doctl kubernetes cluster kubeconfig save ${{ env.KUBE_CLUSTER_ID }}
+        
+      - name: Create .env file
+        run: |
+          cd data
+          # Create .env file with required variables
+          cat > .env << EOF
+          # Environment
+          ENVIRONMENT=${{ env.ENVIRONMENT }}
+          DOCKER_REGISTRY=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
+          
+          # Database Connections
+          POSTGRES_USER=${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_PORT=${{ env.POSTGRES_PORT }}
+          POSTGRES_DB_POSEY=${{ env.POSTGRES_DB_POSEY }}
+          POSTGRES_HOST=${{ env.POSTGRES_HOST }}
+          COUCHBASE_USER=${{ env.COUCHBASE_USER }}
+          COUCHBASE_PASSWORD=${{ env.COUCHBASE_PASSWORD }}
+          COUCHBASE_BUCKET=${{ env.COUCHBASE_BUCKET }}
+          QDRANT_API_KEY=${{ env.QDRANT_API_KEY }}
+          GRAPH_API_SECRET=${{ env.GRAPH_API_SECRET }}
+          EOF
+          
+          echo "Created .env file for data deployment"
+        
+      - name: Build Docker images
+        run: |
+          cd data
+          yarn build
+        
+      - name: Tag and push Docker images
+        run: |
+          # Get the short SHA of the commit
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          
+          cd data
+          
+          # Get all data services images
+          DATA_IMAGES=$(docker images | grep 'posey' | grep -E 'postgres|couchbase|qdrant|vector' | awk '{print $1}')
+          
+          if [ -z "$DATA_IMAGES" ]; then
+            echo "No data images found to push"
+            docker images
+            exit 1
+          fi
+
+          echo "Found data images: $DATA_IMAGES"
+          
+          # Refresh registry login just before pushing
+          doctl registry login --expiry-seconds 3600
+          
+          # Tag and push all data images
+          for IMAGE in $DATA_IMAGES; do
+            echo "Tagging and pushing $IMAGE"
+
+            # Extract the image name without registry prefix if present
+            IMAGE_NAME=$(echo $IMAGE | sed 's|^.*/||')
+            # Convert potential dots to dashes in image name
+            IMAGE_NAME=$(echo $IMAGE_NAME | tr '.' '-')
+            echo "Extracted image name: $IMAGE_NAME"
+            
+            # Tag with environment and latest
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${SHORT_SHA}
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${{ env.ENVIRONMENT }}
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:latest
+            
+            # Push all tags
+            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${SHORT_SHA}
+            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${{ env.ENVIRONMENT }}
+            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:latest
+          done
+        
+      - name: Deploy to Kubernetes
+        run: |
+          cd data
+          
+          # Set the namespace based on environment
+          NAMESPACE="posey"
+          if [ "${{ env.ENVIRONMENT }}" == "staging" ]; then
+            NAMESPACE="posey-staging"
+            # Create namespace if it doesn't exist
+            kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+          fi
+          
+          # Set namespace for deployment
+          export KUBE_NAMESPACE=$NAMESPACE
+          
+          # Deploy with appropriate flags
+          if [ "${{ env.ENVIRONMENT }}" == "staging" ]; then
+            yarn deploy -- --staging
+          else
+            yarn deploy
+          fi
+        
+      - name: Verify deployment
+        run: |
+          NAMESPACE="posey"
+          if [ "${{ env.ENVIRONMENT }}" == "staging" ]; then
+            NAMESPACE="posey-staging"
+          fi
+          
+          echo "Checking data services pod status in namespace $NAMESPACE:"
+          kubectl get pods -n $NAMESPACE -l part-of=posey-platform -l component=data
+          
+      - name: Notify on data deployment completion
+        run: echo "::set-output name=data_status::success"
+
+  deploy-services:
+    name: Deploy Platform Services
+    if: github.event.inputs.components == 'services' || github.event.inputs.components == 'all'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    needs: [deploy-data]
+    
+    env:
+      DOCTL_VERSION: 1.92.1
+      KUBE_CLUSTER_ID: ${{ github.event.inputs.environment == 'production' && secrets.DO_KUBERNETES_CLUSTER_ID || secrets.DO_KUBERNETES_CLUSTER_ID_STAGING }}
+      SUPERTOKENS_API_KEY: ${{ secrets.SUPERTOKENS_API_KEY }}
+      SUPERTOKENS_DASHBOARD_PASSWORD: ${{ secrets.SUPERTOKENS_DASHBOARD_PASSWORD }}
+      GRAPH_API_SECRET: ${{ secrets.GRAPH_API_SECRET }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+      POSTGRES_DB_POSEY: ${{ secrets.POSTGRES_DB_POSEY }}
+      POSTGRES_HOST: ${{ secrets.POSTGRES_HOST || 'posey-postgres' }}
+      COUCHBASE_USER: ${{ secrets.COUCHBASE_USER }}
+      COUCHBASE_PASSWORD: ${{ secrets.COUCHBASE_PASSWORD }}
+      COUCHBASE_BUCKET: ${{ secrets.COUCHBASE_BUCKET }}
+      ENVIRONMENT: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          yarn --version
+
+      - name: Install dependencies
+        run: |
+          cd services
+          yarn install
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_API_TOKEN }}
+
+      - name: Login to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 3600
+        
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+          
+      - name: Save DigitalOcean kubeconfig
+        run: doctl kubernetes cluster kubeconfig save ${{ env.KUBE_CLUSTER_ID }}
+        
+      - name: Create .env file
+        run: |
+          cd services
+          # Create .env file with required variables
+          cat > .env << EOF
+          # Environment
+          ENVIRONMENT=${{ env.ENVIRONMENT }}
+          DOCKER_REGISTRY=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
+          
+          # Database Connections
+          POSTGRES_USER=${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_PORT=${{ env.POSTGRES_PORT }}
+          POSTGRES_DB_POSEY=${{ env.POSTGRES_DB_POSEY }}
+          POSTGRES_HOST=${{ env.POSTGRES_HOST }}
+          COUCHBASE_USER=${{ env.COUCHBASE_USER }}
+          COUCHBASE_PASSWORD=${{ env.COUCHBASE_PASSWORD }}
+          COUCHBASE_BUCKET=${{ env.COUCHBASE_BUCKET }}
+          
+          # Auth
+          SUPERTOKENS_API_KEY=${{ env.SUPERTOKENS_API_KEY }}
+          SUPERTOKENS_DASHBOARD_PASSWORD=${{ env.SUPERTOKENS_DASHBOARD_PASSWORD }}
+          GRAPH_API_SECRET=${{ env.GRAPH_API_SECRET }}
+          
+          # Add any additional environment variables needed
+          ${{ secrets.ADDITIONAL_ENV_VARS }}
+          EOF
+          
+          echo "Created .env file for services deployment"
+        
+      - name: Build Docker images
+        run: |
+          cd services
+          yarn build:local
+        
+      - name: Tag and push Docker images
+        run: |
+          # Get the short SHA of the commit
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          
+          cd services
+          
+          # Get all services images excluding data services
+          SERVICES_IMAGES=$(docker images | grep 'posey' | grep -v 'postgres\|couchbase\|qdrant\|vector' | awk '{print $1}')
+          
+          if [ -z "$SERVICES_IMAGES" ]; then
+            echo "No service images found to push"
+            docker images
+            exit 1
+          fi
+
+          echo "Found service images: $SERVICES_IMAGES"
+          
+          # Refresh registry login just before pushing
+          doctl registry login --expiry-seconds 3600
+          
+          # Tag and push all service images
+          for IMAGE in $SERVICES_IMAGES; do
+            echo "Tagging and pushing $IMAGE"
+
+            # Extract the image name without registry prefix if present
+            IMAGE_NAME=$(echo $IMAGE | sed 's|^.*/||')
+            echo "Extracted image name: $IMAGE_NAME"
+            
+            # Tag with environment and latest
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${SHORT_SHA}
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${{ env.ENVIRONMENT }}
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:latest
+            
+            # Push all tags
+            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${SHORT_SHA}
+            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${{ env.ENVIRONMENT }}
+            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:latest
+          done
+        
+      - name: Deploy to Kubernetes
+        run: |
+          cd services
+          
+          # Set the namespace based on environment
+          NAMESPACE="posey"
+          if [ "${{ env.ENVIRONMENT }}" == "staging" ]; then
+            NAMESPACE="posey-staging"
+            # Create namespace if it doesn't exist
+            kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+          fi
+          
+          # Set namespace for deployment
+          export KUBE_NAMESPACE=$NAMESPACE
+          
+          # Deploy with appropriate flags
+          if [ "${{ env.ENVIRONMENT }}" == "staging" ]; then
+            yarn deploy:local -- --staging
+          else
+            yarn deploy:local
+          fi
+        
+      - name: Verify deployment
+        run: |
+          NAMESPACE="posey"
+          if [ "${{ env.ENVIRONMENT }}" == "staging" ]; then
+            NAMESPACE="posey-staging"
+          fi
+          
+          echo "Checking services pod status in namespace $NAMESPACE:"
+          kubectl get pods -n $NAMESPACE -l part-of=posey-platform
+          
+      - name: Notify on services deployment completion
+        run: echo "::set-output name=services_status::success"
+
+  update-ingress:
+    name: Update Ingress Configuration
+    if: github.event.inputs.update_ingress == 'true'
+    needs: [deploy-services]
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    env:
+      KUBE_CLUSTER_ID: ${{ github.event.inputs.environment == 'production' && secrets.DO_KUBERNETES_CLUSTER_ID || secrets.DO_KUBERNETES_CLUSTER_ID_STAGING }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_API_TOKEN }}
+          
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+          
+      - name: Save DigitalOcean kubeconfig
+        run: doctl kubernetes cluster kubeconfig save ${{ env.KUBE_CLUSTER_ID }}
+      
+      - name: Update Ingress Configuration
+        run: |
+          echo "Applying ingress configuration for ${{ github.event.inputs.environment }} environment..."
+          
+          # Install cert-manager for production
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            echo "Installing cert-manager for TLS support..."
+            kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.3/cert-manager.yaml
+            
+            # Wait for cert-manager to be ready
+            kubectl wait --namespace cert-manager \
+              --for=condition=ready pod \
+              --selector=app.kubernetes.io/component=controller \
+              --timeout=180s || echo "Cert-manager might not be fully ready yet"
+          fi
+          
+          # Install NGINX Ingress Controller
+          echo "Installing NGINX Ingress Controller..."
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/do/deploy.yaml
+          
+          # Wait for NGINX Ingress to be ready
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=180s || echo "NGINX controller might not be fully ready yet"
+          
+          # Configure Let's Encrypt for production
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            # Use a proper email address for LetsEncrypt notifications
+            sed -i "s/YOUR_EMAIL@posey.ai/${{ secrets.LETSENCRYPT_EMAIL || 'admin@posey.ai' }}/g" k8s/ingress/overlays/prod/letsencrypt-issuer.yaml
+          fi
+          
+          # Convert LoadBalancer services to ClusterIP
+          echo "Converting LoadBalancer services to ClusterIP..."
+          NAMESPACE="posey"
+          if [ "${{ github.event.inputs.environment }}" == "staging" ]; then
+            NAMESPACE="posey-staging"
+          fi
+          kubectl get svc -n $NAMESPACE -o name | grep -v "kubernetes" | xargs -I {} kubectl patch {} -n $NAMESPACE -p '{"spec": {"type": "ClusterIP"}}' || echo "No services to patch"
+          
+          # Apply Ingress Configuration
+          echo "Applying ingress configuration for ${{ github.event.inputs.environment }} environment..."
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            kubectl apply -k k8s/ingress/overlays/prod
+            kubectl apply -f k8s/ingress/overlays/prod/letsencrypt-issuer.yaml
+          else
+            kubectl apply -k k8s/ingress/overlays/staging
+          fi
+          
+      - name: Display Ingress Service IP
+        run: |
+          echo "Ingress controller service information:"
+          kubectl get svc -n ingress-nginx
+          
+          echo ""
+          echo "✅ Ingress configuration applied successfully!"
+          echo ""
+          
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            echo "Next steps:"
+            echo "1. Get the External-IP of the ingress-nginx-controller service from above"
+            echo "2. Create DNS A records for all your domains pointing to this IP"
+            echo "3. Certificates will be automatically provisioned by Let's Encrypt"
+          else
+            echo "Staging environment is now accessible via:"
+            echo "- https://auth.staging.posey.ai"
+            echo "- https://mcp.staging.posey.ai"
+            echo "- https://voyager.staging.posey.ai"
+            echo "- https://agents.staging.posey.ai"
+          fi 
