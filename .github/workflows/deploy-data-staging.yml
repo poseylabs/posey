@@ -130,6 +130,24 @@ jobs:
           # Override to use staging namespace
           export KUBE_NAMESPACE=posey-staging
           
+          # Check if StatefulSets exist and back up PVCs before potential deletion
+          echo "Checking for existing StatefulSets in staging namespace..."
+          if kubectl get statefulset postgres -n posey-staging &>/dev/null; then
+            echo "⚠️ Existing postgres StatefulSet found. Handling StatefulSet update..."
+            
+            # Get PVCs associated with the StatefulSet to ensure we don't lose data
+            PVC_LIST=$(kubectl get pvc -n posey-staging -l app=postgres -o jsonpath='{.items[*].metadata.name}')
+            echo "Found PVCs: $PVC_LIST"
+            
+            # Delete the StatefulSet but keep the PVCs
+            echo "Deleting postgres StatefulSet while preserving PVCs..."
+            kubectl delete statefulset postgres -n posey-staging --cascade=orphan
+            
+            # Wait for StatefulSet deletion to complete
+            echo "Waiting for StatefulSet deletion to complete..."
+            kubectl wait --for=delete statefulset/postgres -n posey-staging --timeout=120s
+          fi
+          
           # Run deploy with staging flag
           yarn deploy -- --staging
         

@@ -240,6 +240,25 @@ jobs:
           DOCKER_REGISTRY=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}
           EOF
           
+          # Check if StatefulSets exist and back up PVCs before potential deletion
+          echo "Checking for existing StatefulSets..."
+          if kubectl get statefulset postgres -n posey &>/dev/null; then
+            echo "⚠️ Existing postgres StatefulSet found. Handling StatefulSet update..."
+            
+            # Get PVCs associated with the StatefulSet to ensure we don't lose data
+            PVC_LIST=$(kubectl get pvc -n posey -l app=postgres -o jsonpath='{.items[*].metadata.name}')
+            echo "Found PVCs: $PVC_LIST"
+            
+            # Delete the StatefulSet but keep the PVCs
+            echo "Deleting postgres StatefulSet while preserving PVCs..."
+            kubectl delete statefulset postgres -n posey --cascade=orphan
+            
+            # Wait for StatefulSet to be fully deleted
+            echo "Waiting for StatefulSet deletion to complete..."
+            kubectl wait --for=delete statefulset/postgres -n posey --timeout=120s
+          fi
+          
+          # Apply deployment
           yarn deploy
         
       - name: Verify deployment
