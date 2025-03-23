@@ -85,7 +85,7 @@ jobs:
           fi
           
           # Tag and push services
-          for service in postgres couchbase vector.db graphql; do
+          for service in postgres couchbase vector.db; do
             # Convert service name to valid image name
             IMAGE_NAME=$(echo $service | tr '.' '-')
             echo "Tagging and pushing $IMAGE_NAME for staging"

@@ -6,9 +6,6 @@ File Map:
 - data
   - /couchbase
     - docker-compose.yml
-  - /graphql
-    - docker-compose.yml
-    - Dockerfile
   - /postgres
     - docker-compose.yml
     - Dockerfile

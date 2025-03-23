@@ -9,9 +9,17 @@
     "deploy": "node --loader ts-node/esm scripts/deploy.ts",
     "deploy:local": "node --loader ts-node/esm scripts/deploy.ts --local",
     "dev": "node --loader ts-node/esm scripts/dev.ts",
+    "dev:connect": "node --loader ts-node/esm scripts/dev.ts && echo '⏳ Waiting for pods to become ready before setting up port forwarding...' && ./port-forward.sh",
+    "dev:wait": "node --loader ts-node/esm scripts/dev.ts && echo '⏳ Waiting for pods to become ready before setting up port forwarding...' && ./port-forward.sh",
     "start": "node --loader ts-node/esm scripts/start.ts",
+    "ingress": "node --loader ts-node/esm ../scripts/apply-ingress.ts",
+    "ports": "./port-forward.sh",
     "clean": "node --loader ts-node/esm scripts/clean.ts",
-    "cleanup-init": "node --loader ts-node/esm scripts/cleanup-init.ts"
+    "clean:force": "node --loader ts-node/esm scripts/clean.ts && kubectl delete deployment,statefulset,pod,service,pvc -l component in (postgres,qdrant,couchbase) -n posey --force --grace-period=0 --ignore-not-found || true",
+    "dev:clean": "node --loader ts-node/esm scripts/dev.ts --clean",
+    "cleanup-init": "node --loader ts-node/esm scripts/cleanup-init.ts",
+    "use:local": "kubectl config use-context docker-desktop",
+    "use:prod": "kubectl config use-context do-sfo3-posey-cluster"
   },
   "private": true,
   "dependencies": {

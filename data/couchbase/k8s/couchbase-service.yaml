@@ -10,16 +10,21 @@ spec:
   - name: web-ui
     port: 8091
     targetPort: 8091
+    nodePort: 30091
   - name: api
     port: 8092
     targetPort: 8092
+    nodePort: 30092
   - name: query
     port: 8093
     targetPort: 8093
+    nodePort: 30093
   - name: search
     port: 8094
     targetPort: 8094
+    nodePort: 30094
   - name: data
     port: 11210
     targetPort: 11210
-  type: LoadBalancer
+    nodePort: 31210
+  type: NodePort

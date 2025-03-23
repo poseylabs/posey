@@ -32,7 +32,7 @@ spec:
           mountPath: /var/lib/postgresql/data
       containers:
       - name: postgres
-        image: posey-postgres:fixed
+        image: posey-postgres:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsUser: 999

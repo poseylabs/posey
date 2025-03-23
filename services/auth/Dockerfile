@@ -34,6 +34,7 @@ RUN chmod +x /app/services/auth/scripts/run-migrations.sh
 # Install all dependencies from monorepo root
 ARG POSTGRES_DSN_POSEY
 ARG POSTGRES_USER
+ARG POSTGRES_DSN_SUPERTOKENS
 
 ENV POSTGRES_USER=$POSTGRES_USER
 ENV POSTGRES_DSN_POSEY=$POSTGRES_DSN_POSEY

@@ -9,4 +9,5 @@ spec:
   ports:
   - port: 3567
     targetPort: 3567
-  type: LoadBalancer
+    nodePort: 30567
+  type: NodePort

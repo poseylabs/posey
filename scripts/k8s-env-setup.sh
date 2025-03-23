@@ -6,11 +6,14 @@ NAMESPACE=${1:-posey}
 APP_NAME=${2:-""}
 APP_DIR=${3:-""}
 
+# Debug output to help diagnose path issues
+echo "DEBUG: APP_DIR=$APP_DIR"
+
 # Determine which .env file to use based on the app location
-if [[ "$APP_DIR" == *"/data/"* ]]; then
+if [[ "$APP_DIR" == */data/* || "$APP_DIR" == */data ]]; then
   ENV_FILE=${4:-/Volumes/Projects/posey/data/.env}
   echo "🔍 Detected data app - using data/.env"
-elif [[ "$APP_DIR" == *"/services/"* ]]; then
+elif [[ "$APP_DIR" == */services/* || "$APP_DIR" == */services ]]; then
   ENV_FILE=${4:-/Volumes/Projects/posey/services/.env}
   echo "🔍 Detected services app - using services/.env"
 else
@@ -74,13 +77,18 @@ create_app_secrets() {
   
   # Create a temporary file with filtered variables
   TMP_ENV=$(mktemp)
-  grep -E "$FILTER" $ENV_FILE > $TMP_ENV
+  grep -E "$FILTER" $ENV_FILE > $TMP_ENV || true
   
-  # Create secret
-  kubectl create secret generic $APP_NAME-secrets \
-    -n $NAMESPACE \
-    --from-env-file=$TMP_ENV \
-    --dry-run=client -o yaml | kubectl apply -f -
+  # Check if any variables were found
+  if [ -s "$TMP_ENV" ]; then
+    # Create secret
+    kubectl create secret generic $APP_NAME-secrets \
+      -n $NAMESPACE \
+      --from-env-file=$TMP_ENV \
+      --dry-run=client -o yaml | kubectl apply -f -
+  else
+    echo "⚠️ No $PREFIX variables found in $ENV_FILE, skipping $APP_NAME secrets"
+  fi
   
   rm $TMP_ENV
 }
@@ -88,9 +96,6 @@ create_app_secrets() {
 # If a specific app was specified, only create secrets for that app
 if [ -n "$APP_NAME" ]; then
   case "$APP_NAME" in
-    "graphql")
-      create_app_secrets "graphql" "HASURA" "(HASURA|POSTGRES)"
-      ;;
     "postgres")
       create_app_secrets "postgres" "POSTGRES" "POSTGRES"
       ;;
@@ -98,7 +103,12 @@ if [ -n "$APP_NAME" ]; then
       create_app_secrets "qdrant" "QDRANT" "QDRANT"
       ;;
     "couchbase")
-      create_app_secrets "couchbase" "COUCHBASE" "COUCHBASE"
+      # Check if Couchbase environment variables exist before creating secrets
+      if grep -q "COUCHBASE_" $ENV_FILE; then
+        create_app_secrets "couchbase" "COUCHBASE" "COUCHBASE"
+      else
+        echo "⚠️ Skipping couchbase secrets - no COUCHBASE_ variables found in $ENV_FILE"
+      fi
       ;;
     "cron")
       create_app_secrets "cron" "CRON" "CRON"
@@ -124,10 +134,16 @@ if [ -n "$APP_NAME" ]; then
   esac
 else
   # Create secrets for all apps
-  create_app_secrets "graphql" "HASURA" "(HASURA|POSTGRES)"
   create_app_secrets "postgres" "POSTGRES" "POSTGRES"
   create_app_secrets "qdrant" "QDRANT" "QDRANT"
-  create_app_secrets "couchbase" "COUCHBASE" "COUCHBASE"
+  
+  # Check if Couchbase environment variables exist before creating secrets
+  if grep -q "COUCHBASE_" $ENV_FILE; then
+    create_app_secrets "couchbase" "COUCHBASE" "COUCHBASE"
+  else
+    echo "⚠️ Skipping couchbase secrets - no COUCHBASE_ variables found in $ENV_FILE"
+  fi
+  
   create_app_secrets "cron" "CRON" "CRON"
   create_app_secrets "auth" "AUTH" "AUTH"
   create_app_secrets "supertokens" "SUPER_TOKENS" "SUPER_TOKENS"

@@ -65,7 +65,7 @@ fi
 
 # Setup environment variables first to ensure ConfigMap and Secrets are created
 echo "🔑 Setting up environment variables"
-bash "${ROOT_DIR}/../scripts/k8s-env-setup.sh" $NAMESPACE "" "$ROOT_DIR"
+bash "${ROOT_DIR}/../../scripts/k8s-env-setup.sh" $NAMESPACE "" "$ROOT_DIR"
 
 # Apply shared resources
 echo "📦 Applying shared Kubernetes resources"

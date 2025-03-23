@@ -11,4 +11,5 @@ spec:
   ports:
   - port: 7777
     targetPort: 7777
-  type: LoadBalancer 
+    nodePort: 30777
+  type: NodePort 

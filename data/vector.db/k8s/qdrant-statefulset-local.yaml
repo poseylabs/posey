@@ -29,7 +29,7 @@ spec:
           mountPath: /qdrant/storage
       containers:
       - name: qdrant
-        image: posey-qdrant:latest
+        image: posey-vector-db:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 1111

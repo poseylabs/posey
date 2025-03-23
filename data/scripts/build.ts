@@ -12,8 +12,7 @@ const rootDir = path.resolve(__dirname, '..');
 const services = [
   'postgres',
   'couchbase',
-  'vector.db',
-  'graphql'
+  'vector.db'
 ];
 
 // Parse arguments

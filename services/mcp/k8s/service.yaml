@@ -11,4 +11,5 @@ spec:
   ports:
   - port: 5050
     targetPort: 5050
-  type: LoadBalancer
+    nodePort: 30050
+  type: NodePort

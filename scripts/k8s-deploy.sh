@@ -11,7 +11,7 @@ usage() {
   echo "  -c, --clean       Clean existing deployments first"
   echo "  -s, --skip-build  Skip Docker build"
   echo ""
-  echo "Available apps: graphql, postgres, qdrant, couchbase, cron, auth, supertokens, voyager, mcp, agents"
+  echo "Available apps: postgres, qdrant, couchbase, cron, auth, supertokens, voyager, mcp, agents"
   exit 1
 }
 
@@ -53,7 +53,7 @@ if [ -z "$APP_NAME" ]; then
 fi
 
 # Validate app name
-VALID_APPS=("graphql" "postgres" "qdrant" "couchbase" "cron" "auth" "supertokens" "voyager" "mcp" "agents")
+VALID_APPS=("postgres" "qdrant" "couchbase" "cron" "auth" "supertokens" "voyager" "mcp" "agents")
 if [[ ! " ${VALID_APPS[@]} " =~ " ${APP_NAME} " ]]; then
   echo "❌ Error: Invalid app name: $APP_NAME"
   usage

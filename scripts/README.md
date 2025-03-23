@@ -21,7 +21,6 @@ The Posey platform follows this standardized structure:
 │   │   └── k8s/               # Shared Kubernetes configurations
 │   ├── postgres/              # PostgreSQL service
 │   ├── couchbase/             # Couchbase service
-│   ├── graphql/               # GraphQL service
 │   └── vector.db/             # Vector database service
 ├── services/                  # Application services
 │   ├── shared/                # Shared resources for application services
@@ -61,7 +60,7 @@ Options:
 - `-c, --clean`: Clean existing deployments first
 - `-s, --skip-build`: Skip Docker build
 
-Available apps: graphql, postgres, qdrant, couchbase
+Available apps: postgres, qdrant, couchbase
 
 ## Environment Files
 
@@ -110,10 +109,6 @@ This approach ensures that secrets are:
 ```bash
 # Deploy PostgreSQL
 cd /Volumes/Projects/posey/data/postgres
-yarn deploy
-
-# Deploy GraphQL
-cd /Volumes/Projects/posey/data/graphql
 yarn deploy
 
 # Verify all deployments

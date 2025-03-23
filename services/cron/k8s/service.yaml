@@ -9,4 +9,5 @@ spec:
   ports:
   - port: 2222
     targetPort: 2222
-  type: ClusterIP 
+    nodePort: 30322
+  type: NodePort 

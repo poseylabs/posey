@@ -5,17 +5,24 @@
   "author": "Posey Labs <code@posey.ai>",
   "license": "AGPL-3.0",
   "main": "null",
+  "type": "module",
   "scripts": {
     "prepare": "husky install",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "lint": "turbo lint",
     "test": "turbo test",
     "build": "turbo build",
+    "clean-rebuild": "bash ./scripts/clean-rebuild.sh",
     "build:local": "echo '🔨 Building Docker image posey-cron:latest...' && docker build -t posey-cron:latest -f Dockerfile ../.. && docker images posey-cron:latest",
     "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
     "deploy": "bash ../../scripts/k8s-deploy.sh cron",
     "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f ./k8s/service.yaml -n posey && kubectl apply -f ./k8s/deployment-local.yaml -n posey",
-    "verify": "kubectl get pods -n posey -l app=posey-cron && kubectl get services -n posey -l app=posey-cron"
+    "verify": "kubectl get pods -n posey -l app=posey-cron && kubectl get services -n posey -l app=posey-cron",
+    "clean": "bash ./scripts/clean-all.sh",
+    "ingress:setup": "NODE_ENV=development node scripts/posey-ingress.js --local",
+    "ingress:local": "yarn ingress:setup && bash scripts/port-forward-ingress.sh",
+    "ingress:prod": "node scripts/posey-ingress.js",
+    "port-forward": "bash scripts/port-forward-all.sh"
   },
   "devDependencies": {
     "@nrwl/nx-cloud": "19.1.0",

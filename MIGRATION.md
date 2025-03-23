@@ -33,7 +33,6 @@ The monorepo will be organized as follows:
 │   ├── cron        # Node.js-based cron job service for scheduled tasks
 │   └── data        # Data services including PostgreSQL, GraphQL engine, and Qdrant (vector DB)
 │       ├── postgres
-│       ├── graphql
 │       └── vector-db
 │
 ├── package.json    # Root package file managing workspaces and dependencies

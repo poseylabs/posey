@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
 - postgres-ingress.yaml
-- graphql-ingress.yaml
 - couchbase-ingress.yaml
 - vector-db-ingress.yaml
 - agents-ingress.yaml

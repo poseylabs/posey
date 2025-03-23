@@ -5,19 +5,31 @@ import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
+
+// Load environment variables from .env file at the beginning
+const envPath = path.resolve(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+  console.log(chalk.blue(`Loading environment variables from ${envPath}`));
+  dotenv.config({ path: envPath });
+  console.log(chalk.blue('Environment variables loaded from .env file:'));
+  console.log(chalk.blue(`POSTGRES_USER: ${process.env.POSTGRES_USER || '[not set]'}`));
+  console.log(chalk.blue(`POSTGRES_HOST: ${process.env.POSTGRES_HOST || '[not set]'}`));
+  console.log(chalk.blue(`POSTGRES_PORT: ${process.env.POSTGRES_PORT || '[not set]'}`));
+  console.log(chalk.blue(`POSTGRES_DB_POSEY: ${process.env.POSTGRES_DB_POSEY || '[not set]'}`));
+  // Don't log the password for security
+  console.log(chalk.blue(`POSTGRES_PASSWORD: ${process.env.POSTGRES_PASSWORD ? '[set]' : '[not set]'}`));
+} else {
+  console.warn(chalk.yellow(`No .env file found at ${envPath}, using defaults`));
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 
-// Load environment variables from .env file
-dotenv.config({ path: path.join(rootDir, '.env') });
-
 const services = [
   'postgres',
   'couchbase',
-  'vector.db',
-  'graphql'
+  'vector.db'
 ];
 
 // Parse arguments
@@ -25,6 +37,19 @@ const isLocal = process.argv.includes('--local');
 const isStaging = process.argv.includes('--staging');
 const environment = isLocal ? 'local' : isStaging ? 'staging' : 'production';
 const namespace = process.env.KUBE_NAMESPACE || (isStaging ? 'posey-staging' : 'posey');
+
+/**
+ * Check if we're using Docker Desktop Kubernetes
+ */
+async function isDockerDesktopKubernetes(): Promise<boolean> {
+  try {
+    const result = await execa.execa('kubectl', ['config', 'current-context'], { stdio: 'pipe' });
+    return result.stdout.includes('docker-desktop');
+  } catch (error) {
+    console.warn(chalk.yellow('Unable to determine Kubernetes context, assuming remote cluster'));
+    return false;
+  }
+}
 
 /**
  * Executes a command with proper logging
@@ -52,8 +77,28 @@ async function runCommand(command: string, args: string[] = [], options = {}): P
 function processTemplate(filePath: string): string {
   let template = fs.readFileSync(filePath, 'utf8');
 
+  // First, handle special Kubernetes environment variables to ensure proper in-cluster connectivity
+  // This ensures we use the correct service hostnames within Kubernetes
+  if (template.includes('HASURA_GRAPHQL_DATABASE_URL') && !isLocal) {
+    // For production/remote deployments, use the fully qualified service name
+    template = template.replace(
+      /postgres:\/\/\${POSTGRES_USER[^@]*@localhost:[\d]+\/\${POSTGRES_DB_POSEY}/g,
+      'postgres://${POSTGRES_USER:-pocketdb}:${POSTGRES_PASSWORD}@postgres.${NAMESPACE}.svc.cluster.local:${POSTGRES_PORT:-3333}/${POSTGRES_DB_POSEY:-posey}'
+    );
+  } else if (template.includes('HASURA_GRAPHQL_DATABASE_URL') && isLocal) {
+    // For local development, still use the service name, not localhost, for in-cluster communication
+    template = template.replace(
+      /postgres:\/\/\${POSTGRES_USER[^@]*@localhost:[\d]+\/\${POSTGRES_DB_POSEY}/g,
+      'postgres://${POSTGRES_USER:-pocketdb}:${POSTGRES_PASSWORD}@postgres.posey.svc.cluster.local:${POSTGRES_PORT:-3333}/${POSTGRES_DB_POSEY:-posey}'
+    );
+  }
+
   // Replace ${VARIABLE} with actual env values
   template = template.replace(/\${([^}]+)}/g, (match, key) => {
+    const defaultMatch = match.match(/\${([^:-]+):-([^}]+)}/);
+    if (defaultMatch) {
+      return process.env[defaultMatch[1]] || defaultMatch[2];
+    }
     return process.env[key] || '';
   });
 
@@ -149,10 +194,32 @@ async function deployService(service: string): Promise<void> {
 
     // Apply the deployment file if found
     if (deploymentFile) {
-      const processedTemplate = processTemplate(deploymentFile);
-      await execa.execa('kubectl', ['apply', '-f', '-', '-n', namespace], {
-        input: processedTemplate
-      });
+      console.log(chalk.blue(`Applying deployment config: ${path.basename(deploymentFile)}`));
+      try {
+        let processedTemplate = processTemplate(deploymentFile);
+
+        // Check if we're using Docker Desktop Kubernetes for local development
+        if (isLocal && await isDockerDesktopKubernetes()) {
+          console.log(chalk.blue(`Using Docker Desktop Kubernetes, adjusting image pull policy...`));
+
+          // For Docker Desktop, we need to ensure imagePullPolicy is Never
+          // This allows Kubernetes to use the local Docker images
+          processedTemplate = processedTemplate.replace(
+            /imagePullPolicy: (IfNotPresent|Always)/g,
+            'imagePullPolicy: Never'
+          );
+        }
+
+        await execa.execa('kubectl', ['apply', '-f', '-', '-n', namespace], {
+          input: processedTemplate,
+          stdio: ['pipe', 'inherit', 'inherit']
+        });
+        console.log(chalk.green(`✅ Successfully applied ${path.basename(deploymentFile)}`));
+      } catch (error: any) {
+        console.error(chalk.red(`Error applying ${path.basename(deploymentFile)}:`));
+        console.error(chalk.red(error.message));
+        throw error;
+      }
     } else {
       console.warn(chalk.yellow(`No deployment/statefulset config found for ${service} in ${environment} environment`));
     }
@@ -322,6 +389,39 @@ async function cleanupInitContainers(): Promise<void> {
 }
 
 /**
+ * Ensure local Docker images are available to Docker Desktop Kubernetes
+ * This is only needed for local development with Docker Desktop Kubernetes
+ */
+async function ensureLocalImagesForDockerDesktop(): Promise<void> {
+  if (!isLocal || !(await isDockerDesktopKubernetes())) {
+    return; // Only needed for local Docker Desktop Kubernetes
+  }
+
+  console.log(chalk.blue('\n🔄 Ensuring local images are available to Docker Desktop Kubernetes...\n'));
+
+  const serviceImages = {
+    'postgres': 'posey-postgres:latest',
+    'couchbase': 'posey-couchbase:latest',
+    'vector.db': 'posey-vector-db:latest'
+  };
+
+  for (const [service, image] of Object.entries(serviceImages)) {
+    try {
+      // Check if image exists
+      const imageCheck = await execa.execa('docker', ['image', 'inspect', image], { stdio: 'pipe', reject: false });
+
+      if (imageCheck.exitCode === 0) {
+        console.log(chalk.green(`✅ Image ${image} is available for Docker Desktop Kubernetes`));
+      } else {
+        console.log(chalk.yellow(`⚠️ Image ${image} not found - you may need to build it with 'yarn build:local ${service}'`));
+      }
+    } catch (error: any) {
+      console.warn(chalk.yellow(`Error checking image ${image}: ${error.message}`));
+    }
+  }
+}
+
+/**
  * Main deploy function
  */
 async function deploy(): Promise<void> {
@@ -336,19 +436,25 @@ Namespace: ${namespace}
 
   try {
     // Create the namespace if it doesn't exist
-    try {
-      await runCommand('kubectl', ['create', 'namespace', namespace, '--dry-run=client', '-o', 'yaml']);
-      await runCommand('kubectl', ['apply', '-f', '-'], {
-        input: `apiVersion: v1
+    console.log(chalk.blue(`Ensuring namespace ${namespace} exists...`));
+    const namespaceYaml = `apiVersion: v1
 kind: Namespace
 metadata:
   name: ${namespace}
   labels:
-    name: ${namespace}`
+    name: ${namespace}`;
+
+    try {
+      await execa.execa('kubectl', ['apply', '-f', '-'], {
+        input: namespaceYaml,
+        stdio: ['pipe', 'inherit', 'inherit']
       });
-    } catch (error) {
-      // Namespace might already exist, continue
+    } catch (nsError: any) {
+      console.warn(chalk.yellow(`Note: Namespace creation warning (it may already exist): ${nsError.message}`));
     }
+
+    // For Docker Desktop Kubernetes, ensure images are available
+    await ensureLocalImagesForDockerDesktop();
 
     // Apply shared resources first
     await applySharedResources();

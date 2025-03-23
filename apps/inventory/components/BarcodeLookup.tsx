@@ -23,6 +23,9 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
   const [manualCode, setManualCode] = useState('');
 
   const handleScanSuccess = async (decodedText: string) => {
+    if (scanResult === decodedText) {
+      return;
+    }
     setScanResult(decodedText);
     setShowScanner(false);
     await lookupBarcode(decodedText);
@@ -33,24 +36,25 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
   };
 
   const lookupBarcode = async (barcode: string) => {
-    setLoading(true);
-    setError(null);
+    console.log('lookupBarcode (temp disabled)....');
+    // setLoading(true);
+    // setError(null);
     
-    try {
-      const response = await fetch(`/api/inventory/lookup?upc=${encodeURIComponent(barcode)}`);
-      const data = await response.json();
+    // try {
+    //   const response = await fetch(`/api/inventory/lookup?upc=${encodeURIComponent(barcode)}`);
+    //   const data = await response.json();
       
-      if (data.success && data.data) {
-        onProductFound(data.data);
-      } else {
-        setError(data.message || 'Product not found');
-      }
-    } catch (err) {
-      console.error('Error looking up product:', err);
-      setError('Failed to lookup product. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    //   if (data.success && data.data) {
+    //     onProductFound(data.data);
+    //   } else {
+    //     setError(data.message || 'Product not found');
+    //   }
+    // } catch (err) {
+    //   console.error('Error looking up product:', err);
+    //   setError('Failed to lookup product. Please try again.');
+    // } finally {
+    //   setLoading(false);
+    // }
   };
 
   const handleManualSubmit = async (e: React.FormEvent) => {

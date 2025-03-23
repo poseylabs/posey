@@ -11,8 +11,10 @@ spec:
       protocol: TCP
       port: 1111
       targetPort: 1111
+      nodePort: 31111
     - name: grpc
       protocol: TCP
       port: 6334
       targetPort: 6334
-  type: LoadBalancer
+      nodePort: 30334
+  type: NodePort
