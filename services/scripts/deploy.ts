@@ -74,6 +74,30 @@ async function deployService(service: string): Promise<void> {
     .filter(file => file.endsWith('.yaml'))
     .sort();
 
+  // Filter files based on environment (local vs production)
+  if (isLocal) {
+    // For local deployment, prefer -local.yaml files when they exist
+    const localFiles = files.filter(file => file.includes('-local.yaml'));
+    const nonLocalFiles = files.filter(file => !file.includes('-local.yaml'));
+
+    // Create a map to track which base files have local versions
+    const fileMap = new Map();
+
+    for (const file of localFiles) {
+      const baseName = file.replace('-local.yaml', '.yaml');
+      fileMap.set(baseName, file);
+    }
+
+    // Use local versions when available, otherwise use the base version
+    files = nonLocalFiles.filter(file => !fileMap.has(file)).concat(Array.from(fileMap.values()));
+
+    console.log(chalk.blue(`Using local deployment files for ${service}: ${files.join(', ')}`));
+  } else {
+    // For production deployment, exclude -local.yaml files
+    files = files.filter(file => !file.includes('-local.yaml'));
+    console.log(chalk.blue(`Using production deployment files for ${service}: ${files.join(', ')}`));
+  }
+
   // Handle PVC files first and separately
   const pvcFiles = files.filter(file => file.includes('pvc') || file.includes('persistentvolume'));
   const nonPvcFiles = files.filter(file => !pvcFiles.includes(file));

@@ -202,10 +202,12 @@ jobs:
           
           if [[ -n "${{ github.event.inputs.service }}" ]]; then
             echo "Deploying specific service: ${{ github.event.inputs.service }} to namespace $NAMESPACE"
-            yarn deploy:local -- --service ${{ github.event.inputs.service }} ${{ env.ENVIRONMENT == 'staging' && '--staging' || '' }}
+            # Explicitly set --local=false to ensure using production registry
+            yarn deploy -- --service ${{ github.event.inputs.service }} --local=false ${{ env.ENVIRONMENT == 'staging' && '--staging' || '' }}
           else
             echo "Deploying all services to namespace $NAMESPACE"
-            yarn deploy:local ${{ env.ENVIRONMENT == 'staging' && '--staging' || '' }}
+            # Explicitly set --local=false to ensure using production registry
+            yarn deploy --local=false ${{ env.ENVIRONMENT == 'staging' && '--staging' || '' }}
           fi
         
       - name: Verify deployment
