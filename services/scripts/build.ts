@@ -71,59 +71,84 @@ async function buildService(service: string): Promise<void> {
     const usesServicePrefix = dockerfileContent.includes(`services/${service}/`) ||
       dockerfileContent.includes(`COPY services/`);
 
+    // Common build arguments
+    const buildArgs = [
+      `POSTGRES_DSN_POSEY=${process.env.POSTGRES_DSN_POSEY || ''}`,
+      `POSTGRES_DSN_SUPERTOKENS=${process.env.POSTGRES_DSN_SUPERTOKENS || ''}`,
+      `POSTGRES_USER=${process.env.POSTGRES_USER || ''}`
+    ];
+
+    // Cache mounts - with special handling for Python services
+    const isPythonService = service === 'agents';
+
+    let cacheMounts = [
+      'type=volume,target=/root/.cache/pip,source=pip-cache',
+      'type=volume,target=/wheels,source=wheels-cache'
+    ];
+
+    // Extra caching for Python services
+    if (isPythonService) {
+      cacheMounts = [
+        'type=volume,target=/root/.cache/pip,source=pip-cache-agents',
+        'type=volume,target=/wheels/small,source=wheels-small-cache',
+        'type=volume,target=/wheels/basic,source=wheels-basic-cache',
+        'type=volume,target=/wheels/langchain,source=wheels-langchain-cache',
+        'type=volume,target=/wheels/heavy,source=wheels-heavy-cache'
+      ];
+    }
+
+    // Determine build platform options
+    const platformOptions = isPythonService ? ['--platform=linux/amd64'] : [];
+
     // Build Docker image for the service
     if (isLocal) {
-      if (usesServicePrefix) {
-        // If the Dockerfile expects the services prefix, run from the parent directory
-        await runCommand('docker', [
-          'build',
-          '--tag', `posey-${service.replace('.', '-')}:latest`,
-          '--file', dockerfilePath,
-          '--build-arg', `POSTGRES_DSN_POSEY=${process.env.POSTGRES_DSN_POSEY || ''}`,
-          '--build-arg', `POSTGRES_DSN_SUPERTOKENS=${process.env.POSTGRES_DSN_SUPERTOKENS || ''}`,
-          '--build-arg', `POSTGRES_USER=${process.env.POSTGRES_USER || ''}`,
-          path.resolve(rootDir, '..')  // Use parent directory as context
-        ]);
-      } else {
-        // Otherwise run with the service directory as context
-        await runCommand('docker', [
-          'build',
-          '--tag', `posey-${service.replace('.', '-')}:latest`,
-          '--file', dockerfilePath,
-          '--build-arg', `POSTGRES_DSN_POSEY=${process.env.POSTGRES_DSN_POSEY || ''}`,
-          '--build-arg', `POSTGRES_DSN_SUPERTOKENS=${process.env.POSTGRES_DSN_SUPERTOKENS || ''}`,
-          '--build-arg', `POSTGRES_USER=${process.env.POSTGRES_USER || ''}`,
-          serviceDir
-        ]);
-      }
-    } else {
-      // For production, with proper context handling
-      if (usesServicePrefix) {
-        await runCommand('docker', [
-          'build',
-          '--tag', `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`,
-          '--file', dockerfilePath,
-          '--build-arg', `POSTGRES_DSN_POSEY=${process.env.POSTGRES_DSN_POSEY || ''}`,
-          '--build-arg', `POSTGRES_DSN_SUPERTOKENS=${process.env.POSTGRES_DSN_SUPERTOKENS || ''}`,
-          '--build-arg', `POSTGRES_USER=${process.env.POSTGRES_USER || ''}`,
-          path.resolve(rootDir, '..')  // Use parent directory as context
-        ]);
-      } else {
-        await runCommand('docker', [
-          'build',
-          '--tag', `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`,
-          '--file', dockerfilePath,
-          '--build-arg', `POSTGRES_DSN_POSEY=${process.env.POSTGRES_DSN_POSEY || ''}`,
-          '--build-arg', `POSTGRES_DSN_SUPERTOKENS=${process.env.POSTGRES_DSN_SUPERTOKENS || ''}`,
-          '--build-arg', `POSTGRES_USER=${process.env.POSTGRES_USER || ''}`,
-          serviceDir
-        ]);
-      }
+      const tagName = `posey-${service.replace('.', '-')}:latest`;
+      const contextPath = usesServicePrefix ? path.resolve(rootDir, '..') : serviceDir;
 
-      // Push to registry for production
+      // Special options for Python services
+      const buildOptions = isPythonService ? [
+        '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+        '--progress=plain'
+      ] : [];
+
+      // Use buildx for local builds with better caching
       await runCommand('docker', [
-        'push',
-        `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`
+        'buildx', 'build',
+        '--tag', tagName,
+        '--file', dockerfilePath,
+        '--cache-from', 'type=local,src=/tmp/.buildx-cache',
+        '--cache-to', 'type=local,dest=/tmp/.buildx-cache-new,mode=max',
+        ...platformOptions,
+        ...cacheMounts.map(cache => ['--cache-mount', cache]).flat(),
+        ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
+        ...buildOptions,
+        '--load', // Load the image into Docker
+        contextPath
+      ]);
+    } else {
+      // For production
+      const tagName = `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`;
+      const contextPath = usesServicePrefix ? path.resolve(rootDir, '..') : serviceDir;
+
+      // Special options for Python services
+      const buildOptions = isPythonService ? [
+        '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+        '--progress=plain'
+      ] : [];
+
+      // Use buildx for production builds with registry push
+      await runCommand('docker', [
+        'buildx', 'build',
+        '--tag', tagName,
+        '--file', dockerfilePath,
+        '--cache-from', 'type=local,src=/tmp/.buildx-cache',
+        '--cache-to', 'type=local,dest=/tmp/.buildx-cache-new,mode=max',
+        ...platformOptions,
+        ...cacheMounts.map(cache => ['--cache-mount', cache]).flat(),
+        ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
+        ...buildOptions,
+        '--push', // Push directly to registry
+        contextPath
       ]);
     }
 

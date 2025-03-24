@@ -441,6 +441,13 @@ jobs:
           
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          # Use the latest version
+          version: latest
+          # Enable the driver for better cache support
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
         
       - name: Cache Docker layers
         uses: actions/cache@v3
@@ -450,14 +457,58 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
         
+      # Cache Python packages specifically for faster builds
+      - name: Cache Python packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            
+      # Cache Python wheels for faster installation
+      - name: Cache Python wheels
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/wheels
+          key: ${{ runner.os }}-wheels-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-wheels-
+        
+      # Setup buildx config for caching optimization
+      - name: Configure Buildx Caching
+        run: |
+          mkdir -p ~/.docker
+          cat > ~/.docker/config.json << EOF
+          {
+            "experimental": "enabled",
+            "features": {
+              "buildkit": true
+            }
+          }
+          EOF
+          
+          # Create a builder instance with appropriate settings
+          docker buildx create --use --name posey-builder \
+            --driver docker-container \
+            --driver-opt network=host \
+            --buildkitd-flags '--allow-insecure-entitlement network.host'
+        
       - name: Build Docker images
         run: |
           cd services
           # Only build images for services that have changed since last commit
           CHANGED_SERVICES=""
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            # Get list of changed files
-            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+            # Try to get list of changed files
+            if [[ -n "${{ github.event.before }}" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+              echo "Getting changed files between ${{ github.event.before }} and ${{ github.sha }}"
+              # Use a fallback if git diff fails
+              CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} 2>/dev/null || echo "services/")
+            else
+              echo "No valid previous commit found, building all services"
+              CHANGED_FILES="services/"
+            fi
             
             # Check which services have changes
             for SERVICE in auth supertokens voyager mcp agents cron; do
@@ -485,6 +536,14 @@ jobs:
               echo "Building all services"
               yarn build
             fi
+          fi
+          
+      # Move cache to avoid warning messages
+      - name: Move cache
+        run: |
+          if [ -d "/tmp/.buildx-cache-new" ]; then
+            rm -rf /tmp/.buildx-cache
+            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
           fi
         
       - name: Tag and push Docker images

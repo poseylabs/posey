@@ -5,9 +5,11 @@ WORKDIR /app
 # Copy requirements first to maximize cache hits
 COPY requirements.txt .
 
-# Split requirements into separate layers for better caching
-RUN grep -v "langchain\|transformers\|torch\|huggingface\|sentence-transformers" requirements.txt > core_requirements.txt && \
-    grep "langchain\|transformers\|torch\|huggingface\|sentence-transformers" requirements.txt > ai_requirements.txt
+# Split requirements into smaller groups for better layer caching
+RUN grep -v "langchain\|transformers\|torch\|huggingface\|sentence-transformers\|pydantic\|numpy\|pandas" requirements.txt > small_requirements.txt && \
+    grep "pydantic\|numpy\|pandas" requirements.txt > basic_ai_requirements.txt && \
+    grep "langchain" requirements.txt > langchain_requirements.txt && \
+    grep "transformers\|torch\|huggingface\|sentence-transformers" requirements.txt > heavy_ai_requirements.txt
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -22,13 +24,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --upgrade pip && \
     pip install wheel
 
-# Install core requirements first (these change less frequently)
-RUN mkdir -p /wheels/core && \
-    pip wheel --only-binary :all: -r core_requirements.txt -w /wheels/core
+# Create wheel directories
+RUN mkdir -p /wheels/small /wheels/basic /wheels/langchain /wheels/heavy
 
-# Install AI requirements (these change more frequently)
-RUN mkdir -p /wheels/ai && \
-    pip wheel --only-binary :all: -r ai_requirements.txt -w /wheels/ai
+# Install requirements in order of change frequency (least to most frequent)
+# Small libraries first (rarely change)
+RUN pip wheel --wheel-dir=/wheels/small --find-links=/wheels/small --no-cache-dir -r small_requirements.txt
+
+# Basic AI libraries next (occasionally change)
+RUN pip wheel --wheel-dir=/wheels/basic --find-links=/wheels/small --find-links=/wheels/basic --no-cache-dir -r basic_ai_requirements.txt
+
+# Langchain (more frequent updates)
+RUN pip wheel --wheel-dir=/wheels/langchain --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --no-cache-dir -r langchain_requirements.txt
+
+# Heavy AI libraries last (most frequent updates)
+RUN pip wheel --wheel-dir=/wheels/heavy --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --find-links=/wheels/heavy --no-cache-dir -r heavy_ai_requirements.txt
 
 # Production stage
 FROM python:3.12-slim
@@ -46,12 +56,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy wheels and install dependencies in stages to avoid space issues
-COPY --from=builder /wheels/core /wheels/core
-RUN pip install --no-cache-dir /wheels/core/* && rm -rf /wheels/core
+# Copy wheels and install in order with specific dependencies first
+COPY --from=builder /wheels/small /wheels/small
+RUN pip install --find-links=/wheels/small --no-cache-dir -r /wheels/small/*
 
-COPY --from=builder /wheels/ai /wheels/ai
-RUN pip install --no-cache-dir /wheels/ai/* && rm -rf /wheels/ai
+COPY --from=builder /wheels/basic /wheels/basic
+RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --no-cache-dir -r /wheels/basic/*
+
+COPY --from=builder /wheels/langchain /wheels/langchain
+RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --no-cache-dir -r /wheels/langchain/*
+
+COPY --from=builder /wheels/heavy /wheels/heavy
+RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --find-links=/wheels/heavy --no-cache-dir -r /wheels/heavy/*
+
+# Clean up wheels after installation
+RUN rm -rf /wheels
 
 # Create posey-agents user and group
 RUN groupadd -r posey-agents && useradd -r -g posey-agents posey-agents
