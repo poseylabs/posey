@@ -39,9 +39,19 @@ jobs:
           cd services
           yarn install
 
+      - name: Debug Secret Availability
+        run: |
+          echo "Checking if DO_API_TOKEN secret is available..."
+          if [ -n "${{ secrets.DO_API_TOKEN }}" ]; then
+            echo "DO_API_TOKEN is available (value hidden for security)"
+          else
+            echo "DO_API_TOKEN appears to be empty or not available!"
+          fi
+
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
         with:
+          version: "${{ env.DOCTL_VERSION }}"
           token: ${{ secrets.DO_API_TOKEN }}
 
       - name: Login to DigitalOcean Container Registry
