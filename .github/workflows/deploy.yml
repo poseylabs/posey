@@ -10,11 +10,11 @@ on:
       environment:
         description: 'Environment to deploy to'
         required: true
-        default: 'prod'
+        default: 'PRODUCTION'
         type: choice
         options:
-          - prod
-          - staging
+          - PRODUCTION
+          - STAGING
 
 env:
   DOCTL_VERSION: 1.92.1
@@ -31,12 +31,13 @@ env:
   COUCHBASE_USER: ${{ secrets.COUCHBASE_USER }}
   COUCHBASE_PASSWORD: ${{ secrets.COUCHBASE_PASSWORD }}
   COUCHBASE_BUCKET: ${{ secrets.COUCHBASE_BUCKET }}
-  ENVIRONMENT: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || 'staging') }}
+  ENVIRONMENT: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'PRODUCTION' || 'STAGING') }}
 
 jobs:
   deploy-ingress:
     name: Deploy Ingress Controller
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'PRODUCTION' || 'STAGING') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -107,7 +108,7 @@ jobs:
           
           # Set environment-specific domain prefix
           DOMAIN_PREFIX=""
-          if [ "${{ env.ENVIRONMENT }}" == "staging" ]; then
+          if [ "${{ env.ENVIRONMENT }}" == "STAGING" ]; then
             DOMAIN_PREFIX="staging."
           fi
           
@@ -140,7 +141,7 @@ jobs:
           done
           
           # Create/update apex domain or staging subdomain
-          if [ "${{ env.ENVIRONMENT }}" == "prod" ]; then
+          if [ "${{ env.ENVIRONMENT }}" == "PRODUCTION" ]; then
             RECORD_ID=$(doctl compute domain records list ${{ env.DOMAIN }} --format ID,Name,Type,Data --no-header | grep "^[0-9]* *@ *A" | awk '{print $1}')
             if [ -n "$RECORD_ID" ]; then
               doctl compute domain records update ${{ env.DOMAIN }} --record-id $RECORD_ID --record-data $EXTERNAL_IP
@@ -160,6 +161,7 @@ jobs:
     name: Deploy Data Services
     needs: deploy-ingress
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'PRODUCTION' || 'STAGING') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -265,6 +267,7 @@ jobs:
     name: Deploy Application Services
     needs: deploy-data
     runs-on: ubuntu-latest-4-cores
+    environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'PRODUCTION' || 'STAGING') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -366,18 +369,18 @@ jobs:
           cd services
           
           NAMESPACE="posey"
-          if [ "${{ env.ENVIRONMENT }}" == "staging" ]; then
+          if [ "${{ env.ENVIRONMENT }}" == "STAGING" ]; then
             NAMESPACE="posey-staging"
             kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
           fi
           
           export KUBE_NAMESPACE=$NAMESPACE
-          yarn deploy:local ${{ env.ENVIRONMENT == 'staging' && '--staging' || '' }}
+          yarn deploy:local ${{ env.ENVIRONMENT == 'STAGING' && '--staging' || '' }}
         
       - name: Verify deployment
         run: |
           NAMESPACE="posey"
-          if [ "${{ env.ENVIRONMENT }}" == "staging" ]; then
+          if [ "${{ env.ENVIRONMENT }}" == "STAGING" ]; then
             NAMESPACE="posey-staging"
           fi
           
@@ -388,14 +391,14 @@ jobs:
         if: success()
         run: |
           NAMESPACE="posey"
-          if [ "${{ env.ENVIRONMENT }}" == "staging" ]; then
+          if [ "${{ env.ENVIRONMENT }}" == "STAGING" ]; then
             NAMESPACE="posey-staging"
           fi
           
           echo "✅ Services deployed successfully to ${{ env.ENVIRONMENT }} environment"
           echo "Services are available at:"
           
-          if [ "${{ env.ENVIRONMENT }}" == "prod" ]; then
+          if [ "${{ env.ENVIRONMENT }}" == "PRODUCTION" ]; then
             echo "- Auth API: https://auth.posey.ai"
             echo "- MCP API: https://mcp.posey.ai"
             echo "- Voyager API: https://voyager.posey.ai"
