@@ -1,5 +1,4 @@
-Build Status: [![Build Posey Docker Images](https://github.com/poseylabs/posey/actions/workflows/build-images.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/build-images.yml)
-
+[![Build Posey Docker Images](https://github.com/poseylabs/posey/actions/workflows/build-images.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/build-images.yml)
 # Posey Monorepo
 
 This repository contains the source code for Posey – a lifelong personalized AI agent companion system.
