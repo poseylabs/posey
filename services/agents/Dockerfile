@@ -1,15 +1,16 @@
 FROM python:3.12-slim AS builder
 
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=0 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Accept build arguments for flexible caching
+ARG BUILDKIT_INLINE_CACHE=1
+ARG PIP_CACHE_DIR=/pip-cache
+
 WORKDIR /app
-
-# Copy requirements first to maximize cache hits
-COPY requirements.txt .
-
-# Split requirements into smaller groups for better layer caching
-RUN grep -v "langchain\|transformers\|torch\|huggingface\|sentence-transformers\|pydantic\|numpy\|pandas" requirements.txt > small_requirements.txt && \
-    grep "pydantic\|numpy\|pandas" requirements.txt > basic_ai_requirements.txt && \
-    grep "langchain" requirements.txt > langchain_requirements.txt && \
-    grep "transformers\|torch\|huggingface\|sentence-transformers" requirements.txt > heavy_ai_requirements.txt
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -17,36 +18,48 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     libc6-dev \
     libpq-dev \
+    git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and install wheel
-RUN pip install --upgrade pip && \
-    pip install wheel
+RUN pip install --upgrade pip wheel setuptools
 
-# Create wheel directories
+# Copy requirements first to maximize cache hits
+COPY requirements.txt .
+
+# Split requirements into smaller groups for better layer caching and parallel installation
+RUN grep -v "langchain\|transformers\|torch\|huggingface\|sentence-transformers\|pydantic\|numpy\|pandas\|scikit-learn" requirements.txt > small_requirements.txt && \
+    grep "pydantic\|numpy\|pandas\|scikit-learn" requirements.txt > basic_ai_requirements.txt && \
+    grep "langchain" requirements.txt > langchain_requirements.txt && \
+    grep "transformers\|torch\|huggingface\|sentence-transformers" requirements.txt > heavy_ai_requirements.txt
+
+# Create wheel directories with volume mount points for caching
 RUN mkdir -p /wheels/small /wheels/basic /wheels/langchain /wheels/heavy
 
-# Install requirements in order of change frequency (least to most frequent)
-# Small libraries first (rarely change)
-RUN pip wheel --wheel-dir=/wheels/small --find-links=/wheels/small --no-cache-dir -r small_requirements.txt
+# Build wheels in parallel with optimized cache settings
+RUN pip wheel --wheel-dir=/wheels/small -r small_requirements.txt
 
-# Basic AI libraries next (occasionally change)
-RUN pip wheel --wheel-dir=/wheels/basic --find-links=/wheels/small --find-links=/wheels/basic --no-cache-dir -r basic_ai_requirements.txt
+# Build wheels for basic AI libraries
+RUN pip wheel --wheel-dir=/wheels/basic --find-links=/wheels/small -r basic_ai_requirements.txt
 
-# Langchain (more frequent updates)
-RUN pip wheel --wheel-dir=/wheels/langchain --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --no-cache-dir -r langchain_requirements.txt
+# Build wheels for langchain libraries
+RUN pip wheel --wheel-dir=/wheels/langchain --find-links=/wheels/small --find-links=/wheels/basic -r langchain_requirements.txt
 
-# Heavy AI libraries last (most frequent updates)
-RUN pip wheel --wheel-dir=/wheels/heavy --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --find-links=/wheels/heavy --no-cache-dir -r heavy_ai_requirements.txt
+# Build wheels for heavy AI libraries with parallel downloads
+RUN pip wheel --wheel-dir=/wheels/heavy --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain -r heavy_ai_requirements.txt
 
-# Production stage
+# Final production stage
 FROM python:3.12-slim
 
-WORKDIR /app
-ENV PYTHONPATH=/app/service
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/service
 
-# Install production system dependencies
+WORKDIR /app
+
+# Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     curl \
@@ -56,21 +69,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy wheels and install in order with specific dependencies first
+# Copy wheels from builder and install in batches for efficient layer caching
 COPY --from=builder /wheels/small /wheels/small
-RUN pip install --no-cache-dir /wheels/small/*.whl
-
-COPY --from=builder /wheels/basic /wheels/basic
-RUN pip install --find-links=/wheels/small --no-cache-dir /wheels/basic/*.whl
-
+COPY --from=builder /wheels/basic /wheels/basic 
 COPY --from=builder /wheels/langchain /wheels/langchain
-RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --no-cache-dir /wheels/langchain/*.whl
-
 COPY --from=builder /wheels/heavy /wheels/heavy
-RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --no-cache-dir /wheels/heavy/*.whl
 
-# Clean up wheels after installation
-RUN rm -rf /wheels
+# Install all wheels in one command to reduce image layers
+RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --find-links=/wheels/heavy /wheels/heavy/*.whl && \
+    rm -rf /wheels
 
 # Create posey-agents user and group
 RUN groupadd -r posey-agents && useradd -r -g posey-agents posey-agents

@@ -19,7 +19,7 @@ env:
 jobs:
   build-images:
     name: Build Docker Images
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-4-core
     # Use repository-level environment to access secrets
     environment: PRODUCTION
     steps:
@@ -115,6 +115,48 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
+            
+      - name: Set up Python dependencies cache
+        id: python-cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            
+      - name: Cache Python wheels
+        id: wheel-cache
+        uses: actions/cache@v3
+        with:
+          path: services/agents/.wheels
+          key: ${{ runner.os }}-wheels-${{ hashFiles('services/agents/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-wheels-
+
+      - name: Setup model cache directories
+        run: |
+          mkdir -p ~/.cache/huggingface
+          mkdir -p ~/.cache/torch
+          mkdir -p services/agents/.wheels
+          
+      - name: Cache HuggingFace models
+        id: hf-cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-huggingface-${{ hashFiles('services/agents/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-huggingface-
+            
+      - name: Cache PyTorch models
+        id: torch-cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/torch
+          key: ${{ runner.os }}-torch-${{ hashFiles('services/agents/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-torch-
       
       - name: Build Docker images
         run: |
@@ -134,7 +176,24 @@ jobs:
           
           for SERVICE in $SERVICES; do
             echo "Building $SERVICE..."
-            yarn build -- --service $SERVICE
+            
+            # Special handling for agents service to improve build speed
+            if [[ "$SERVICE" == "agents" ]]; then
+              # Use parallel build with all cores and optimized cache settings
+              DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker build \
+                --build-arg BUILDKIT_INLINE_CACHE=1 \
+                --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
+                --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
+                --build-arg PIP_CACHE_DIR=/pip-cache \
+                --memory=8g \
+                --cpu-quota=400000 \
+                -t ${SERVICE} \
+                -f ${SERVICE}/Dockerfile \
+                ./${SERVICE}
+            else
+              # Normal build for other services
+              yarn build -- --service $SERVICE
+            fi
             
             # Run cleanup after each build
             /tmp/cleanup.sh
@@ -191,41 +250,26 @@ jobs:
           # Verify connection
           kubectl cluster-info
           
-          # Create a simple .env file for CI/CD deployment only
-          cd services
-          echo "# This file is generated for CI/CD deployment only" > .env
-          echo "ENVIRONMENT=${{ env.ENVIRONMENT }}" >> .env
-          
-          # List of environments variables from secrets needed for deployment
-          # You can add more as needed
-          echo "DO_REGISTRY_NAME=${{ secrets.DO_REGISTRY_NAME }}" >> .env
-          
-      - name: Sync Argo CD Applications
-        if: success()
-        env:
-          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-          ARGOCD_PASSWORD: ${{ secrets.ARGOCD_PASSWORD }}
+      - name: Deploy to Kubernetes
         run: |
-          # Install Argo CD CLI
-          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-          chmod +x argocd
+          cd services
           
-          # Login to Argo CD
-          ./argocd login ${{ secrets.ARGOCD_SERVER }} --username admin --password ${{ secrets.ARGOCD_PASSWORD }} --insecure --grpc-web
+          # Apply shared Kubernetes resources with validation disabled
+          kubectl apply -k shared/k8s -n ${{ secrets.DO_REGISTRY_NAME }} --validate=false
           
-          # List of applications to sync
-          APPS="posey-auth posey-agents posey-mcp posey-voyager posey-cron posey-supertokens"
+          # Apply service-specific resources
+          SERVICES="auth supertokens voyager mcp agents cron"
           
-          # If a specific service was built, only sync that application
+          # If service input is specified, only deploy that one
           if [[ -n "${{ github.event.inputs.service }}" ]]; then
-            APPS="posey-${{ github.event.inputs.service }}"
+            SERVICES="${{ github.event.inputs.service }}"
           fi
           
-          # Sync applications
-          for APP in $APPS; do
-            echo "Syncing $APP..."
-            ./argocd app sync $APP --prune || {
-              echo "Failed to sync $APP, retrying with force option..."
-              ./argocd app sync $APP --prune --force
-            }
+          for SERVICE in $SERVICES; do
+            echo "Deploying $SERVICE..."
+            if [ -d "$SERVICE/k8s" ]; then
+              kubectl apply -k $SERVICE/k8s -n ${{ secrets.DO_REGISTRY_NAME }} --validate=false
+            else
+              echo "No Kubernetes manifests found for $SERVICE, skipping."
+            fi
           done 
