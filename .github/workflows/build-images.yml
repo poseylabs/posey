@@ -19,7 +19,7 @@ env:
 jobs:
   build-posey:
     name: Build Posey (all)
-    runs-on: Posey
+    runs-on: [Posey, linux-arm64]
     environment: PRODUCTION
     steps:
       - name: Checkout code
