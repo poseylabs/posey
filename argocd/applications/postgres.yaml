@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: posey-postgres
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app: posey-postgres
+spec:
+  project: posey
+  source:
+    repoURL: https://github.com/yourusername/posey.git  # Replace with your actual repo URL
+    targetRevision: HEAD
+    path: data/postgres/k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: posey
+  syncPolicy:
+    # For databases, you may want to disable automatic syncing and require manual approval
+    automated:
+      prune: false  # Be careful with pruning for database resources
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - Validate=false  # Sometimes needed for StatefulSets with PVCs
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m 

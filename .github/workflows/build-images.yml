@@ -1,0 +1,187 @@
+name: Build Posey Docker Images
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Posey build'
+        required: false
+        type: string
+
+env:
+  DOCTL_VERSION: 1.92.1
+  ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
+
+jobs:
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          yarn --version
+
+      - name: Install dependencies
+        run: |
+          cd services
+          yarn install
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_API_TOKEN }}
+
+      - name: Login to DigitalOcean Container Registry
+        run: |
+          doctl registry login --expiry-seconds 3600
+          
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          
+          # Remove unnecessary large directories
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          
+          # Clean up apt cache
+          sudo apt-get clean
+          sudo apt-get autoremove -y
+          
+          # Clean Docker
+          docker system prune -af --volumes
+          
+          echo "Disk space after cleanup:"
+          df -h
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.12.0
+          
+      - name: Create disk cleanup script
+        run: |
+          cat > /tmp/cleanup.sh << 'EOF'
+          #!/bin/bash
+          # Check if disk space is below threshold (15% free)
+          DISK_FREE=$(df / | grep / | awk '{ print $4 }')
+          THRESHOLD=$(($(df / | grep / | awk '{ print $2 }') * 15 / 100))
+          
+          if [ "$DISK_FREE" -lt "$THRESHOLD" ]; then
+            echo "Disk space running low, cleaning up..."
+            docker system prune -af --volumes
+          fi
+          EOF
+          chmod +x /tmp/cleanup.sh
+          
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      
+      - name: Build Docker images
+        run: |
+          cd services
+          
+          # Set up periodic cleanup
+          (while true; do /tmp/cleanup.sh; sleep 60; done) &
+          CLEANUP_PID=$!
+          
+          # Build services one at a time
+          SERVICES="auth supertokens voyager mcp agents cron"
+          
+          # If service input is specified, only build that one
+          if [[ -n "${{ github.event.inputs.service }}" ]]; then
+            SERVICES="${{ github.event.inputs.service }}"
+          fi
+          
+          for SERVICE in $SERVICES; do
+            echo "Building $SERVICE..."
+            yarn build -- --service $SERVICE
+            
+            # Run cleanup after each build
+            /tmp/cleanup.sh
+          done
+          
+          # Kill cleanup process
+          kill $CLEANUP_PID || true
+          
+      - name: Tag and push Docker images
+        run: |
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          cd services
+          
+          # Find all posey images
+          SERVICES_IMAGES=$(docker images | grep 'posey' | grep -v 'postgres\|couchbase\|qdrant\|vector' | awk '{print $1}')
+          if [ -z "$SERVICES_IMAGES" ]; then
+            echo "No service images found to push"
+            docker images
+            exit 1
+          fi
+
+          echo "Found service images: $SERVICES_IMAGES"
+          
+          # Refresh auth before pushing
+          doctl registry login --expiry-seconds 3600
+          
+          # Tag and push each image
+          for IMAGE in $SERVICES_IMAGES; do
+            IMAGE_NAME=$(echo $IMAGE | sed 's|^.*/||')
+            echo "Tagging and pushing $IMAGE_NAME..."
+            
+            # Create tags
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${SHORT_SHA}
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${{ env.ENVIRONMENT }}
+            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:latest
+            
+            # Push each tag
+            for TAG in ${SHORT_SHA} ${{ env.ENVIRONMENT }} latest; do
+              echo "Pushing ${IMAGE_NAME}:${TAG}..."
+              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${TAG}
+            done
+          done
+          
+      - name: Sync Argo CD Applications
+        if: success()
+        env:
+          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+          ARGOCD_PASSWORD: ${{ secrets.ARGOCD_PASSWORD }}
+        run: |
+          # Install Argo CD CLI
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          
+          # Login to Argo CD
+          ./argocd login ${{ secrets.ARGOCD_SERVER }} --username admin --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
+          
+          # List of applications to sync
+          APPS="posey-auth posey-agents posey-mcp posey-voyager posey-cron posey-supertokens"
+          
+          # If a specific service was built, only sync that application
+          if [[ -n "${{ github.event.inputs.service }}" ]]; then
+            APPS="posey-${{ github.event.inputs.service }}"
+          fi
+          
+          # Sync applications
+          for APP in $APPS; do
+            echo "Syncing $APP..."
+            ./argocd app sync $APP --prune
+          done 

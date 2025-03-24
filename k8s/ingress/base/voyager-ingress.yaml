@@ -1,27 +1,27 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: agents-ingress
+  name: voyager-ingress
   namespace: posey
   annotations:
     kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     # Uncomment for HTTPS:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   # Uncomment for HTTPS:
   # tls:
   # - hosts:
-  #   - agents.api.posey.ai
-  #   secretName: agents-tls
+  #   - voyager.api.posey.ai
+  #   secretName: voyager-tls
   rules:
-  - host: agents.api.posey.ai
+  - host: voyager.api.posey.ai
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: agents
+            name: voyager
             port:
-              number: 5555 
+              number: 8080 

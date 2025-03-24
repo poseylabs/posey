@@ -79,6 +79,10 @@ if [[ "$ENVIRONMENT" == "prod" ]] && ! kubectl get ns cert-manager >/dev/null 2>
   if [[ -f "/Volumes/Projects/posey/k8s/ingress/overlays/prod/letsencrypt-issuer.yaml" ]]; then
     echo "Applying Let's Encrypt ClusterIssuer..."
     kubectl apply -f "/Volumes/Projects/posey/k8s/ingress/overlays/prod/letsencrypt-issuer.yaml"
+    
+    echo "IMPORTANT: You need to create a DigitalOcean API token and add it as a secret for DNS-01 challenge"
+    echo "Run the following command with your DigitalOcean API token:"
+    echo "./create-digitalocean-token-secret.sh <your-digitalocean-api-token>"
   fi
 fi
 
@@ -200,6 +204,9 @@ if [[ "$APPLY_CHANGES" == "true" ]]; then
   else
     echo "1. Get the External-IP of the ingress-nginx-controller service from above"
     echo "2. Create DNS A records for all your domains pointing to this IP"
-    echo "3. Certificates will be automatically provisioned by Let's Encrypt"
+    echo "3. Ensure you've created the DigitalOcean API token secret for DNS-01 challenge:"
+    echo "   ./create-digitalocean-token-secret.sh <your-digitalocean-api-token>"
+    echo "4. Certificates will be automatically provisioned by Let's Encrypt using DNS-01 challenge"
+    echo "5. You can check certificate status with: kubectl get certificates -n posey"
   fi
 fi 

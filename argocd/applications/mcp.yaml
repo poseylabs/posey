@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: posey-mcp
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app: posey-mcp
+spec:
+  project: posey
+  source:
+    repoURL: https://github.com/yourusername/posey.git  # Replace with your actual repo URL
+    targetRevision: HEAD
+    path: services/mcp/k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: posey
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m 

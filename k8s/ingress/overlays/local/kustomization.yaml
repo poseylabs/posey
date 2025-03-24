@@ -16,6 +16,7 @@ patchesJson6902:
     version: v1
     kind: Ingress
     name: postgres-ingress
+    namespace: posey
   patch: |-
     - op: replace
       path: /spec/rules/0/host
