@@ -55,6 +55,26 @@ jobs:
       - name: Save DigitalOcean kubeconfig
         run: doctl kubernetes cluster kubeconfig save ${{ env.KUBE_CLUSTER_ID }}
         
+      - name: Setup External-DNS
+        run: |
+          echo "Setting up External-DNS for automatic DNS management..."
+          
+          # Create DigitalOcean API token secret
+          kubectl create namespace kube-system --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic digitalocean \
+            --from-literal=access-token=${{ secrets.DO_API_TOKEN }} \
+            -n kube-system \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Apply External-DNS configuration
+          kubectl apply -f k8s/external-dns/external-dns.yaml
+          
+          # Wait for External-DNS to be ready
+          kubectl wait --namespace kube-system \
+            --for=condition=ready pod \
+            --selector=app=external-dns \
+            --timeout=180s || echo "External-DNS might not be fully ready yet"
+        
       - name: Install cert-manager
         run: |
           echo "Installing cert-manager for TLS support..."
