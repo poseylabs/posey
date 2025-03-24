@@ -66,8 +66,30 @@ jobs:
             -n kube-system \
             --dry-run=client -o yaml | kubectl apply -f -
           
-          # Apply External-DNS configuration
-          kubectl apply -f k8s/external-dns/external-dns.yaml
+          # Validate External-DNS configuration
+          echo "Validating External-DNS configuration..."
+          cat k8s/external-dns/external-dns.yaml | grep -A 5 "valueFrom"
+          
+          # Apply External-DNS configuration - Try direct creation as fallback
+          kubectl apply -f k8s/external-dns/external-dns.yaml || {
+            echo "File-based application failed, trying direct creation..."
+            # Create RBAC resources
+            kubectl apply -f <(cat k8s/external-dns/external-dns.yaml | grep -A 20 "ServiceAccount" | grep -B 100 "---" | grep -v "---")
+            kubectl apply -f <(cat k8s/external-dns/external-dns.yaml | grep -A 20 "ClusterRole" | grep -B 100 "---" | grep -v "---")  
+            kubectl apply -f <(cat k8s/external-dns/external-dns.yaml | grep -A 20 "ClusterRoleBinding" | grep -B 100 "---" | grep -v "---")
+            
+            # Create deployment with explicit env var
+            kubectl create deployment external-dns --image=registry.k8s.io/external-dns/external-dns:v0.14.0 -n kube-system --dry-run=client -o yaml | \
+            yq e '.spec.template.spec.serviceAccountName = "external-dns"' - | \
+            yq e '.spec.template.metadata.labels.app = "external-dns"' - | \
+            yq e '.spec.selector.matchLabels.app = "external-dns"' - | \
+            yq e '.spec.strategy.type = "Recreate"' - | \
+            yq e '.spec.template.spec.containers[0].args = ["--source=ingress", "--provider=digitalocean", "--domain-filter=posey.ai", "--policy=sync", "--registry=txt", "--txt-owner-id=posey-k8s"]' - | \
+            yq e '.spec.template.spec.containers[0].env[0].name = "DO_TOKEN"' - | \
+            yq e '.spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name = "digitalocean"' - | \
+            yq e '.spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.key = "access-token"' - | \
+            kubectl apply -f -
+          }
           
           # Wait for External-DNS to be ready
           kubectl wait --namespace kube-system \
@@ -128,7 +150,28 @@ jobs:
       - name: Apply Ingress Configuration
         run: |
           echo "Applying ingress configuration for ${{ env.ENVIRONMENT }} environment..."
-          kubectl apply -k k8s/ingress/overlays/${{ env.ENVIRONMENT }}
+          # Apply base ingress files first
+          kubectl apply -f k8s/ingress/postgres-ingress.yaml
+          kubectl apply -f k8s/ingress/couchbase-ingress.yaml
+          kubectl apply -f k8s/ingress/vector-db-ingress.yaml
+          kubectl apply -f k8s/ingress/agents-ingress.yaml
+          kubectl apply -f k8s/ingress/auth-ingress.yaml
+          kubectl apply -f k8s/ingress/cron-ingress.yaml
+          kubectl apply -f k8s/ingress/mcp-ingress.yaml
+          kubectl apply -f k8s/ingress/supertokens-ingress.yaml
+          kubectl apply -f k8s/ingress/voyager-ingress.yaml
+          
+          # Apply annotations and TLS
+          kubectl apply -f k8s/ingress/overlays/${{ env.ENVIRONMENT }}/tls-patches.yaml
+          
+          # Apply common annotations to all ingress resources
+          for INGRESS in postgres couchbase vector-db agents auth cron mcp supertokens voyager; do
+            echo "Applying annotations to $INGRESS-ingress"
+            kubectl annotate ingress $INGRESS-ingress --namespace=posey \
+              nginx.ingress.kubernetes.io/ssl-redirect="true" \
+              cert-manager.io/cluster-issuer="letsencrypt-prod" \
+              --overwrite
+          done
       
       - name: Get Ingress IP and Update DNS
         run: |
