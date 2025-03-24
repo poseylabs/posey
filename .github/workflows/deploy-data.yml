@@ -19,7 +19,7 @@ on:
           - production
 
 jobs:
-  build-and-deploy:
+  build-and-deploy-data:
     name: Build and Deploy Data Services
     runs-on: ubuntu-latest
     # Match the exact environment name as shown in GitHub UI
@@ -310,8 +310,8 @@ jobs:
         if: failure()
         run: |
           echo "❌ Data services deployment failed" 
-  build-and-deploy:
-    name: Build and Deploy Services
+  build-and-deploy-core-services:
+    name: Build and Deploy Core Services
     runs-on: ubuntu-latest-4-cores
     environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'production' || 'staging') }}
     

@@ -416,8 +416,26 @@ jobs:
         run: |
           echo "Checking available disk space before cleanup:"
           df -h
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          
+          # Remove large packages
+          echo "Removing large packages..."
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          
+          # Remove .NET runtimes
+          echo "Removing .NET runtimes..."
+          sudo apt-get remove -y aspnetcore-* dotnet-* 
+          
+          # Remove LLVM
+          echo "Removing LLVM..."
+          sudo apt-get remove -y clang-* llvm-* lldb-*
+          
+          # Remove Docker images not in use
+          echo "Cleaning Docker..."
           docker system prune -af
+          
           echo "Available disk space after cleanup:"
           df -h
         
