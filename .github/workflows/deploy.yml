@@ -557,17 +557,52 @@ jobs:
           fi
 
           echo "Found service images: $SERVICES_IMAGES"
+          
+          # Ensure fresh authentication token right before pushing
+          echo "Refreshing DigitalOcean registry authentication..."
           doctl registry login --expiry-seconds 3600
+          
+          # Verify authentication status
+          echo "Verifying registry authentication..."
+          doctl registry repository list || {
+            echo "Registry authentication failed, attempting login again with explicit config path..."
+            mkdir -p $HOME/.docker
+            echo '{"auths":{}}' > $HOME/.docker/config.json
+            chmod 600 $HOME/.docker/config.json
+            doctl registry login --expiry-seconds 3600
+          }
           
           for IMAGE in $SERVICES_IMAGES; do
             IMAGE_NAME=$(echo $IMAGE | sed 's|^.*/||')
+            echo "Tagging and pushing $IMAGE_NAME..."
+            
             docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${SHORT_SHA}
             docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${{ env.ENVIRONMENT }}
             docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:latest
             
-            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${SHORT_SHA}
-            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${{ env.ENVIRONMENT }}
-            docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:latest
+            # Push each tag with authentication retry if needed
+            for TAG in ${SHORT_SHA} ${{ env.ENVIRONMENT }} latest; do
+              PUSH_ATTEMPTS=0
+              MAX_ATTEMPTS=3
+              
+              while [ $PUSH_ATTEMPTS -lt $MAX_ATTEMPTS ]; do
+                echo "Pushing ${IMAGE_NAME}:${TAG} (Attempt $((PUSH_ATTEMPTS+1))/$MAX_ATTEMPTS)..."
+                if docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${TAG}; then
+                  echo "Successfully pushed ${IMAGE_NAME}:${TAG}"
+                  break
+                else
+                  PUSH_ATTEMPTS=$((PUSH_ATTEMPTS+1))
+                  if [ $PUSH_ATTEMPTS -lt $MAX_ATTEMPTS ]; then
+                    echo "Push failed, refreshing authentication and retrying..."
+                    doctl registry login --expiry-seconds 3600
+                    sleep 2
+                  else
+                    echo "Failed to push ${IMAGE_NAME}:${TAG} after $MAX_ATTEMPTS attempts"
+                    exit 1
+                  fi
+                fi
+              done
+            done
           done
         
       - name: Deploy to Kubernetes

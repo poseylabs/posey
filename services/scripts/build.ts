@@ -46,6 +46,81 @@ async function runCommand(command: string, args: string[] = [], options = {}): P
 }
 
 /**
+ * Push an image to the registry with retries
+ */
+async function pushImageWithRetry(imageName: string, maxAttempts = 3, sleepTime = 2000): Promise<void> {
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
+    try {
+      attempts++;
+      console.log(chalk.blue(`Pushing ${imageName} (Attempt ${attempts}/${maxAttempts})...`));
+
+      // Always ensure fresh authentication before each attempt
+      console.log(chalk.blue('Refreshing DigitalOcean registry authentication...'));
+      try {
+        // Ensure docker config directory exists
+        if (!fs.existsSync(path.join(process.env.HOME || '~', '.docker'))) {
+          await runCommand('mkdir', ['-p', path.join(process.env.HOME || '~', '.docker')]);
+        }
+
+        // Ensure valid docker config file
+        const dockerConfigPath = path.join(process.env.HOME || '~', '.docker/config.json');
+        if (!fs.existsSync(dockerConfigPath)) {
+          fs.writeFileSync(dockerConfigPath, JSON.stringify({ auths: {} }), 'utf8');
+        }
+
+        // Try to fix potential issues with the config file
+        try {
+          const configContent = fs.readFileSync(dockerConfigPath, 'utf8');
+          const config = JSON.parse(configContent);
+
+          // Ensure experimental is a string, not a boolean
+          if (typeof config.experimental === 'boolean') {
+            config.experimental = config.experimental ? 'enabled' : 'disabled';
+            fs.writeFileSync(dockerConfigPath, JSON.stringify(config, null, 2), 'utf8');
+          }
+        } catch (e) {
+          // If we can't parse the config, create a new valid one
+          fs.writeFileSync(dockerConfigPath, JSON.stringify({ auths: {} }), 'utf8');
+        }
+
+        // Login to registry
+        await runCommand('doctl', ['registry', 'login', '--expiry-seconds', '3600']);
+
+        // Verify authentication status
+        await execa('doctl', ['registry', 'repository', 'list']);
+        console.log(chalk.green('✅ Successfully authenticated to DigitalOcean registry'));
+      } catch (authError) {
+        console.warn(chalk.yellow(`Authentication refresh warning: ${(authError as Error).message}`));
+        console.warn(chalk.yellow(`Will attempt push anyway...`));
+      }
+
+      // Small delay after login
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Push the image
+      await runCommand('docker', ['push', imageName]);
+      console.log(chalk.green(`✅ Successfully pushed ${imageName}`));
+      return;
+    } catch (error) {
+      console.error(chalk.red(`Error pushing ${imageName} (Attempt ${attempts}/${maxAttempts}):`));
+      console.error(chalk.red((error as Error).message));
+
+      if (attempts >= maxAttempts) {
+        throw new Error(`Failed to push ${imageName} after ${maxAttempts} attempts: ${(error as Error).message}`);
+      }
+
+      console.log(chalk.yellow(`Retrying in ${sleepTime / 1000} seconds...`));
+      await new Promise(resolve => setTimeout(resolve, sleepTime));
+
+      // Increase sleep time for next retry
+      sleepTime = Math.min(sleepTime * 2, 15000); // Max 15 seconds
+    }
+  }
+}
+
+/**
  * Build a specific service
  */
 async function buildService(service: string): Promise<void> {
@@ -126,18 +201,44 @@ async function buildService(service: string): Promise<void> {
       const tagName = `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`;
 
       if (hasBuildxAdvancedFeatures) {
-        // Use buildx with advanced features for production
-        await runCommand('docker', [
-          'buildx', 'build',
-          '--tag', tagName,
-          '--file', dockerfilePath,
-          '--cache-from', 'type=local,src=/tmp/.buildx-cache',
-          '--cache-to', 'type=local,dest=/tmp/.buildx-cache-new,mode=max',
-          '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
-          ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
-          '--push', // Push directly to registry
-          contextPath
-        ]);
+        try {
+          // Try to use buildx with direct push first
+          await runCommand('docker', [
+            'buildx', 'build',
+            '--tag', tagName,
+            '--file', dockerfilePath,
+            '--cache-from', 'type=local,src=/tmp/.buildx-cache',
+            '--cache-to', 'type=local,dest=/tmp/.buildx-cache-new,mode=max',
+            '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+            ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
+            '--push', // Push directly to registry
+            contextPath
+          ]);
+        } catch (error: any) {
+          if (error.message?.includes('unknown flag: --push') ||
+            error.message?.includes('denied') ||
+            error.message?.includes('unauthorized')) {
+            console.log(chalk.yellow('BuildX push failed, falling back to build + separate push...'));
+
+            // Build locally first
+            await runCommand('docker', [
+              'buildx', 'build',
+              '--tag', tagName,
+              '--file', dockerfilePath,
+              '--cache-from', 'type=local,src=/tmp/.buildx-cache',
+              '--cache-to', 'type=local,dest=/tmp/.buildx-cache-new,mode=max',
+              '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+              ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
+              '--load', // Load the image into Docker instead of pushing
+              contextPath
+            ]);
+
+            // Then push with retry
+            await pushImageWithRetry(tagName);
+          } else {
+            throw error;
+          }
+        }
       } else {
         // Build and push separately with regular docker commands
         await runCommand('docker', [
@@ -148,11 +249,8 @@ async function buildService(service: string): Promise<void> {
           contextPath
         ]);
 
-        // Push after building
-        await runCommand('docker', [
-          'push',
-          tagName
-        ]);
+        // Push with retry mechanism
+        await pushImageWithRetry(tagName);
       }
     }
 
@@ -225,7 +323,8 @@ async function build(): Promise<void> {
           ]);
 
           if (!isLocal) {
-            await runCommand('docker', ['push', tagName]);
+            // Use retry mechanism instead of simple push
+            await pushImageWithRetry(tagName);
           }
 
           console.log(chalk.green(`✅ Successfully built ${serviceArg} using fallback method`));
@@ -283,7 +382,8 @@ async function build(): Promise<void> {
             ]);
 
             if (!isLocal) {
-              await runCommand('docker', ['push', tagName]);
+              // Use retry mechanism instead of simple push
+              await pushImageWithRetry(tagName);
             }
 
             console.log(chalk.green(`✅ Successfully built ${service} using fallback method`));
@@ -337,7 +437,8 @@ async function build(): Promise<void> {
             ]);
 
             if (!isLocal) {
-              await runCommand('docker', ['push', tagName]);
+              // Use retry mechanism instead of simple push
+              await pushImageWithRetry(tagName);
             }
 
             console.log(chalk.green(`✅ Successfully built ${service} using fallback method`));
