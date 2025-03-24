@@ -17,10 +17,9 @@ env:
   ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
 
 jobs:
-  build-images:
-    name: Build Docker Images
+  build-posey:
+    name: Build Posey (all)
     runs-on: Posey
-    # Use repository-level environment to access secrets
     environment: PRODUCTION
     steps:
       - name: Checkout code
