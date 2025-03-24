@@ -144,32 +144,62 @@ async function build(): Promise<void> {
   let hasErrors = false;
   const failedServices: string[] = [];
 
-  for (const service of services) {
-    try {
-      await buildService(service);
-    } catch (error: any) {
-      hasErrors = true;
-      failedServices.push(service);
+  // Process specific service if provided
+  const serviceArg = args.find(arg => arg.startsWith('--service='))?.split('=')[1] ||
+    args[args.indexOf('--service') + 1];
 
-      if (continueOnError) {
-        console.error(chalk.red(`Skipping ${service} due to build error, continuing with other services`));
-      } else {
-        console.error(chalk.red('\nBuild process failed:'));
-        console.error(chalk.red(error.message));
+  if (serviceArg && services.includes(serviceArg)) {
+    console.log(chalk.blue(`Building single service: ${serviceArg}`));
+    try {
+      await buildService(serviceArg);
+    } catch (error: any) {
+      console.error(chalk.red(`Failed to build ${serviceArg}`));
+      hasErrors = true;
+      failedServices.push(serviceArg);
+      if (!continueOnError) {
         process.exit(1);
       }
     }
+  } else {
+    // Build services in parallel for faster completion
+    // Split into batches based on dependency relationships
+    const batch1 = ['auth', 'supertokens'];
+    const batch2 = ['mcp', 'voyager', 'cron', 'agents'];
+
+    console.log(chalk.blue('Building base services in parallel...'));
+    await Promise.all(batch1.map(async (service) => {
+      try {
+        await buildService(service);
+      } catch (error: any) {
+        console.error(chalk.red(`Failed to build ${service}`));
+        hasErrors = true;
+        failedServices.push(service);
+        if (!continueOnError) {
+          process.exit(1);
+        }
+      }
+    }));
+
+    console.log(chalk.blue('Building dependent services in parallel...'));
+    await Promise.all(batch2.map(async (service) => {
+      try {
+        await buildService(service);
+      } catch (error: any) {
+        console.error(chalk.red(`Failed to build ${service}`));
+        hasErrors = true;
+        failedServices.push(service);
+        if (!continueOnError) {
+          process.exit(1);
+        }
+      }
+    }));
   }
 
   if (hasErrors) {
-    console.log(chalk.yellow(`\n⚠️ Some services failed to build: ${failedServices.join(', ')}`));
-    console.log(chalk.yellow('You may need to fix these services before deploying.'));
-
-    if (!continueOnError) {
-      process.exit(1);
-    }
+    console.error(chalk.red(`⚠️ Build completed with errors in the following services: ${failedServices.join(', ')}`));
+    process.exit(1);
   } else {
-    console.log(chalk.green(`\n✅ All services built successfully for ${environment}`));
+    console.log(chalk.green('✅ All services built successfully!'));
   }
 }
 

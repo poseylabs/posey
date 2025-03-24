@@ -438,11 +438,54 @@ jobs:
           
           echo "Available disk space after cleanup:"
           df -h
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
         
       - name: Build Docker images
         run: |
           cd services
-          yarn build
+          # Only build images for services that have changed since last commit
+          CHANGED_SERVICES=""
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Get list of changed files
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+            
+            # Check which services have changes
+            for SERVICE in auth supertokens voyager mcp agents cron; do
+              if echo "$CHANGED_FILES" | grep -q "services/$SERVICE/"; then
+                echo "Service $SERVICE has changes, will build"
+                CHANGED_SERVICES="$CHANGED_SERVICES $SERVICE"
+              fi
+            done
+            
+            if [[ -z "$CHANGED_SERVICES" ]]; then
+              echo "No service changes detected, will build all services"
+              yarn build
+            else
+              echo "Building only changed services: $CHANGED_SERVICES"
+              for SERVICE in $CHANGED_SERVICES; do
+                yarn build -- --service $SERVICE
+              done
+            fi
+          else
+            # For workflow_dispatch, use the service input if provided
+            if [[ -n "${{ github.event.inputs.service }}" ]]; then
+              echo "Building specific service: ${{ github.event.inputs.service }}"
+              yarn build -- --service ${{ github.event.inputs.service }}
+            else
+              echo "Building all services"
+              yarn build
+            fi
+          fi
         
       - name: Tag and push Docker images
         run: |
