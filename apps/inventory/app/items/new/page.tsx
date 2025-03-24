@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '@posey.ai/core';
@@ -34,6 +34,23 @@ export default function NewItemPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [shouldMountScanner, setShouldMountScanner] = useState(false);
+  const scannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear any timeouts to prevent memory leaks
+  const clearTimeouts = () => {
+    if (scannerTimeoutRef.current) {
+      clearTimeout(scannerTimeoutRef.current);
+      scannerTimeoutRef.current = null;
+    }
+  };
+
+  // Cleanup timeouts on component unmount
+  useEffect(() => {
+    return () => {
+      clearTimeouts();
+    };
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -145,6 +162,30 @@ export default function NewItemPage() {
     }
   };
 
+  const toggleBarcodeScanner = () => {
+    // Clear any existing timeouts
+    clearTimeouts();
+    
+    if (showBarcodeScanner) {
+      // Hide scanner first, then unmount it after a short delay
+      setShowBarcodeScanner(false);
+      scannerTimeoutRef.current = setTimeout(() => {
+        setShouldMountScanner(false);
+      }, 300);
+    } else {
+      // Mount scanner first, then show it
+      setShouldMountScanner(true);
+      scannerTimeoutRef.current = setTimeout(() => {
+        setShowBarcodeScanner(true);
+      }, 300);
+    }
+    
+    // Clear any existing errors
+    if (error.includes('camera') || error.includes('barcode')) {
+      setError('');
+    }
+  };
+
   const handleProductFound = (productData: ProductData) => {
     setTitle(productData.title || '');
     setDescription(
@@ -156,7 +197,10 @@ export default function NewItemPage() {
         `Source: ${productData.source}`
       ].filter(Boolean).join('\n\n')
     );
-    setShowBarcodeScanner(false);
+    // Instead of directly changing the state, use our toggle function
+    if (showBarcodeScanner) {
+      toggleBarcodeScanner();
+    }
   };
 
   useEffect(() => {
@@ -189,14 +233,16 @@ export default function NewItemPage() {
               <button 
                 type="button" 
                 className="btn btn-secondary w-full"
-                onClick={() => setShowBarcodeScanner(!showBarcodeScanner)}
+                onClick={toggleBarcodeScanner}
               >
-                {showBarcodeScanner ? 'Hide Barcode Scanner' : 'Scan Barcode to Find Item'}
+                {showBarcodeScanner ? 'Hide Barcode Scanner' : 'Scan Product Barcode'}
               </button>
             </div>
 
-            {showBarcodeScanner && (
-              <BarcodeLookup onProductFound={handleProductFound} />
+            {shouldMountScanner && (
+              <div key={`scanner-container-${Date.now()}`}>
+                <BarcodeLookup onProductFound={handleProductFound} />
+              </div>
             )}
 
             <form onSubmit={handleSubmit}>

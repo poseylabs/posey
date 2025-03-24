@@ -442,7 +442,7 @@ jobs:
       - name: Build Docker images
         run: |
           cd services
-          yarn build:local
+          yarn build
         
       - name: Tag and push Docker images
         run: |
@@ -481,7 +481,10 @@ jobs:
           fi
           
           export KUBE_NAMESPACE=$NAMESPACE
-          yarn deploy:local ${{ env.ENVIRONMENT == 'STAGING' && '--staging' || '' }}
+          
+          # Explicitly pass --local=false to ensure we use the production registry images
+          # This ensures deploy.ts will use the correct non-local deployment YAML files
+          yarn deploy --local=false ${{ env.ENVIRONMENT == 'STAGING' && '--staging' || '' }}
         
       - name: Verify deployment
         run: |
