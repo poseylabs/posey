@@ -442,13 +442,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          # Use the latest version
-          version: latest
-          # Enable the driver for better cache support
-          driver-opts: |
-            image=moby/buildkit:latest
-            network=host
-        
+          # Use a stable version known to work with cache-mount
+          version: v0.12.0
+          # Default driver with minimal config
+          driver-opts: network=host
+
+      # Fix Docker config file to avoid incompatibility issues
+      - name: Fix Docker config
+        run: |
+          mkdir -p ~/.docker
+          echo '{"experimental": true}' > ~/.docker/config.json
+          
       - name: Cache Docker layers
         uses: actions/cache@v3
         with:
@@ -456,7 +460,7 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
-        
+      
       # Cache Python packages specifically for faster builds
       - name: Cache Python packages
         uses: actions/cache@v3
@@ -478,22 +482,16 @@ jobs:
       # Setup buildx config for caching optimization
       - name: Configure Buildx Caching
         run: |
-          mkdir -p ~/.docker
-          cat > ~/.docker/config.json << EOF
-          {
-            "experimental": "enabled",
-            "features": {
-              "buildkit": true
-            }
-          }
-          EOF
-          
-          # Create a builder instance with appropriate settings
+          # Create a simple builder instance
           docker buildx create --use --name posey-builder \
-            --driver docker-container \
-            --driver-opt network=host \
-            --buildkitd-flags '--allow-insecure-entitlement network.host'
-        
+            --bootstrap
+
+          # Verify buildx setup
+          docker buildx ls
+          
+          # Print buildx version for debugging
+          docker buildx version
+
       - name: Build Docker images
         run: |
           cd services

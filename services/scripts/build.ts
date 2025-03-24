@@ -78,78 +78,82 @@ async function buildService(service: string): Promise<void> {
       `POSTGRES_USER=${process.env.POSTGRES_USER || ''}`
     ];
 
-    // Cache mounts - with special handling for Python services
-    const isPythonService = service === 'agents';
-
-    let cacheMounts = [
-      'type=volume,target=/root/.cache/pip,source=pip-cache',
-      'type=volume,target=/wheels,source=wheels-cache'
-    ];
-
-    // Extra caching for Python services
-    if (isPythonService) {
-      cacheMounts = [
-        'type=volume,target=/root/.cache/pip,source=pip-cache-agents',
-        'type=volume,target=/wheels/small,source=wheels-small-cache',
-        'type=volume,target=/wheels/basic,source=wheels-basic-cache',
-        'type=volume,target=/wheels/langchain,source=wheels-langchain-cache',
-        'type=volume,target=/wheels/heavy,source=wheels-heavy-cache'
-      ];
+    // Check if buildx is available with advanced features
+    let hasBuildxAdvancedFeatures = false;
+    try {
+      const buildxResult = await execa('docker', ['buildx', 'version']);
+      // Check if buildx version is at least v0.8 which supports cache mounts
+      const versionMatch = buildxResult.stdout.match(/v(\d+)\.(\d+)/);
+      if (versionMatch && (parseInt(versionMatch[1]) > 0 || parseInt(versionMatch[2]) >= 8)) {
+        hasBuildxAdvancedFeatures = true;
+      }
+    } catch (error) {
+      console.log(chalk.yellow('Docker buildx with advanced features not available, using standard build'));
     }
 
-    // Determine build platform options
-    const platformOptions = isPythonService ? ['--platform=linux/amd64'] : [];
+    // Determine the context path
+    const contextPath = usesServicePrefix ? path.resolve(rootDir, '..') : serviceDir;
 
     // Build Docker image for the service
     if (isLocal) {
       const tagName = `posey-${service.replace('.', '-')}:latest`;
-      const contextPath = usesServicePrefix ? path.resolve(rootDir, '..') : serviceDir;
 
-      // Special options for Python services
-      const buildOptions = isPythonService ? [
-        '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
-        '--progress=plain'
-      ] : [];
-
-      // Use buildx for local builds with better caching
-      await runCommand('docker', [
-        'buildx', 'build',
-        '--tag', tagName,
-        '--file', dockerfilePath,
-        '--cache-from', 'type=local,src=/tmp/.buildx-cache',
-        '--cache-to', 'type=local,dest=/tmp/.buildx-cache-new,mode=max',
-        ...platformOptions,
-        ...cacheMounts.map(cache => ['--cache-mount', cache]).flat(),
-        ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
-        ...buildOptions,
-        '--load', // Load the image into Docker
-        contextPath
-      ]);
+      if (hasBuildxAdvancedFeatures) {
+        // Use buildx with advanced features
+        await runCommand('docker', [
+          'buildx', 'build',
+          '--tag', tagName,
+          '--file', dockerfilePath,
+          '--cache-from', 'type=local,src=/tmp/.buildx-cache',
+          '--cache-to', 'type=local,dest=/tmp/.buildx-cache-new,mode=max',
+          '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+          ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
+          '--load', // Load the image into Docker
+          contextPath
+        ]);
+      } else {
+        // Fall back to regular docker build
+        await runCommand('docker', [
+          'build',
+          '--tag', tagName,
+          '--file', dockerfilePath,
+          ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
+          contextPath
+        ]);
+      }
     } else {
       // For production
       const tagName = `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`;
-      const contextPath = usesServicePrefix ? path.resolve(rootDir, '..') : serviceDir;
 
-      // Special options for Python services
-      const buildOptions = isPythonService ? [
-        '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
-        '--progress=plain'
-      ] : [];
+      if (hasBuildxAdvancedFeatures) {
+        // Use buildx with advanced features for production
+        await runCommand('docker', [
+          'buildx', 'build',
+          '--tag', tagName,
+          '--file', dockerfilePath,
+          '--cache-from', 'type=local,src=/tmp/.buildx-cache',
+          '--cache-to', 'type=local,dest=/tmp/.buildx-cache-new,mode=max',
+          '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+          ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
+          '--push', // Push directly to registry
+          contextPath
+        ]);
+      } else {
+        // Build and push separately with regular docker commands
+        await runCommand('docker', [
+          'build',
+          '--tag', tagName,
+          '--file', dockerfilePath,
+          ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
+          contextPath
+        ]);
 
-      // Use buildx for production builds with registry push
-      await runCommand('docker', [
-        'buildx', 'build',
-        '--tag', tagName,
-        '--file', dockerfilePath,
-        '--cache-from', 'type=local,src=/tmp/.buildx-cache',
-        '--cache-to', 'type=local,dest=/tmp/.buildx-cache-new,mode=max',
-        ...platformOptions,
-        ...cacheMounts.map(cache => ['--cache-mount', cache]).flat(),
-        ...buildArgs.map(arg => ['--build-arg', arg]).flat(),
-        ...buildOptions,
-        '--push', // Push directly to registry
-        contextPath
-      ]);
+        // Push after building
+        await runCommand('docker', [
+          'push',
+          tagName
+        ]);
+      }
     }
 
     console.log(chalk.green(`✅ Successfully built ${service} for ${environment}`));
@@ -166,6 +170,24 @@ async function buildService(service: string): Promise<void> {
 async function build(): Promise<void> {
   console.log(chalk.green(`🔨 Building all services for ${environment}...\n`));
 
+  // Verify Docker and Buildx installation
+  try {
+    console.log(chalk.blue('Verifying Docker installation...'));
+    await runCommand('docker', ['--version']);
+
+    console.log(chalk.blue('Checking Buildx availability...'));
+    try {
+      await runCommand('docker', ['buildx', 'version']);
+      console.log(chalk.green('✅ Docker Buildx is available'));
+    } catch (error) {
+      console.log(chalk.yellow('⚠️ Docker Buildx not available or has limited functionality'));
+      console.log(chalk.yellow('Will use standard Docker build commands as fallback'));
+    }
+  } catch (error) {
+    console.error(chalk.red('❌ Docker verification failed. Please ensure Docker is installed.'));
+    process.exit(1);
+  }
+
   let hasErrors = false;
   const failedServices: string[] = [];
 
@@ -179,6 +201,41 @@ async function build(): Promise<void> {
       await buildService(serviceArg);
     } catch (error: any) {
       console.error(chalk.red(`Failed to build ${serviceArg}`));
+      console.error(chalk.red(error.message));
+
+      // Attempt a fallback build with basic Docker commands if advanced features fail
+      if (error.message?.includes('unknown flag') || error.message?.includes('buildx')) {
+        console.log(chalk.yellow(`Attempting fallback build for ${serviceArg} with basic Docker...`));
+        try {
+          const serviceDir = path.join(rootDir, serviceArg);
+          const dockerfilePath = path.join(serviceDir, 'Dockerfile');
+          const contextPath = fs.readFileSync(dockerfilePath, 'utf8').includes(`services/${serviceArg}/`)
+            ? path.resolve(rootDir, '..')
+            : serviceDir;
+
+          const tagName = isLocal
+            ? `posey-${serviceArg.replace('.', '-')}:latest`
+            : `registry.digitalocean.com/posey/posey-${serviceArg.replace('.', '-')}:latest`;
+
+          await runCommand('docker', [
+            'build',
+            '--tag', tagName,
+            '--file', dockerfilePath,
+            contextPath
+          ]);
+
+          if (!isLocal) {
+            await runCommand('docker', ['push', tagName]);
+          }
+
+          console.log(chalk.green(`✅ Successfully built ${serviceArg} using fallback method`));
+          return;
+        } catch (fallbackError: any) {
+          console.error(chalk.red(`Fallback build also failed for ${serviceArg}:`));
+          console.error(chalk.red(fallbackError.message));
+        }
+      }
+
       hasErrors = true;
       failedServices.push(serviceArg);
       if (!continueOnError) {
@@ -197,6 +254,46 @@ async function build(): Promise<void> {
         await buildService(service);
       } catch (error: any) {
         console.error(chalk.red(`Failed to build ${service}`));
+        console.error(chalk.red(error.message));
+
+        // Attempt fallback build
+        if (error.message?.includes('unknown flag') || error.message?.includes('buildx')) {
+          console.log(chalk.yellow(`Attempting fallback build for ${service} with basic Docker...`));
+          try {
+            const serviceDir = path.join(rootDir, service);
+            const dockerfilePath = path.join(serviceDir, 'Dockerfile');
+            if (!fs.existsSync(dockerfilePath)) {
+              console.warn(chalk.yellow(`Dockerfile not found for ${service}, skipping...`));
+              return;
+            }
+
+            const contextPath = fs.readFileSync(dockerfilePath, 'utf8').includes(`services/${service}/`)
+              ? path.resolve(rootDir, '..')
+              : serviceDir;
+
+            const tagName = isLocal
+              ? `posey-${service.replace('.', '-')}:latest`
+              : `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`;
+
+            await runCommand('docker', [
+              'build',
+              '--tag', tagName,
+              '--file', dockerfilePath,
+              contextPath
+            ]);
+
+            if (!isLocal) {
+              await runCommand('docker', ['push', tagName]);
+            }
+
+            console.log(chalk.green(`✅ Successfully built ${service} using fallback method`));
+            return;
+          } catch (fallbackError: any) {
+            console.error(chalk.red(`Fallback build also failed for ${service}:`));
+            console.error(chalk.red(fallbackError.message));
+          }
+        }
+
         hasErrors = true;
         failedServices.push(service);
         if (!continueOnError) {
@@ -211,6 +308,46 @@ async function build(): Promise<void> {
         await buildService(service);
       } catch (error: any) {
         console.error(chalk.red(`Failed to build ${service}`));
+        console.error(chalk.red(error.message));
+
+        // Attempt fallback build
+        if (error.message?.includes('unknown flag') || error.message?.includes('buildx')) {
+          console.log(chalk.yellow(`Attempting fallback build for ${service} with basic Docker...`));
+          try {
+            const serviceDir = path.join(rootDir, service);
+            const dockerfilePath = path.join(serviceDir, 'Dockerfile');
+            if (!fs.existsSync(dockerfilePath)) {
+              console.warn(chalk.yellow(`Dockerfile not found for ${service}, skipping...`));
+              return;
+            }
+
+            const contextPath = fs.readFileSync(dockerfilePath, 'utf8').includes(`services/${service}/`)
+              ? path.resolve(rootDir, '..')
+              : serviceDir;
+
+            const tagName = isLocal
+              ? `posey-${service.replace('.', '-')}:latest`
+              : `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`;
+
+            await runCommand('docker', [
+              'build',
+              '--tag', tagName,
+              '--file', dockerfilePath,
+              contextPath
+            ]);
+
+            if (!isLocal) {
+              await runCommand('docker', ['push', tagName]);
+            }
+
+            console.log(chalk.green(`✅ Successfully built ${service} using fallback method`));
+            return;
+          } catch (fallbackError: any) {
+            console.error(chalk.red(`Fallback build also failed for ${service}:`));
+            console.error(chalk.red(fallbackError.message));
+          }
+        }
+
         hasErrors = true;
         failedServices.push(service);
         if (!continueOnError) {
