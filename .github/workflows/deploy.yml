@@ -161,8 +161,53 @@ jobs:
           kubectl apply -f k8s/ingress/supertokens-ingress.yaml
           kubectl apply -f k8s/ingress/voyager-ingress.yaml
           
-          # Apply annotations and TLS
-          kubectl apply -f k8s/ingress/overlays/${{ env.ENVIRONMENT }}/tls-patches.yaml
+          # Apply TLS using patches
+          for INGRESS in postgres couchbase vector-db agents auth cron mcp supertokens voyager; do
+            HOST_DOMAIN=""
+            SECRET_NAME=""
+            
+            case "$INGRESS" in
+              postgres)
+                HOST_DOMAIN="postgres.api.posey.ai"
+                SECRET_NAME="postgres-tls"
+                ;;
+              couchbase)
+                HOST_DOMAIN="couchbase.api.posey.ai"
+                SECRET_NAME="couchbase-tls"
+                ;;
+              vector-db)
+                HOST_DOMAIN="qdrant.api.posey.ai"
+                SECRET_NAME="vector-db-tls"
+                ;;
+              agents)
+                HOST_DOMAIN="agents.api.posey.ai"
+                SECRET_NAME="agents-tls"
+                ;;
+              auth)
+                HOST_DOMAIN="auth.api.posey.ai"
+                SECRET_NAME="auth-tls"
+                ;;
+              cron)
+                HOST_DOMAIN="cron.api.posey.ai"
+                SECRET_NAME="cron-tls"
+                ;;
+              mcp)
+                HOST_DOMAIN="mcp.api.posey.ai"
+                SECRET_NAME="mcp-tls"
+                ;;
+              supertokens)
+                HOST_DOMAIN="supertokens.api.posey.ai"
+                SECRET_NAME="supertokens-tls"
+                ;;
+              voyager)
+                HOST_DOMAIN="voyager.api.posey.ai"
+                SECRET_NAME="voyager-tls"
+                ;;
+            esac
+            
+            echo "Adding TLS configuration to $INGRESS-ingress for host $HOST_DOMAIN"
+            kubectl patch ingress $INGRESS-ingress -n posey --type=merge -p "{\"spec\":{\"tls\":[{\"hosts\":[\"$HOST_DOMAIN\"],\"secretName\":\"$SECRET_NAME\"}]}}"
+          done
           
           # Apply common annotations to all ingress resources
           for INGRESS in postgres couchbase vector-db agents auth cron mcp supertokens voyager; do

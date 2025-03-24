@@ -2,6 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: postgres-ingress
+  namespace: posey
 spec:
   tls:
   - hosts:
@@ -12,6 +13,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: couchbase-ingress
+  namespace: posey
 spec:
   tls:
   - hosts:
@@ -22,6 +24,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: vector-db-ingress
+  namespace: posey
 spec:
   tls:
   - hosts:
@@ -32,6 +35,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: agents-ingress
+  namespace: posey
 spec:
   tls:
   - hosts:
@@ -42,6 +46,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: auth-ingress
+  namespace: posey
 spec:
   tls:
   - hosts:
@@ -52,6 +57,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: cron-ingress
+  namespace: posey
 spec:
   tls:
   - hosts:
@@ -62,6 +68,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: mcp-ingress
+  namespace: posey
 spec:
   tls:
   - hosts:
@@ -72,6 +79,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: supertokens-ingress
+  namespace: posey
 spec:
   tls:
   - hosts:
@@ -82,6 +90,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: voyager-ingress
+  namespace: posey
 spec:
   tls:
   - hosts:
