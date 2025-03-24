@@ -218,7 +218,7 @@ jobs:
               --overwrite
           done
       
-      - name: Get Ingress IP and Update DNS
+      - name: Get Ingress IP
         run: |
           echo "Getting ingress controller external IP..."
           ATTEMPTS=0
@@ -241,56 +241,9 @@ jobs:
             exit 1
           fi
           
-          # Set environment-specific domain prefix
-          DOMAIN_PREFIX=""
-          if [ "${{ env.ENVIRONMENT }}" == "STAGING" ]; then
-            DOMAIN_PREFIX="staging."
-          fi
-          
-          BASE_DOMAIN="${DOMAIN_PREFIX}${{ env.DOMAIN }}"
-          
-          # Define subdomains to configure
-          SUBDOMAINS=("auth" "mcp" "voyager" "agents" "cron" "api")
-          
-          # Check if domain exists in DigitalOcean
-          DOMAIN_EXISTS=$(doctl compute domain get ${{ env.DOMAIN }} || echo "not_found")
-          if [[ "$DOMAIN_EXISTS" == "not_found" ]]; then
-            echo "Domain ${{ env.DOMAIN }} not found in DigitalOcean. Creating domain..."
-            doctl compute domain create ${{ env.DOMAIN }} --ip-address $EXTERNAL_IP
-          fi
-          
-          # Create/update DNS A records for each subdomain
-          for SUBDOMAIN in "${SUBDOMAINS[@]}"; do
-            FULL_DOMAIN="${SUBDOMAIN}.${BASE_DOMAIN}"
-            echo "Creating/updating DNS A record for $FULL_DOMAIN -> $EXTERNAL_IP"
-            
-            RECORD_ID=$(doctl compute domain records list ${{ env.DOMAIN }} --format ID,Name,Type,Data --no-header | grep "^[0-9]* *${SUBDOMAIN}.${DOMAIN_PREFIX} *A" | awk '{print $1}')
-            
-            if [ -n "$RECORD_ID" ]; then
-              echo "Updating existing DNS record ID $RECORD_ID for $FULL_DOMAIN"
-              doctl compute domain records update ${{ env.DOMAIN }} --record-id $RECORD_ID --record-data $EXTERNAL_IP
-            else
-              echo "Creating new DNS record for $FULL_DOMAIN"
-              doctl compute domain records create ${{ env.DOMAIN }} --record-type A --record-name "${SUBDOMAIN}.${DOMAIN_PREFIX}" --record-data $EXTERNAL_IP --record-ttl 300
-            fi
-          done
-          
-          # Create/update apex domain or staging subdomain
-          if [ "${{ env.ENVIRONMENT }}" == "PRODUCTION" ]; then
-            RECORD_ID=$(doctl compute domain records list ${{ env.DOMAIN }} --format ID,Name,Type,Data --no-header | grep "^[0-9]* *@ *A" | awk '{print $1}')
-            if [ -n "$RECORD_ID" ]; then
-              doctl compute domain records update ${{ env.DOMAIN }} --record-id $RECORD_ID --record-data $EXTERNAL_IP
-            else
-              doctl compute domain records create ${{ env.DOMAIN }} --record-type A --record-name "@" --record-data $EXTERNAL_IP --record-ttl 300
-            fi
-          else
-            RECORD_ID=$(doctl compute domain records list ${{ env.DOMAIN }} --format ID,Name,Type,Data --no-header | grep "^[0-9]* *staging *A" | awk '{print $1}')
-            if [ -n "$RECORD_ID" ]; then
-              doctl compute domain records update ${{ env.DOMAIN }} --record-id $RECORD_ID --record-data $EXTERNAL_IP
-            else
-              doctl compute domain records create ${{ env.DOMAIN }} --record-type A --record-name "staging" --record-data $EXTERNAL_IP --record-ttl 300
-            fi
-          fi
+          echo "✅ DNS records will be automatically managed by External-DNS"
+          echo "Current DNS configuration:"
+          kubectl get ingress -n posey -o custom-columns=NAME:.metadata.name,HOST:.spec.rules[0].host
 
   deploy-data:
     name: Deploy Data Services
@@ -401,7 +354,7 @@ jobs:
   deploy-services:
     name: Deploy Application Services
     needs: deploy-data
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'PRODUCTION' || 'STAGING') }}
     steps:
       - name: Checkout code
