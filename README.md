@@ -1,6 +1,4 @@
-Service status: [![Deploy Services](https://github.com/poseylabs/posey/actions/workflows/deploy-services.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/deploy-services.yml)
-
-Data Service: [![Deploy Data Services](https://github.com/poseylabs/posey/actions/workflows/deploy-data.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/deploy-data.yml)
+Build Status: [![Build Posey Docker Images](https://github.com/poseylabs/posey/actions/workflows/build-images.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/build-images.yml)
 
 # Posey Monorepo
 
