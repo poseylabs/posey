@@ -20,6 +20,8 @@ jobs:
   build-images:
     name: Build Docker Images
     runs-on: ubuntu-latest
+    # Use repository-level environment to access secrets
+    environment: PRODUCTION
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -48,11 +50,18 @@ jobs:
             echo "DO_API_TOKEN appears to be empty or not available!"
           fi
 
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          version: "${{ env.DOCTL_VERSION }}"
-          token: ${{ secrets.DO_API_TOKEN }}
+      - name: Install doctl manually
+        run: |
+          # Download and install doctl
+          cd /tmp
+          curl -sL https://github.com/digitalocean/doctl/releases/download/v${{ env.DOCTL_VERSION }}/doctl-${{ env.DOCTL_VERSION }}-linux-amd64.tar.gz | tar -xzv
+          sudo mv doctl /usr/local/bin/
+          
+          # Verify installation
+          doctl version
+          
+          # Configure authentication
+          doctl auth init -t ${{ secrets.DO_API_TOKEN }}
 
       - name: Login to DigitalOcean Container Registry
         run: |
