@@ -58,16 +58,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy wheels and install in order with specific dependencies first
 COPY --from=builder /wheels/small /wheels/small
-RUN pip install --find-links=/wheels/small --no-cache-dir -r /wheels/small/*
+RUN pip install --no-cache-dir /wheels/small/*.whl
 
 COPY --from=builder /wheels/basic /wheels/basic
-RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --no-cache-dir -r /wheels/basic/*
+RUN pip install --find-links=/wheels/small --no-cache-dir /wheels/basic/*.whl
 
 COPY --from=builder /wheels/langchain /wheels/langchain
-RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --no-cache-dir -r /wheels/langchain/*
+RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --no-cache-dir /wheels/langchain/*.whl
 
 COPY --from=builder /wheels/heavy /wheels/heavy
-RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --find-links=/wheels/heavy --no-cache-dir -r /wheels/heavy/*
+RUN pip install --find-links=/wheels/small --find-links=/wheels/basic --find-links=/wheels/langchain --no-cache-dir /wheels/heavy/*.whl
 
 # Clean up wheels after installation
 RUN rm -rf /wheels
