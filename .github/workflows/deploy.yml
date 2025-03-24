@@ -75,8 +75,35 @@ jobs:
       
       - name: Configure Let's Encrypt
         run: |
-          sed -i "s/YOUR_EMAIL@posey.ai/${{ secrets.LETSENCRYPT_EMAIL || 'admin@posey.ai' }}/g" k8s/ingress/overlays/${{ env.ENVIRONMENT }}/letsencrypt-issuer.yaml
-          kubectl apply -f k8s/ingress/overlays/${{ env.ENVIRONMENT }}/letsencrypt-issuer.yaml
+          echo "Configuring Let's Encrypt for ${{ env.ENVIRONMENT }} environment..."
+          
+          # Create the cert-manager namespace if it doesn't exist
+          kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Wait for cert-manager webhook to be ready
+          kubectl wait --namespace cert-manager \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=webhook \
+            --timeout=180s || echo "Cert-manager webhook might not be fully ready yet"
+          
+          # Update email in the issuer configuration
+          if [ -f "k8s/ingress/overlays/${{ env.ENVIRONMENT }}/letsencrypt-issuer.yaml" ]; then
+            echo "Updating Let's Encrypt email in issuer configuration..."
+            sed -i "s/YOUR_EMAIL@posey.ai/${{ secrets.LETSENCRYPT_EMAIL }}/g" k8s/ingress/overlays/${{ env.ENVIRONMENT }}/letsencrypt-issuer.yaml
+            
+            # Apply the issuer configuration
+            kubectl apply -f k8s/ingress/overlays/${{ env.ENVIRONMENT }}/letsencrypt-issuer.yaml
+            
+            # Wait for the issuer to be ready
+            if [ "${{ env.ENVIRONMENT }}" == "PRODUCTION" ]; then
+              kubectl wait --for=condition=ready clusterissuer/letsencrypt-prod --timeout=60s || echo "ClusterIssuer might not be fully ready yet"
+            else
+              kubectl wait --for=condition=ready clusterissuer/letsencrypt-staging --timeout=60s || echo "ClusterIssuer might not be fully ready yet"
+            fi
+          else
+            echo "⚠️ Let's Encrypt issuer configuration not found at k8s/ingress/overlays/${{ env.ENVIRONMENT }}/letsencrypt-issuer.yaml"
+            exit 1
+          fi
       
       - name: Apply Ingress Configuration
         run: |
