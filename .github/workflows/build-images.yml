@@ -19,7 +19,7 @@ env:
 jobs:
   build-images:
     name: Build Docker Images
-    runs-on: [self-hosted, linux-arm64]
+    runs-on: Posey
     # Use repository-level environment to access secrets
     environment: PRODUCTION
     steps:
