@@ -55,13 +55,13 @@ spec:
         args:
         - --source=ingress
         - --provider=digitalocean
-        - --domain-filter=posey.ai  # Process only posey.ai domain
-        - --policy=sync  # Remove records that are no longer in use
+        - --domain-filter=posey.ai
+        - --policy=sync
         - --registry=txt
-        - --txt-owner-id=posey-k8s  # Unique identifier for this External-DNS instance
+        - --txt-owner-id=posey-k8s
         env:
         - name: DO_TOKEN
           valueFrom:
-            secretRef:
+            secretKeyRef:
               name: digitalocean
               key: access-token 
