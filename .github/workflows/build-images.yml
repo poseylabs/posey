@@ -19,7 +19,7 @@ env:
 jobs:
   build-images:
     name: Build Docker Images
-    runs-on: ubuntu-latest-4-core
+    runs-on: [self-hosted, linux-arm64]
     # Use repository-level environment to access secrets
     environment: PRODUCTION
     steps:
@@ -185,6 +185,8 @@ jobs:
                 --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
                 --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
                 --build-arg PIP_CACHE_DIR=/pip-cache \
+                --build-arg TARGETPLATFORM=linux/arm64 \
+                --platform linux/arm64 \
                 --memory=8g \
                 --cpu-quota=400000 \
                 -t ${SERVICE} \
