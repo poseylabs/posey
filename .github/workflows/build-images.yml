@@ -442,13 +442,60 @@ jobs:
             SERVICES="${{ github.event.inputs.service }}"
           fi
           
+          # IMPORTANT: Force Kubernetes to use the SHA-tagged images
+          echo "---------------------------------------------------------"
+          echo "CRITICAL: Forcing deployments to use SHA-tagged images"
+          echo "---------------------------------------------------------"
+          
+          NAMESPACE="${{ secrets.DO_REGISTRY_NAME }}"
+          
+          # Update service deployments with the SHA-tagged images
+          for SERVICE in $SERVICES; do
+            # Try updating the deployment image
+            echo "Updating image for deployment/posey-${SERVICE} to use SHA tag ${SHORT_SHA}..."
+            kubectl set image deployment/posey-${SERVICE} posey-${SERVICE}=registry.digitalocean.com/${NAMESPACE}/${SERVICE}:${SHORT_SHA} -n ${NAMESPACE} || true
+            
+            # Force restart the deployment
+            echo "Force restarting deployment posey-${SERVICE}..."
+            kubectl rollout restart deployment/posey-${SERVICE} -n ${NAMESPACE} || true
+          done
+          
+          # Update data service deployments/statefulsets
+          for SERVICE in $DATA_SERVICES; do
+            # Replace dots with dashes for app name
+            APP_NAME=$(echo $SERVICE | tr '.' '-')
+            
+            # Try updating the statefulset or deployment
+            # First try statefulset
+            echo "Attempting to update statefulset/posey-${APP_NAME} to use SHA tag ${SHORT_SHA}..."
+            kubectl set image statefulset/posey-${APP_NAME} posey-${APP_NAME}=registry.digitalocean.com/${NAMESPACE}/${APP_NAME}:${SHORT_SHA} -n ${NAMESPACE} || true
+            kubectl rollout restart statefulset/posey-${APP_NAME} -n ${NAMESPACE} || true
+            
+            # Then try deployment (in case it's a deployment instead)
+            echo "Attempting to update deployment/posey-${APP_NAME} to use SHA tag ${SHORT_SHA}..."
+            kubectl set image deployment/posey-${APP_NAME} posey-${APP_NAME}=registry.digitalocean.com/${NAMESPACE}/${APP_NAME}:${SHORT_SHA} -n ${NAMESPACE} || true
+            kubectl rollout restart deployment/posey-${APP_NAME} -n ${NAMESPACE} || true
+            
+            # Try without posey- prefix (some services might not have it)
+            echo "Attempting to update without posey- prefix..."
+            kubectl set image deployment/${APP_NAME} ${APP_NAME}=registry.digitalocean.com/${NAMESPACE}/${APP_NAME}:${SHORT_SHA} -n ${NAMESPACE} || true
+            kubectl rollout restart deployment/${APP_NAME} -n ${NAMESPACE} || true
+            kubectl set image statefulset/${APP_NAME} ${APP_NAME}=registry.digitalocean.com/${NAMESPACE}/${APP_NAME}:${SHORT_SHA} -n ${NAMESPACE} || true
+            kubectl rollout restart statefulset/${APP_NAME} -n ${NAMESPACE} || true
+          done
+          
+          # Now proceed with normal ArgoCD sync
+          echo "---------------------------------------------------------"
+          echo "Proceeding with normal ArgoCD sync"
+          echo "---------------------------------------------------------"
+          
           # Create and sync service applications 
           for SERVICE in $SERVICES; do
             if ! argocd app get posey-$SERVICE &>/dev/null; then
               echo "Creating application posey-$SERVICE in ArgoCD..."
               argocd app create posey-$SERVICE \
                 --repo https://github.com/${{ github.repository }}.git \
-                --path services/$SERVICE/k8s \
+                --path k8s/$SERVICE \
                 --dest-server https://kubernetes.default.svc \
                 --dest-namespace ${{ secrets.DO_REGISTRY_NAME }} \
                 --directory-recurse || true
@@ -464,11 +511,19 @@ jobs:
             # Replace dots with dashes for app name
             APP_NAME=$(echo $SERVICE | tr '.' '-')
             
+            # For vector.db, use vector-db in the k8s path
+            K8S_PATH="k8s"
+            if [ "${SERVICE}" == "vector.db" ]; then
+              K8S_PATH="data/${SERVICE}/k8s"  # Use the data path for vector.db
+            elif [ "${SERVICE}" == "postgres" ]; then
+              K8S_PATH="data/${SERVICE}/k8s"  # Use the data path for postgres
+            fi
+            
             if ! argocd app get posey-$APP_NAME &>/dev/null; then
               echo "Creating data application posey-$APP_NAME in ArgoCD..."
               argocd app create posey-$APP_NAME \
                 --repo https://github.com/${{ github.repository }}.git \
-                --path data/$SERVICE/k8s \
+                --path ${K8S_PATH} \
                 --dest-server https://kubernetes.default.svc \
                 --dest-namespace ${{ secrets.DO_REGISTRY_NAME }} \
                 --directory-recurse || true
@@ -490,40 +545,124 @@ jobs:
           NAMESPACE="${{ secrets.DO_REGISTRY_NAME }}"
           echo "Using namespace: ${NAMESPACE}"
           
-          # Apply configurations with kubectl
-          echo "Applying configurations directly with kubectl..."
+          # Fix PVC issues - check existing PVC sizes to avoid downsizing attempts
+          echo "---------------------------------------------------"
+          echo "Checking PVC sizes to avoid downsizing errors..."
+          
+          # Get current PVC sizes
+          kubectl get pvc -n ${NAMESPACE} -o custom-columns=NAME:.metadata.name,SIZE:.spec.resources.requests.storage || true
+          
+          # Detect and fix potential PVC downsizing issues in YAML files
+          echo "Checking for potential PVC downsizing issues in manifest files..."
+          
+          # Function to check if a PVC already exists with larger size
+          check_pvc_downsizing() {
+            PVC_NAME=$1
+            FILE_PATH=$2
+            
+            # Get the size from the current PVC
+            CURRENT_SIZE=$(kubectl get pvc ${PVC_NAME} -n ${NAMESPACE} -o jsonpath='{.spec.resources.requests.storage}' 2>/dev/null)
+            if [ -z "$CURRENT_SIZE" ]; then
+              echo "PVC ${PVC_NAME} does not exist yet, no size conflict"
+              return 0
+            fi
+            
+            # Get the size from the YAML file
+            if [ -f "${FILE_PATH}" ]; then
+              # This extracts the storage size from a Kubernetes YAML file
+              FILE_SIZE=$(grep -A5 "storage:" "${FILE_PATH}" | grep -oP '(?<=storage: )[0-9]+[GM]i' | head -1)
+              if [ -z "$FILE_SIZE" ]; then
+                echo "Could not find storage size in ${FILE_PATH}"
+                return 0
+              fi
+              
+              echo "PVC ${PVC_NAME}: Current=${CURRENT_SIZE}, File=${FILE_SIZE}"
+              
+              # Convert sizes to bytes for comparison (simplified approach)
+              CURRENT_NUM=$(echo ${CURRENT_SIZE} | grep -oP '[0-9]+')
+              FILE_NUM=$(echo ${FILE_SIZE} | grep -oP '[0-9]+')
+              
+              CURRENT_UNIT=$(echo ${CURRENT_SIZE} | grep -oP '[GMK]i')
+              FILE_UNIT=$(echo ${FILE_SIZE} | grep -oP '[GMK]i')
+              
+              # Simple comparison - not perfect but catches obvious issues
+              if [[ "$CURRENT_UNIT" == "Gi" && "$FILE_UNIT" == "Mi" ]]; then
+                echo "⚠️ Warning: PVC ${PVC_NAME} would be downsized from ${CURRENT_SIZE} to ${FILE_SIZE}"
+                echo "Temporarily skipping file ${FILE_PATH} to prevent errors"
+                # Rename the file temporarily to skip it during apply
+                mv "${FILE_PATH}" "${FILE_PATH}.skip"
+                return 1
+              elif [[ "$CURRENT_UNIT" == "$FILE_UNIT" && $CURRENT_NUM -gt $FILE_NUM ]]; then
+                echo "⚠️ Warning: PVC ${PVC_NAME} would be downsized from ${CURRENT_SIZE} to ${FILE_SIZE}"
+                echo "Temporarily skipping file ${FILE_PATH} to prevent errors"
+                # Rename the file temporarily to skip it during apply
+                mv "${FILE_PATH}" "${FILE_PATH}.skip"
+                return 1
+              fi
+            fi
+            return 0
+          }
+          
+          # Check common PVC files
+          check_pvc_downsizing "agents-data-pvc" "services/shared/k8s/agents-data-pvc.yaml" || true
+          check_pvc_downsizing "agents-models-pvc" "services/shared/k8s/agents-models-pvc.yaml" || true
+          check_pvc_downsizing "voyager-cache-pvc" "services/shared/k8s/voyager-cache-pvc.yaml" || true
+          check_pvc_downsizing "voyager-data-pvc" "services/shared/k8s/voyager-data-pvc.yaml" || true
+          check_pvc_downsizing "postgres-pvc" "data/postgres/k8s/postgres-storage.yaml" || true
+          
+          # Apply configurations with kubectl using the central k8s directory
+          echo "Applying configurations directly with kubectl using kustomize..."
           kubectl get namespace $NAMESPACE || kubectl create namespace $NAMESPACE
           
-          # Apply shared resources from services
-          if [ -d "services/shared/k8s" ]; then
-            echo "Applying services shared resources..."
-            kubectl apply -k services/shared/k8s -n $NAMESPACE || true
+          # Apply shared resources from the central k8s structure
+          if [ -d "k8s/shared" ]; then
+            echo "Applying shared resources from central k8s directory..."
+            kubectl apply -k k8s/shared -n $NAMESPACE || true
           fi
           
-          # Apply shared resources from data
-          if [ -d "data/shared/k8s" ]; then
-            echo "Applying data shared resources..."
-            kubectl apply -k data/shared/k8s -n $NAMESPACE || true
-          fi
-          
-          # Apply each service's k8s files
+          # Apply service resources using kustomize
           for SERVICE in $SERVICES; do
-            if [ -d "services/$SERVICE/k8s" ]; then
-              echo "Applying resources for service $SERVICE..."
-              kubectl apply -k services/$SERVICE/k8s -n $NAMESPACE || true
+            if [ -d "k8s/${SERVICE}" ]; then
+              echo "Applying resources for ${SERVICE} from central k8s directory..."
+              kubectl apply -k k8s/${SERVICE} -n $NAMESPACE || true
+            else
+              echo "No central k8s directory for ${SERVICE}, trying service-specific path..."
+              kubectl apply -f services/${SERVICE}/k8s/ -n $NAMESPACE || true
             fi
           done
           
-          # Apply each data service's k8s files
+          # Apply data service resources
           for SERVICE in $DATA_SERVICES; do
-            if [ -d "data/$SERVICE/k8s" ]; then
-              echo "Applying resources for data $SERVICE..."
-              kubectl apply -k data/$SERVICE/k8s -n $NAMESPACE || true
+            APP_NAME=$(echo $SERVICE | tr '.' '-')
+            # Try central k8s structure first
+            if [ -d "k8s/${APP_NAME}" ]; then
+              echo "Applying resources for ${APP_NAME} from central k8s directory..."
+              kubectl apply -k k8s/${APP_NAME} -n $NAMESPACE || true
+            else
+              echo "No central k8s directory for ${APP_NAME}, trying data-specific path..."
+              kubectl apply -f data/${SERVICE}/k8s/ -n $NAMESPACE || true
             fi
           done
+          
+          # Verify pod status
+          echo "---------------------------------------------------"
+          echo "Current pod status:"
+          kubectl get pods -n ${NAMESPACE}
+          
+          echo "---------------------------------------------------"
+          echo "Deployment rollout status:"
+          for SERVICE in $SERVICES; do
+            echo "Checking rollout status for deployment/posey-${SERVICE}..."
+            kubectl rollout status deployment/posey-${SERVICE} -n ${NAMESPACE} --timeout=30s || true
+          done
+          
+          # Restore any renamed PVC files
+          echo "---------------------------------------------------"
+          echo "Restoring any temporarily renamed PVC files..."
+          find . -name "*.yaml.skip" -exec bash -c 'mv "$1" "${1%.skip}"' bash {} \; || true
           
           echo "Deployment initiated. All services should be updated in Kubernetes."
-          
+
       - name: Create minimal .env file for CI
         run: |
           cat > services/.env << EOF
