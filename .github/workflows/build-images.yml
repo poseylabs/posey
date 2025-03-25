@@ -374,9 +374,29 @@ jobs:
           if [ "$UPDATED_FILES" -eq 0 ]; then
             echo "No changes to commit"
           else
+            # Check if there are any other uncommitted changes that we need to handle
+            UNSTAGED_CHANGES=$(git status --porcelain | grep -v "^A " | wc -l)
+            
+            if [ "$UNSTAGED_CHANGES" -gt 0 ]; then
+              echo "There are unstaged changes in the repository that are not part of our manifest updates:"
+              git status --porcelain
+              
+              # We have two options here: either stash these changes or include them
+              echo "Stashing unrelated changes before committing our manifest updates"
+              git stash push -- "$(git status --porcelain | grep -v "^A " | awk '{print $2}')"
+            fi
+            
+            # Now commit only our staged changes (the Kubernetes manifests we modified)
             git commit -m "Update image tags to ${SHORT_SHA} for ${{ github.event.inputs.service || 'all services' }}"
+            
+            # Push the changes
             git push origin ${{ github.ref_name }}
             echo "Successfully updated $UPDATED_FILES manifest files in repository"
+            
+            # If we stashed changes, restore them
+            if [ "$UNSTAGED_CHANGES" -gt 0 ]; then
+              git stash pop || echo "Note: Could not restore stashed changes, but manifest updates were successful"
+            fi
           fi
           
       - name: Configure kubectl for ArgoCD sync
