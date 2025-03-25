@@ -100,6 +100,18 @@ jobs:
         with:
           version: v0.12.0
           
+      - name: Docker Buildx Configuration
+        run: |
+          # Create a new buildx builder with multi-platform support
+          docker buildx create --name multiplatform-builder --driver docker-container --use
+          
+          # Inspect the builder to verify multi-platform support
+          docker buildx inspect --bootstrap
+          
+          # Show available platforms
+          echo "Available platforms for building:"
+          docker buildx inspect | grep "Platforms"
+          
       - name: Create disk cleanup script
         run: |
           cat > /tmp/cleanup.sh << 'EOF'
@@ -190,17 +202,28 @@ jobs:
           for SERVICE in $SERVICES; do
             echo "Building $SERVICE..."
             
-            # Use direct Docker build for all services (bypassing yarn build completely)
-            echo "Building $SERVICE directly with Docker..."
-            DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker build \
+            # Use Docker Buildx for multi-platform builds
+            DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
+              --platform linux/amd64,linux/arm64 \
               --build-arg BUILDKIT_INLINE_CACHE=1 \
               --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
               --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
-              --platform linux/arm64 \
               -t ${SERVICE} \
               -f ${SERVICE}/Dockerfile \
+              --push \
               ./${SERVICE} || {
-                echo "⚠️ Warning: Error building $SERVICE with direct Docker command, but continuing"
+                echo "⚠️ Warning: Error building $SERVICE with multi-platform Docker command, trying single platform"
+                DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
+                  --platform linux/amd64 \
+                  --build-arg BUILDKIT_INLINE_CACHE=1 \
+                  --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
+                  --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
+                  -t ${SERVICE} \
+                  -f ${SERVICE}/Dockerfile \
+                  --push \
+                  ./${SERVICE} || {
+                    echo "⚠️ Error building $SERVICE with direct Docker command, but continuing"
+                  }
               }
             
             # Run cleanup after each build
@@ -228,16 +251,28 @@ jobs:
             echo "Building data service $SERVICE as $DOCKER_IMAGE_NAME..."
             
             if [ -f "${SERVICE}/Dockerfile" ]; then
-              echo "Building $DOCKER_IMAGE_NAME directly with Docker..."
-              DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker build \
+              echo "Building $DOCKER_IMAGE_NAME with Docker Buildx..."
+              DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
+                --platform linux/amd64,linux/arm64 \
                 --build-arg BUILDKIT_INLINE_CACHE=1 \
                 --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \
                 --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${{ env.ENVIRONMENT }} \
-                --platform linux/arm64 \
                 -t ${DOCKER_IMAGE_NAME} \
                 -f ${SERVICE}/Dockerfile \
+                --push \
                 ./${SERVICE} || {
-                  echo "⚠️ Warning: Error building $DOCKER_IMAGE_NAME with direct Docker command, but continuing"
+                  echo "⚠️ Warning: Error building $DOCKER_IMAGE_NAME with multi-platform Docker command, trying single platform"
+                  DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
+                    --platform linux/amd64 \
+                    --build-arg BUILDKIT_INLINE_CACHE=1 \
+                    --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \
+                    --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${{ env.ENVIRONMENT }} \
+                    -t ${DOCKER_IMAGE_NAME} \
+                    -f ${SERVICE}/Dockerfile \
+                    --push \
+                    ./${SERVICE} || {
+                      echo "⚠️ Error building $DOCKER_IMAGE_NAME with Docker command, but continuing"
+                    }
                 }
               
               # Run cleanup after each build
@@ -257,70 +292,41 @@ jobs:
           # Refresh auth before pushing
           doctl registry login --expiry-seconds 3600
           
-          # First process services images
-          cd services
-          
-          # Get list of services directly from the SERVICES variable
-          SERVICES="auth supertokens voyager mcp agents cron"
-          
-          # Override if service parameter is provided
+          # Only do the manual tagging and pushing if we're building directly, not with buildx
           if [[ -n "${{ github.event.inputs.service }}" ]]; then
-            SERVICES="${{ github.event.inputs.service }}"
+            # Only one service was built, check if the specific tagging is needed
+            SERVICE="${{ github.event.inputs.service }}"
+            
+            # Is it a data service or regular service?
+            if [[ "$SERVICE" == "postgres" ]] || [[ "$SERVICE" == "vector-db" ]]; then
+              # Handle data services
+              echo "Tagging data service $SERVICE for registry"
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
+              
+              # Push each tag
+              echo "Pushing ${SERVICE} to registry"
+              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
+              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
+              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
+            else
+              # Handle regular services
+              echo "Tagging service $SERVICE for registry"
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
+              
+              # Push each tag
+              echo "Pushing ${SERVICE} to registry"
+              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
+              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
+              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
+            fi
+          else
+            echo "All images were built with buildx and pushed directly to the registry."
+            echo "Buildx automatically tags with the specified platforms."
           fi
-          
-          # Tag and push each service's image
-          for SERVICE in $SERVICES; do
-            echo "Processing image for $SERVICE..."
-            
-            # Check if the image exists
-            if docker images $SERVICE | grep -q "$SERVICE"; then
-              echo "Image found for $SERVICE, tagging and pushing..."
-              
-              # Create tags
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
-              
-              # Push each tag
-              for TAG in ${SHORT_SHA} ${{ env.ENVIRONMENT }} latest; do
-                echo "Pushing ${SERVICE}:${TAG}..."
-                docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${TAG}
-              done
-            else
-              echo "Warning: No image found for $SERVICE, skipping"
-              docker images
-            fi
-          done
-          
-          # Now process data services images
-          cd ../data
-          
-          # Define data services
-          DATA_SERVICES="postgres vector-db"
-          
-          # Tag and push each data service's image
-          for SERVICE in $DATA_SERVICES; do
-            echo "Processing image for $SERVICE..."
-            
-            # Check if the image exists
-            if docker images $SERVICE | grep -q "$SERVICE"; then
-              echo "Image found for $SERVICE, tagging and pushing..."
-              
-              # Create tags
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
-              
-              # Push each tag
-              for TAG in ${SHORT_SHA} ${{ env.ENVIRONMENT }} latest; do
-                echo "Pushing ${SERVICE}:${TAG}..."
-                docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${TAG}
-              done
-            else
-              echo "Warning: No image found for $SERVICE, skipping"
-              docker images
-            fi
-          done
           
       - name: Configure kubectl for ArgoCD sync
         run: |
