@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
   name: postgres-config
   namespace: posey
+  labels:
+    app: posey-postgres
 data:
   POSTGRES_PORT: "3333"
-  POSTGRES_HOST: "postgres" 
+  POSTGRES_HOST: "posey-postgres" 
