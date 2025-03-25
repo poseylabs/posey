@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# Install postgres
+# Install postgres client
 RUN apt-get update \
   && apt-get install -y postgresql-client \
   && rm -rf /var/lib/apt/lists/*
@@ -12,48 +12,44 @@ ENV NODE_ENV=$NODE_ENV
 # Enable Corepack for Yarn 4
 RUN corepack enable && corepack prepare yarn@4.5.1 --activate
 
-# Set working directory to the monorepo root
+# Create app directory
 WORKDIR /app
 
-# Copy monorepo configuration files
-COPY package.json .
-COPY yarn.lock .
-COPY .yarnrc.yml .
+# Copy package files first (for better layer caching)
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/ui/package.json ./packages/ui/
+COPY services/auth/package.json ./services/auth/
 
-# Copy packages directory for workspace dependencies
-COPY packages packages/
+# Install dependencies with pruning and offline mode for faster builds
+RUN yarn workspaces focus @posey/auth --production
 
-# Copy the auth service
-COPY services/auth services/auth/
+# Now copy the actual code
+COPY packages/core ./packages/core/
+COPY packages/ui ./packages/ui/
+COPY services/auth ./services/auth/
 
 # Copy migrations
 COPY services/auth/src/migrations /app/services/auth/src/migrations/
 COPY services/auth/scripts/run-migrations.sh /app/services/auth/scripts/
 RUN chmod +x /app/services/auth/scripts/run-migrations.sh
 
-# Install all dependencies from monorepo root
+# Set working directory to the auth service
+WORKDIR /app/services/auth
+
+# Add environment variables
 ARG POSTGRES_DSN_POSEY
 ARG POSTGRES_USER
 ARG POSTGRES_DSN_SUPERTOKENS
 
 ENV POSTGRES_USER=$POSTGRES_USER
 ENV POSTGRES_DSN_POSEY=$POSTGRES_DSN_POSEY
-
-# Add both database connection strings
 ENV POSTGRES_DSN_SUPERTOKENS=$POSTGRES_DSN_SUPERTOKENS
-ENV POSTGRES_DSN_POSEY=$POSTGRES_DSN_POSEY
 
-# Install dependencies at the root level
-RUN yarn install
-
-WORKDIR /app/services/auth
-
-# Configure Yarn to use node-module
-RUN yarn config set nodeLinker node-modules
-RUN yarn install --mode=update-lockfile
-
-# Make sure @types packages and ts support packages are installed
-RUN yarn add -D @types/node @types/express @types/cors @types/pg tsconfig-paths
+# Add development dependencies if we're not in production
+RUN if [ "$NODE_ENV" != "production" ]; then \
+  yarn add -D @types/node @types/express @types/cors @types/pg tsconfig-paths; \
+  fi
 
 EXPOSE 9999
 

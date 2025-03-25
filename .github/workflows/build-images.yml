@@ -184,30 +184,29 @@ jobs:
               EXTRA_BUILD_ARGS="--build-arg PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1"
             fi
             
-            # Use Docker Buildx for multi-platform builds with correct context
-            DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
-              --platform linux/amd64,linux/arm64 \
+            # Set timeout based on service - some services need more build time
+            TIMEOUT="15m"
+            if [ "${SERVICE}" == "agents" ] || [ "${SERVICE}" == "voyager" ]; then
+              TIMEOUT="25m"
+              echo "Using extended timeout (25m) for ${SERVICE} due to potentially longer build time"
+            fi
+            
+            # Use Docker Buildx for AMD64 builds with timeout
+            echo "Starting build for ${SERVICE} with ${TIMEOUT} timeout..."
+            timeout ${TIMEOUT} bash -c "DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
+              --platform linux/amd64 \
               --build-arg BUILDKIT_INLINE_CACHE=1 \
               ${EXTRA_BUILD_ARGS} \
               --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
               --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
               -t ${SERVICE} \
+              -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
+              -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
+              -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
               -f ${SERVICE}/Dockerfile \
               --push \
-              .. || {
-                echo "⚠️ Warning: Error building $SERVICE with multi-platform Docker command, trying single platform"
-                DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
-                  --platform linux/amd64 \
-                  --build-arg BUILDKIT_INLINE_CACHE=1 \
-                  ${EXTRA_BUILD_ARGS} \
-                  --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
-                  --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
-                  -t ${SERVICE} \
-                  -f ${SERVICE}/Dockerfile \
-                  --push \
-                  .. || {
-                    echo "⚠️ Error building $SERVICE with direct Docker command, but continuing"
-                  }
+              .." || {
+                echo "⚠️ Error building $SERVICE, but continuing with other services"
               }
             
             # Run cleanup after each build
@@ -236,27 +235,19 @@ jobs:
             
             if [ -f "${SERVICE}/Dockerfile" ]; then
               echo "Building $DOCKER_IMAGE_NAME with Docker Buildx..."
-              DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
-                --platform linux/amd64,linux/arm64 \
+              timeout 15m bash -c "DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
+                --platform linux/amd64 \
                 --build-arg BUILDKIT_INLINE_CACHE=1 \
                 --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \
                 --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${{ env.ENVIRONMENT }} \
                 -t ${DOCKER_IMAGE_NAME} \
+                -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \
+                -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${{ env.ENVIRONMENT }} \
+                -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:$(echo $GITHUB_SHA | cut -c1-7) \
                 -f ${SERVICE}/Dockerfile \
                 --push \
-                .. || {
-                  echo "⚠️ Warning: Error building $DOCKER_IMAGE_NAME with multi-platform Docker command, trying single platform"
-                  DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
-                    --platform linux/amd64 \
-                    --build-arg BUILDKIT_INLINE_CACHE=1 \
-                    --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \
-                    --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${{ env.ENVIRONMENT }} \
-                    -t ${DOCKER_IMAGE_NAME} \
-                    -f ${SERVICE}/Dockerfile \
-                    --push \
-                    .. || {
-                      echo "⚠️ Error building $DOCKER_IMAGE_NAME with Docker command, but continuing"
-                    }
+                .." || {
+                  echo "⚠️ Error building $DOCKER_IMAGE_NAME, but continuing with other services"
                 }
               
               # Run cleanup after each build
@@ -270,47 +261,9 @@ jobs:
           kill $CLEANUP_PID || true
           
       - name: Tag and push Docker images
+        if: false # Skip this step since we're now tagging and pushing in the build step
         run: |
-          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
-          
-          # Refresh auth before pushing
-          doctl registry login --expiry-seconds 3600
-          
-          # Only do the manual tagging and pushing if we're building directly, not with buildx
-          if [[ -n "${{ github.event.inputs.service }}" ]]; then
-            # Only one service was built, check if the specific tagging is needed
-            SERVICE="${{ github.event.inputs.service }}"
-            
-            # Is it a data service or regular service?
-            if [[ "$SERVICE" == "postgres" ]] || [[ "$SERVICE" == "vector-db" ]]; then
-              # Handle data services
-              echo "Tagging data service $SERVICE for registry"
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
-              
-              # Push each tag
-              echo "Pushing ${SERVICE} to registry"
-              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
-              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
-              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
-            else
-              # Handle regular services
-              echo "Tagging service $SERVICE for registry"
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
-              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
-              
-              # Push each tag
-              echo "Pushing ${SERVICE} to registry"
-              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
-              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
-              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
-            fi
-          else
-            echo "All images were built with buildx and pushed directly to the registry."
-            echo "Buildx automatically tags with the specified platforms."
-          fi
+          echo "Skipping manual tagging and pushing step - images are already pushed by buildx"
           
       - name: Configure kubectl for ArgoCD sync
         run: |
