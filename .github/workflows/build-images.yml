@@ -215,34 +215,39 @@ jobs:
           SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
           cd services
           
-          # Find all posey images
-          SERVICES_IMAGES=$(docker images | grep 'posey' | grep -v 'postgres\|couchbase\|qdrant\|vector' | awk '{print $1}')
-          if [ -z "$SERVICES_IMAGES" ]; then
-            echo "No service images found to push"
-            docker images
-            exit 1
+          # Get list of services directly from the SERVICES variable
+          SERVICES="auth supertokens voyager mcp agents cron"
+          
+          # Override if service parameter is provided
+          if [[ -n "${{ github.event.inputs.service }}" ]]; then
+            SERVICES="${{ github.event.inputs.service }}"
           fi
-
-          echo "Found service images: $SERVICES_IMAGES"
           
           # Refresh auth before pushing
           doctl registry login --expiry-seconds 3600
           
-          # Tag and push each image
-          for IMAGE in $SERVICES_IMAGES; do
-            IMAGE_NAME=$(echo $IMAGE | sed 's|^.*/||')
-            echo "Tagging and pushing $IMAGE_NAME..."
+          # Tag and push each service's image
+          for SERVICE in $SERVICES; do
+            echo "Processing image for $SERVICE..."
             
-            # Create tags
-            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${SHORT_SHA}
-            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${{ env.ENVIRONMENT }}
-            docker tag $IMAGE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:latest
-            
-            # Push each tag
-            for TAG in ${SHORT_SHA} ${{ env.ENVIRONMENT }} latest; do
-              echo "Pushing ${IMAGE_NAME}:${TAG}..."
-              docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${IMAGE_NAME}:${TAG}
-            done
+            # Check if the image exists
+            if docker images $SERVICE | grep -q "$SERVICE"; then
+              echo "Image found for $SERVICE, tagging and pushing..."
+              
+              # Create tags
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
+              
+              # Push each tag
+              for TAG in ${SHORT_SHA} ${{ env.ENVIRONMENT }} latest; do
+                echo "Pushing ${SERVICE}:${TAG}..."
+                docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${TAG}
+              done
+            else
+              echo "Warning: No image found for $SERVICE, skipping"
+              docker images
+            fi
           done
           
       - name: Configure Kubernetes
