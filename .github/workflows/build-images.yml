@@ -290,35 +290,40 @@ jobs:
           
           echo "Created CI environment file with necessary deployment variables"
           
-      - name: Deploy to Kubernetes
+      - name: Deploy directly with kubectl (bypassing deploy.ts script)
         run: |
           cd services
+          NAMESPACE="${{ secrets.DO_REGISTRY_NAME }}"
           
-          # Skip the problematic k8s-env-setup.sh script entirely
-          echo "Bypassing k8s-env-setup.sh script and applying resources directly"
-          
-          # Use direct kubectl commands with explicit --validate=false
-          echo "Applying shared resources with validation disabled..."
-          kubectl apply -k shared/k8s -n ${{ secrets.DO_REGISTRY_NAME }} --validate=false || {
-            echo "Warning: Failed to apply shared resources, but continuing with deployment"
+          # Apply shared resources first with validate=false
+          echo "Applying shared resources to namespace $NAMESPACE..."
+          kubectl apply -k shared/k8s -n $NAMESPACE --validate=false || {
+            echo "Warning: Error applying shared resources, but continuing"
           }
           
-          # Apply service-specific resources
+          # Define services to deploy
           SERVICES="auth supertokens voyager mcp agents cron"
           
-          # If service input is specified, only build that one
+          # Override if service parameter is provided
           if [[ -n "${{ github.event.inputs.service }}" ]]; then
             SERVICES="${{ github.event.inputs.service }}"
           fi
           
+          # Deploy each service directly with kubectl
           for SERVICE in $SERVICES; do
-            echo "Deploying $SERVICE..."
+            echo "Deploying $SERVICE service..."
+            
+            # Check if service has a k8s directory
             if [ -d "$SERVICE/k8s" ]; then
-              echo "Running: kubectl apply -k $SERVICE/k8s -n ${{ secrets.DO_REGISTRY_NAME }} --validate=false"
-              kubectl apply -k $SERVICE/k8s -n ${{ secrets.DO_REGISTRY_NAME }} --validate=false || {
-                echo "Warning: Failed to apply $SERVICE resources, but continuing with deployment"
+              # Apply using kustomize
+              kubectl apply -k $SERVICE/k8s -n $NAMESPACE --validate=false || {
+                echo "Warning: Error deploying $SERVICE, but continuing with other services"
               }
             else
-              echo "No Kubernetes manifests found for $SERVICE, skipping."
+              echo "No k8s directory found for $SERVICE, skipping"
             fi
-          done 
+          done
+          
+          # Verify deployment
+          echo "Deployment complete. Current pods:"
+          kubectl get pods -n $NAMESPACE 
