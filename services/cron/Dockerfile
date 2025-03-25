@@ -7,7 +7,7 @@ WORKDIR /app
 COPY services/cron/package*.json ./
 
 # Install dependencies
-RUN corepack enable && yarn install
+RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn install
 
 # Copy source code and config files
 COPY services/cron/tsconfig.json ./
@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Copy package files and install production dependencies
 COPY --from=builder /app/package*.json ./
-RUN corepack enable && yarn install --production
+RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn install --production
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
