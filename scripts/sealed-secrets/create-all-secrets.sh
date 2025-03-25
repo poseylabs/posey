@@ -6,6 +6,102 @@ echo "==== Posey Sealed Secrets Generator ===="
 echo "This script will create sealed secrets for all services"
 echo ""
 
+# Check if we're running in GitHub Actions CI
+if [ -n "$GITHUB_ACTIONS" ]; then
+  echo "Running in GitHub Actions CI/CD environment"
+  export GITHUB_ACTIONS=true
+else
+  # If running locally, check for .env files
+  echo "Running in local environment, checking for .env files"
+  
+  # Check data/.env
+  if [ ! -f "data/.env" ]; then
+    echo "Warning: data/.env file not found. Creating a default one for testing."
+    cat > data/.env << EOF
+# Postgres
+POSTGRES_USER=pocketdb
+POSTGRES_PASSWORD=test_password
+POSTGRES_DB=postgres
+POSTGRES_DB_POSEY=posey
+POSTGRES_PORT=3333
+POSTGRES_HOST=posey-postgres.posey.svc.cluster.local
+POSTGRES_DSN_POSEY=postgresql://pocketdb:test_password@posey-postgres:3333/posey
+
+# Qdrant
+QDRANT_URL=http://posey-vector-db:1111
+QDRANT_PORT=1111
+QDRANT_API_KEY=
+
+# This is just a placeholder file for local development
+# Modify with your actual values as needed
+EOF
+    echo "Created default data/.env file. Please update with your actual values."
+  fi
+  
+  # Check services/.env
+  if [ ! -f "services/.env" ]; then
+    echo "Warning: services/.env file not found. Creating a default one for testing."
+    cat > services/.env << EOF
+# Core Application Settings
+NODE_ENV=development
+ENVIRONMENT=development
+
+# Service Ports & URLs
+AUTH_PORT=9999
+MCP_PORT=5050
+VOYAGER_PORT=7777
+SUPER_TOKENS_PORT=3567
+
+# Auth Service
+AUTH_API_DOMAIN=http://posey-auth
+AUTH_BASE_URL=http://posey-auth
+UI_BASE_URL=https://posey.ai
+COOKIE_DOMAIN=.posey.ai
+
+# Cron Schedules
+MEMORY_PRUNING_SCHEDULE="0 0 * * *"
+MEMORY_CONSOLIDATION_SCHEDULE="0 4 * * *"
+CACHE_CLEANUP_SCHEDULE="0 */6 * * *"
+MEMORY_STATS_SCHEDULE="0 1 * * *"
+
+# AI Models
+EMBEDDING_MODEL=thenlper/gte-large
+ANTHROPIC_API_KEY=dummy_key
+OPENAI_API_KEY=dummy_key
+GEMINI_API_KEY=dummy_key
+
+# JWT
+JWT_SECRET_KEY=dummy_jwt_secret
+
+# PostgreSQL
+POSTGRES_DB_POSEY=posey
+POSTGRES_DB_SUPERTOKENS=supertokens
+POSTGRES_USER=pocketdb
+POSTGRES_PASSWORD=test_password
+POSTGRES_HOST=posey-postgres
+POSTGRES_PORT=3333
+POSTGRES_DSN_POSEY=postgresql://pocketdb:test_password@posey-postgres:3333/posey
+POSTGRES_DSN_SUPERTOKENS=postgresql://pocketdb:test_password@posey-postgres:3333/supertokens
+
+# Qdrant
+QDRANT_URL=http://posey-vector-db
+QDRANT_PORT=1111
+QDRANT_HOST=http://posey-vector-db
+
+# SuperTokens
+SUPERTOKENS_CONNECTION_URI=http://posey-supertokens:3567
+SUPERTOKENS_API_KEY=dummy_key
+
+# Other values
+VOYAGER_DOMAIN=posey-voyager
+
+# This is just a placeholder file for local development
+# Modify with your actual values as needed
+EOF
+    echo "Created default services/.env file. Please update with your actual values."
+  fi
+fi
+
 # Check if kubeseal is installed
 if ! command -v kubeseal &> /dev/null; then
   echo "Error: kubeseal is not installed. Please install it first."

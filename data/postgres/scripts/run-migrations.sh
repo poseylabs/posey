@@ -38,10 +38,6 @@ if [ "$CONNECTED" = false ]; then
   exit 1
 fi
 
-# Initialize Hasura metadata tables
-echo "Initializing Hasura metadata tables"
-psql -U "$POSTGRES_USER" -d postgres -c "\i /docker-entrypoint-initdb.d/hasura-init.sql"
-
 # Run all SQL files in migrations directory in order
 if [ -d "/docker-entrypoint-initdb.d/migrations" ]; then
   for f in /docker-entrypoint-initdb.d/migrations/*.sql; do

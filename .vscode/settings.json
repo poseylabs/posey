@@ -50,7 +50,6 @@
     "fetchval",
     "getconn",
     "gethostname",
-    "HASURA",
     "HDBSCAN",
     "healthcheck",
     "heroui",

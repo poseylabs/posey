@@ -77,22 +77,6 @@ async function runCommand(command: string, args: string[] = [], options = {}): P
 function processTemplate(filePath: string): string {
   let template = fs.readFileSync(filePath, 'utf8');
 
-  // First, handle special Kubernetes environment variables to ensure proper in-cluster connectivity
-  // This ensures we use the correct service hostnames within Kubernetes
-  if (template.includes('HASURA_GRAPHQL_DATABASE_URL') && !isLocal) {
-    // For production/remote deployments, use the fully qualified service name
-    template = template.replace(
-      /postgres:\/\/\${POSTGRES_USER[^@]*@localhost:[\d]+\/\${POSTGRES_DB_POSEY}/g,
-      'postgres://${POSTGRES_USER:-pocketdb}:${POSTGRES_PASSWORD}@postgres.${NAMESPACE}.svc.cluster.local:${POSTGRES_PORT:-3333}/${POSTGRES_DB_POSEY:-posey}'
-    );
-  } else if (template.includes('HASURA_GRAPHQL_DATABASE_URL') && isLocal) {
-    // For local development, still use the service name, not localhost, for in-cluster communication
-    template = template.replace(
-      /postgres:\/\/\${POSTGRES_USER[^@]*@localhost:[\d]+\/\${POSTGRES_DB_POSEY}/g,
-      'postgres://${POSTGRES_USER:-pocketdb}:${POSTGRES_PASSWORD}@postgres.posey.svc.cluster.local:${POSTGRES_PORT:-3333}/${POSTGRES_DB_POSEY:-posey}'
-    );
-  }
-
   // Replace ${VARIABLE} with actual env values
   template = template.replace(/\${([^}]+)}/g, (match, key) => {
     const defaultMatch = match.match(/\${([^:-]+):-([^}]+)}/);
