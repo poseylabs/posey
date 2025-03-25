@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: posey-supertokens
-        image: registry.supertokens.io/supertokens/supertokens-postgresql
+        image: supertokens:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3567
