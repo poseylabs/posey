@@ -1,6 +1,14 @@
 FROM registry.supertokens.io/supertokens/supertokens-postgresql:latest
 
-# Add environment variables - will be provided by Kubernetes secrets
+# Define build arguments
+ARG POSTGRES_USER
+ARG POSTGRES_PASSWORD
+ARG POSTGRES_DB_SUPERTOKENS
+ARG POSTGRES_HOST
+ARG POSTGRES_PORT
+ARG SUPERTOKENS_API_KEY
+
+# Add environment variables - will be provided by build arguments
 ENV POSTGRESQL_USER=${POSTGRES_USER:-postgres}
 ENV POSTGRESQL_PASSWORD=${POSTGRES_PASSWORD}
 ENV POSTGRESQL_DB=${POSTGRES_DB_SUPERTOKENS:-supertokens}
