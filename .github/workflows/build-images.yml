@@ -19,7 +19,8 @@ env:
 jobs:
   build-posey:
     name: Build Posey (all)
-    runs-on: Posey
+    runs-on:
+      group: posey-runners
     environment: PRODUCTION
     steps:
       - name: Debug runner information
