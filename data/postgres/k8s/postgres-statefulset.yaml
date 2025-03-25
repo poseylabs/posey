@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: postgres
+  name: posey-postgres
   namespace: posey
 spec:
-  serviceName: "postgres"
+  serviceName: "posey-postgres"
   replicas: 1
   selector:
     matchLabels:
-      app: postgres
+      app: posey-postgres
   template:
     metadata:
       labels:
-        app: postgres
+        app: posey-postgres
     spec:
       containers:
       - name: postgres
-        image: registry.digitalocean.com/posey/posey-postgres:latest
+        image: registry.digitalocean.com/posey/postgres:latest
         ports:
         - containerPort: 3333
           name: postgres
