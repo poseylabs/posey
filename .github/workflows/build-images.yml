@@ -184,6 +184,18 @@ jobs:
               EXTRA_BUILD_ARGS="--build-arg PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1"
             fi
             
+            # Add environment variables as build args for supertokens
+            if [ "${SERVICE}" == "supertokens" ]; then
+              echo "Adding environment variables as build args for Supertokens..."
+              EXTRA_BUILD_ARGS="${EXTRA_BUILD_ARGS} \
+                --build-arg POSTGRES_USER='${{ secrets.POSTGRES_USER }}' \
+                --build-arg POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}' \
+                --build-arg POSTGRES_DB_SUPERTOKENS='${{ secrets.POSTGRES_DB_SUPERTOKENS }}' \
+                --build-arg POSTGRES_HOST='${{ secrets.POSTGRES_HOST }}' \
+                --build-arg POSTGRES_PORT='${{ secrets.POSTGRES_PORT }}' \
+                --build-arg SUPERTOKENS_API_KEY='${{ secrets.SUPERTOKENS_API_KEY }}'"
+            fi
+            
             # Set timeout based on service - some services need more build time
             TIMEOUT="15m"
             if [ "${SERVICE}" == "agents" ] || [ "${SERVICE}" == "voyager" ]; then
@@ -205,7 +217,7 @@ jobs:
               -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
               -f ${SERVICE}/Dockerfile \
               --push \
-              .." || {
+              ${SERVICE}" || {
                 echo "⚠️ Error building $SERVICE, but continuing with other services"
               }
             
