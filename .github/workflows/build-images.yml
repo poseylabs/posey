@@ -61,7 +61,7 @@ jobs:
         run: |
           # Download and install doctl
           cd /tmp
-          curl -sL https://github.com/digitalocean/doctl/releases/download/v${{ env.DOCTL_VERSION }}/doctl-${{ env.DOCTL_VERSION }}-linux-amd64.tar.gz | tar -xzv
+          curl -sL https://github.com/digitalocean/doctl/releases/download/v${{ env.DOCTL_VERSION }}/doctl-${{ env.DOCTL_VERSION }}-linux-arm64.tar.gz | tar -xzv
           sudo mv doctl /usr/local/bin/
           
           # Verify installation
@@ -249,7 +249,7 @@ jobs:
       - name: Configure Kubernetes
         run: |
           # Install kubectl
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
           chmod +x kubectl
           sudo mv kubectl /usr/local/bin/
           
