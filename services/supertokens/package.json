@@ -5,13 +5,17 @@
     "start": "docker-compose up -d",
     "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
     "deploy": "bash ../../scripts/k8s-deploy.sh supertokens",
-    "deploy:local": "yarn k8s:check && kubectl apply -f ./k8s/supertokens-pvc.yaml -n posey && kubectl apply -f ./k8s/service.yaml -n posey && kubectl apply -f ./k8s/deployment-local.yaml -n posey",
+    "deploy:local": "yarn k8s:check && yarn build:local && kubectl apply -f ./k8s/supertokens-pvc.yaml -n posey && kubectl apply -f ./k8s/service.yaml -n posey && kubectl apply -f ./k8s/deployment-local.yaml -n posey",
     "verify": "kubectl get pods -n posey -l app=posey-supertokens && kubectl get services -n posey -l app=posey-supertokens",
     "debug": "echo '🔍 Checking Kubernetes pods:' && kubectl get pods -n posey -l app=posey-supertokens -o wide && echo '🔍 Checking pod details:' && kubectl describe pod -n posey -l app=posey-supertokens || echo 'No pods found' && echo '🔍 Checking PVC status:' && kubectl get pvc -n posey | grep supertokens && echo '🔍 Checking Kubernetes events:' && kubectl get events -n posey --sort-by=.metadata.creationTimestamp | tail -n 15",
     "clean": "yarn k8s:check && kubectl delete -f ./k8s/ -n posey --ignore-not-found",
     "connect": "echo 'Supertokens service is available at: http://localhost:3567 (when port-forwarded)' && echo 'To port-forward: kubectl port-forward service/posey-supertokens 3567:3567 -n posey'",
     "port-forward": "kubectl port-forward service/posey-supertokens 3567:3567 -n posey",
-    "redeploy": "yarn clean && yarn deploy:local"
+    "redeploy": "yarn clean && yarn deploy:local",
+    "docker:build": "docker build -t registry.digitalocean.com/posey/supertokens:latest -f Dockerfile ../..",
+    "docker:push": "docker push registry.digitalocean.com/posey/supertokens:latest",
+    "build:docker": "yarn docker:build && yarn docker:push",
+    "build:local": "echo '🔨 Building Docker image supertokens:latest...' && docker build -t supertokens:latest -f Dockerfile ../.. && docker images supertokens:latest"
   },
   "dependencies": {
     "dotenv": "^16.4.5"

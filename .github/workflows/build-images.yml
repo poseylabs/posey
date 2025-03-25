@@ -1,4 +1,4 @@
-name: Build Posey System
+name: Posey System Build
 
 on:
   push:
@@ -183,6 +183,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-torch-
       
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('services/voyager/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Build Docker images
         run: |
           cd services
@@ -202,7 +211,13 @@ jobs:
           for SERVICE in $SERVICES; do
             echo "Building $SERVICE..."
             
-            # Use Docker Buildx for multi-platform builds
+            # Check if Dockerfile exists
+            if [ ! -f "${SERVICE}/Dockerfile" ]; then
+              echo "No Dockerfile found for ${SERVICE}, skipping build"
+              continue
+            fi
+            
+            # Use Docker Buildx for multi-platform builds with correct context
             DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
               --platform linux/amd64,linux/arm64 \
               --build-arg BUILDKIT_INLINE_CACHE=1 \
@@ -211,7 +226,7 @@ jobs:
               -t ${SERVICE} \
               -f ${SERVICE}/Dockerfile \
               --push \
-              ./${SERVICE} || {
+              .. || {
                 echo "⚠️ Warning: Error building $SERVICE with multi-platform Docker command, trying single platform"
                 DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
                   --platform linux/amd64 \
@@ -221,7 +236,7 @@ jobs:
                   -t ${SERVICE} \
                   -f ${SERVICE}/Dockerfile \
                   --push \
-                  ./${SERVICE} || {
+                  .. || {
                     echo "⚠️ Error building $SERVICE with direct Docker command, but continuing"
                   }
               }
@@ -260,7 +275,7 @@ jobs:
                 -t ${DOCKER_IMAGE_NAME} \
                 -f ${SERVICE}/Dockerfile \
                 --push \
-                ./${SERVICE} || {
+                .. || {
                   echo "⚠️ Warning: Error building $DOCKER_IMAGE_NAME with multi-platform Docker command, trying single platform"
                   DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
                     --platform linux/amd64 \
@@ -270,7 +285,7 @@ jobs:
                     -t ${DOCKER_IMAGE_NAME} \
                     -f ${SERVICE}/Dockerfile \
                     --push \
-                    ./${SERVICE} || {
+                    .. || {
                       echo "⚠️ Error building $DOCKER_IMAGE_NAME with Docker command, but continuing"
                     }
                 }

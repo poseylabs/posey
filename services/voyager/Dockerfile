@@ -28,6 +28,8 @@ RUN useradd -m -d /home/voyager voyager && \
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   curl \
+  wget \
+  gnupg \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy wheels and install dependencies
@@ -35,8 +37,14 @@ COPY --from=builder /wheels /wheels
 RUN pip install /wheels/* \
   && rm -rf /wheels
 
-# Install Playwright browser
-RUN playwright install chromium
+# Install Playwright with Chromium using a more reliable approach
+# Set Playwright skip browser download env var and install separately
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/voyager/.cache/ms-playwright
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+# Since we're using a non-root user, make the directory now
+RUN mkdir -p ${PLAYWRIGHT_BROWSERS_PATH} && \
+  chown -R voyager:voyager ${PLAYWRIGHT_BROWSERS_PATH}
 
 # Copy application code - recursive copy to include subdirectories
 COPY src/ /src/
@@ -44,6 +52,11 @@ RUN chown -R voyager:voyager /src
 
 # Switch to non-root user
 USER voyager
+
+# Download Chromium directly with better timeout settings and multiple retries
+RUN python -m playwright install chromium --with-deps || \
+  python -m playwright install chromium --with-deps || \
+  python -m playwright install chromium --with-deps
 
 EXPOSE 7777
 

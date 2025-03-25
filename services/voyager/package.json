@@ -16,7 +16,10 @@
     "clean": "yarn k8s:check && kubectl delete -f ./k8s/ -n posey --ignore-not-found",
     "connect": "echo 'Voyager service is available at: http://localhost:7777 (when port-forwarded)' && echo 'To port-forward: kubectl port-forward service/posey-voyager 7777:7777 -n posey'",
     "port-forward": "kubectl port-forward service/posey-voyager 7777:7777 -n posey",
-    "redeploy": "yarn clean && yarn deploy:local"
+    "redeploy": "yarn clean && yarn deploy:local",
+    "playwright:install": "cd src && python -m playwright install chromium --with-deps",
+    "playwright:info": "cd src && python -m playwright install --help",
+    "playwright:cache-path": "echo 'Playwright browsers are stored at: ~/.cache/ms-playwright'"
   },
   "dependencies": {
     "dotenv": "^16.4.5"
