@@ -210,9 +210,54 @@ jobs:
           # Kill cleanup process
           kill $CLEANUP_PID || true
           
+      - name: Build Data Services
+        run: |
+          cd data
+          
+          # Set up periodic cleanup
+          (while true; do /tmp/cleanup.sh; sleep 60; done) &
+          CLEANUP_PID=$!
+          
+          # Define data services to build
+          DATA_SERVICES="postgres vector.db"
+          
+          for SERVICE in $DATA_SERVICES; do
+            # Replace dots with dashes for Docker image name
+            DOCKER_IMAGE_NAME=$(echo $SERVICE | tr '.' '-')
+            
+            echo "Building data service $SERVICE as $DOCKER_IMAGE_NAME..."
+            
+            if [ -f "${SERVICE}/Dockerfile" ]; then
+              echo "Building $DOCKER_IMAGE_NAME directly with Docker..."
+              DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker build \
+                --build-arg BUILDKIT_INLINE_CACHE=1 \
+                --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \
+                --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${{ env.ENVIRONMENT }} \
+                --platform linux/arm64 \
+                -t ${DOCKER_IMAGE_NAME} \
+                -f ${SERVICE}/Dockerfile \
+                ./${SERVICE} || {
+                  echo "⚠️ Warning: Error building $DOCKER_IMAGE_NAME with direct Docker command, but continuing"
+                }
+              
+              # Run cleanup after each build
+              /tmp/cleanup.sh
+            else
+              echo "No Dockerfile found for $SERVICE, skipping build"
+            fi
+          done
+          
+          # Kill cleanup process
+          kill $CLEANUP_PID || true
+          
       - name: Tag and push Docker images
         run: |
           SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          
+          # Refresh auth before pushing
+          doctl registry login --expiry-seconds 3600
+          
+          # First process services images
           cd services
           
           # Get list of services directly from the SERVICES variable
@@ -223,11 +268,38 @@ jobs:
             SERVICES="${{ github.event.inputs.service }}"
           fi
           
-          # Refresh auth before pushing
-          doctl registry login --expiry-seconds 3600
-          
           # Tag and push each service's image
           for SERVICE in $SERVICES; do
+            echo "Processing image for $SERVICE..."
+            
+            # Check if the image exists
+            if docker images $SERVICE | grep -q "$SERVICE"; then
+              echo "Image found for $SERVICE, tagging and pushing..."
+              
+              # Create tags
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }}
+              docker tag $SERVICE registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest
+              
+              # Push each tag
+              for TAG in ${SHORT_SHA} ${{ env.ENVIRONMENT }} latest; do
+                echo "Pushing ${SERVICE}:${TAG}..."
+                docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${TAG}
+              done
+            else
+              echo "Warning: No image found for $SERVICE, skipping"
+              docker images
+            fi
+          done
+          
+          # Now process data services images
+          cd ../data
+          
+          # Define data services
+          DATA_SERVICES="postgres vector-db"
+          
+          # Tag and push each data service's image
+          for SERVICE in $DATA_SERVICES; do
             echo "Processing image for $SERVICE..."
             
             # Check if the image exists
@@ -302,13 +374,15 @@ jobs:
           # Register applications if they don't exist
           echo "Checking if applications exist in ArgoCD..."
           
-          # Define application details
+          # Define application details - include both services and data
           SERVICES="auth supertokens voyager mcp agents cron"
+          DATA_SERVICES="postgres vector.db"
+          
           if [[ -n "${{ github.event.inputs.service }}" ]]; then
             SERVICES="${{ github.event.inputs.service }}"
           fi
           
-          # Create apps if they don't exist
+          # Create and sync service applications 
           for SERVICE in $SERVICES; do
             if ! argocd app get posey-$SERVICE &>/dev/null; then
               echo "Creating application posey-$SERVICE in ArgoCD..."
@@ -323,6 +397,26 @@ jobs:
             # Sync the application
             echo "Syncing posey-${SERVICE}..."
             argocd app sync posey-$SERVICE --timeout 120 --prune || true
+          done
+          
+          # Create and sync data service applications
+          for SERVICE in $DATA_SERVICES; do
+            # Replace dots with dashes for app name
+            APP_NAME=$(echo $SERVICE | tr '.' '-')
+            
+            if ! argocd app get posey-$APP_NAME &>/dev/null; then
+              echo "Creating data application posey-$APP_NAME in ArgoCD..."
+              argocd app create posey-$APP_NAME \
+                --repo https://github.com/${{ github.repository }}.git \
+                --path data/$SERVICE/k8s \
+                --dest-server https://kubernetes.default.svc \
+                --dest-namespace ${{ secrets.DO_REGISTRY_NAME }} \
+                --directory-recurse || true
+            fi
+            
+            # Sync the application
+            echo "Syncing posey-${APP_NAME}..."
+            argocd app sync posey-$APP_NAME --timeout 120 --prune || true
           done
           
           echo "ArgoCD sync completed or attempted for all services"
@@ -340,21 +434,35 @@ jobs:
           echo "Applying configurations directly with kubectl..."
           kubectl get namespace $NAMESPACE || kubectl create namespace $NAMESPACE
           
-          # Apply shared resources
+          # Apply shared resources from services
           if [ -d "services/shared/k8s" ]; then
-            echo "Applying shared resources..."
+            echo "Applying services shared resources..."
             kubectl apply -k services/shared/k8s -n $NAMESPACE || true
+          fi
+          
+          # Apply shared resources from data
+          if [ -d "data/shared/k8s" ]; then
+            echo "Applying data shared resources..."
+            kubectl apply -k data/shared/k8s -n $NAMESPACE || true
           fi
           
           # Apply each service's k8s files
           for SERVICE in $SERVICES; do
             if [ -d "services/$SERVICE/k8s" ]; then
-              echo "Applying resources for $SERVICE..."
+              echo "Applying resources for service $SERVICE..."
               kubectl apply -k services/$SERVICE/k8s -n $NAMESPACE || true
             fi
           done
           
-          echo "Deployment initiated. Services should be updated in Kubernetes."
+          # Apply each data service's k8s files
+          for SERVICE in $DATA_SERVICES; do
+            if [ -d "data/$SERVICE/k8s" ]; then
+              echo "Applying resources for data $SERVICE..."
+              kubectl apply -k data/$SERVICE/k8s -n $NAMESPACE || true
+            fi
+          done
+          
+          echo "Deployment initiated. All services should be updated in Kubernetes."
           
       - name: Create minimal .env file for CI
         run: |
