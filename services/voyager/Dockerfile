@@ -53,7 +53,7 @@ RUN chown -R voyager:voyager /src
 # Switch to non-root user
 USER voyager
 
-# Download Chromium directly with better timeout settings and multiple retries
+# Download Chromium with retry mechanism for reliability
 RUN python -m playwright install chromium --with-deps || \
   python -m playwright install chromium --with-deps || \
   python -m playwright install chromium --with-deps

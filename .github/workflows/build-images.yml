@@ -33,21 +33,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
-      - name: Enable Corepack
-        run: |
-          corepack enable
-          yarn --version
-
-      - name: Install dependencies
-        run: |
-          cd services
-          yarn install
-
       - name: Debug Secret Availability
         run: |
           echo "Checking if DO_API_TOKEN secret is available..."
@@ -141,48 +126,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
             
-      - name: Set up Python dependencies cache
-        id: python-cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            
-      - name: Cache Python wheels
-        id: wheel-cache
-        uses: actions/cache@v3
-        with:
-          path: services/agents/.wheels
-          key: ${{ runner.os }}-wheels-${{ hashFiles('services/agents/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-wheels-
-
-      - name: Setup model cache directories
-        run: |
-          mkdir -p ~/.cache/huggingface
-          mkdir -p ~/.cache/torch
-          mkdir -p services/agents/.wheels
-          
-      - name: Cache HuggingFace models
-        id: hf-cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/huggingface
-          key: ${{ runner.os }}-huggingface-${{ hashFiles('services/agents/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-huggingface-
-            
-      - name: Cache PyTorch models
-        id: torch-cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/torch
-          key: ${{ runner.os }}-torch-${{ hashFiles('services/agents/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-torch-
-      
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v3
@@ -191,7 +134,24 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('services/voyager/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
-
+            
+      - name: Pre-install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: |
+          echo "Playwright cache not found, pre-installing browsers..."
+          # Install playwright
+          pip install playwright
+          
+          # Install only Chromium with deps - this is what the Voyager service needs
+          python -m playwright install chromium --with-deps
+          
+          # Show what was installed
+          echo "Browsers installed to: ~/.cache/ms-playwright"
+          ls -la ~/.cache/ms-playwright
+          
+          # List all installed browsers
+          python -m playwright install --help
+          
       - name: Build Docker images
         run: |
           cd services
@@ -217,10 +177,18 @@ jobs:
               continue
             fi
             
+            # Special handling for voyager to speed up Playwright installation
+            EXTRA_BUILD_ARGS=""
+            if [ "${SERVICE}" == "voyager" ]; then
+              echo "Adding special build args for Voyager service..."
+              EXTRA_BUILD_ARGS="--build-arg PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1"
+            fi
+            
             # Use Docker Buildx for multi-platform builds with correct context
             DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
               --platform linux/amd64,linux/arm64 \
               --build-arg BUILDKIT_INLINE_CACHE=1 \
+              ${EXTRA_BUILD_ARGS} \
               --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
               --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
               -t ${SERVICE} \
@@ -231,6 +199,7 @@ jobs:
                 DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
                   --platform linux/amd64 \
                   --build-arg BUILDKIT_INLINE_CACHE=1 \
+                  ${EXTRA_BUILD_ARGS} \
                   --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
                   --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
                   -t ${SERVICE} \
