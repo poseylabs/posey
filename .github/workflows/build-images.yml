@@ -250,7 +250,136 @@ jobs:
             fi
           done
           
-      - name: Configure Kubernetes
+      - name: Configure Git for manifest updates
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          
+      - name: Update Kubernetes manifests in monorepo
+        run: |
+          # Get the short SHA for image tags
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          
+          # Install yq if needed
+          sudo curl -sL https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_linux_arm64 -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          
+          # Update image tags in kustomization files for each service
+          SERVICES="auth supertokens voyager mcp agents cron"
+          if [[ -n "${{ github.event.inputs.service }}" ]]; then
+            SERVICES="${{ github.event.inputs.service }}"
+          fi
+          
+          UPDATED_FILES=0
+
+          # Check k8s directory first
+          for SERVICE in $SERVICES; do
+            echo "Checking k8s directory for $SERVICE..."
+            
+            # Check if service has k8s directory
+            if [ -d "k8s/$SERVICE" ]; then
+              # Try to update kustomization.yaml if it exists
+              if [ -f "k8s/$SERVICE/kustomization.yaml" ]; then
+                # Check if it has an images field before trying to update
+                if yq eval '.images' "k8s/$SERVICE/kustomization.yaml" | grep -q "."; then
+                  yq eval ".images[0].newTag = \"${SHORT_SHA}\"" -i "k8s/$SERVICE/kustomization.yaml"
+                  echo "Updated image tag in k8s/$SERVICE/kustomization.yaml"
+                  git add "k8s/$SERVICE/kustomization.yaml"
+                  UPDATED_FILES=$((UPDATED_FILES + 1))
+                else
+                  echo "No images field in k8s/$SERVICE/kustomization.yaml, skipping"
+                fi
+              else
+                echo "No kustomization.yaml found for $SERVICE in k8s"
+                
+                # Try to update deployment.yaml directly
+                if [ -f "k8s/$SERVICE/deployment.yaml" ]; then
+                  # Check if the file contains image references we need to update
+                  if grep -q "image: registry.digitalocean.com" "k8s/$SERVICE/deployment.yaml"; then
+                    sed -i "s|registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:[^[:space:]]*|registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}|g" "k8s/$SERVICE/deployment.yaml"
+                    echo "Updated image in k8s/$SERVICE/deployment.yaml"
+                    git add "k8s/$SERVICE/deployment.yaml"
+                    UPDATED_FILES=$((UPDATED_FILES + 1))
+                  fi
+                fi
+              fi
+            else
+              echo "No k8s/$SERVICE directory found"
+            fi
+          done
+
+          # Check services directory for k8s files
+          for SERVICE in $SERVICES; do
+            echo "Checking services directory for $SERVICE..."
+            
+            # Check if service has a k8s directory within services
+            if [ -d "services/$SERVICE/k8s" ]; then
+              echo "Found k8s directory in services/$SERVICE"
+              
+              # Try to update kustomization.yaml if it exists
+              if [ -f "services/$SERVICE/k8s/kustomization.yaml" ]; then
+                # Check if it has an images field before trying to update
+                if yq eval '.images' "services/$SERVICE/k8s/kustomization.yaml" | grep -q "."; then
+                  yq eval ".images[0].newTag = \"${SHORT_SHA}\"" -i "services/$SERVICE/k8s/kustomization.yaml"
+                  echo "Updated image tag in services/$SERVICE/k8s/kustomization.yaml"
+                  git add "services/$SERVICE/k8s/kustomization.yaml"
+                  UPDATED_FILES=$((UPDATED_FILES + 1))
+                fi
+              fi
+              
+              # Check for deployment files
+              for DEPLOY_FILE in $(find "services/$SERVICE/k8s" -name "deployment*.yaml"); do
+                if grep -q "image: registry.digitalocean.com" "$DEPLOY_FILE"; then
+                  sed -i "s|registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:[^[:space:]]*|registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}|g" "$DEPLOY_FILE"
+                  echo "Updated image in $DEPLOY_FILE"
+                  git add "$DEPLOY_FILE"
+                  UPDATED_FILES=$((UPDATED_FILES + 1))
+                fi
+              done
+            fi
+          done
+
+          # Check data directory for k8s files
+          for SERVICE in $SERVICES postgres vector.db qdrant redis couchbase; do
+            echo "Checking data directory for $SERVICE..."
+            
+            # Check if service has a k8s directory within data
+            if [ -d "data/$SERVICE/k8s" ]; then
+              echo "Found k8s directory in data/$SERVICE"
+              
+              # Try to update kustomization.yaml if it exists
+              if [ -f "data/$SERVICE/k8s/kustomization.yaml" ]; then
+                # Check if it has an images field before trying to update
+                if yq eval '.images' "data/$SERVICE/k8s/kustomization.yaml" | grep -q "."; then
+                  yq eval ".images[0].newTag = \"${SHORT_SHA}\"" -i "data/$SERVICE/k8s/kustomization.yaml"
+                  echo "Updated image tag in data/$SERVICE/k8s/kustomization.yaml"
+                  git add "data/$SERVICE/k8s/kustomization.yaml"
+                  UPDATED_FILES=$((UPDATED_FILES + 1))
+                fi
+              fi
+              
+              # Check for deployment files
+              for DEPLOY_FILE in $(find "data/$SERVICE/k8s" -name "deployment*.yaml" -o -name "statefulset*.yaml"); do
+                if grep -q "image: registry.digitalocean.com" "$DEPLOY_FILE"; then
+                  sed -i "s|registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:[^[:space:]]*|registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${SHORT_SHA}|g" "$DEPLOY_FILE"
+                  echo "Updated image in $DEPLOY_FILE"
+                  git add "$DEPLOY_FILE"
+                  UPDATED_FILES=$((UPDATED_FILES + 1))
+                fi
+              done
+            fi
+          done
+          
+          # Commit and push if there are changes
+          if [ "$UPDATED_FILES" -eq 0 ]; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update image tags to ${SHORT_SHA} for ${{ github.event.inputs.service || 'all services' }}"
+            git push origin ${{ github.ref_name }}
+            echo "Successfully updated $UPDATED_FILES manifest files in repository"
+          fi
+          
+      - name: Configure kubectl for ArgoCD sync
         run: |
           # Install kubectl
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
@@ -260,8 +389,40 @@ jobs:
           # Setup kubeconfig for DO Kubernetes
           doctl kubernetes cluster kubeconfig save ${{ secrets.DO_KUBERNETES_CLUSTER_ID }}
           
-          # Verify connection
-          kubectl cluster-info
+      - name: Trigger ArgoCD sync
+        if: success()
+        run: |
+          # Install argocd CLI
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-arm64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/
+          
+          # Get ArgoCD password
+          ADMIN_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+          
+          # Login to ArgoCD
+          argocd login ${{ secrets.ARGOCD_SERVER }} --username admin --password "$ADMIN_PASSWORD" --insecure
+          
+          # Sync all applications or specific service
+          if [[ -n "${{ github.event.inputs.service }}" ]]; then
+            argocd app sync posey-${{ github.event.inputs.service }} --prune
+            argocd app wait posey-${{ github.event.inputs.service }}
+          else
+            # Use the script if it exists, otherwise sync each app individually
+            if [ -f "scripts/argocd-sync-all.sh" ]; then
+              chmod +x scripts/argocd-sync-all.sh
+              ARGOCD_SERVER=${{ secrets.ARGOCD_SERVER }} ./scripts/argocd-sync-all.sh
+            else
+              # Sync core applications
+              for APP in auth supertokens voyager mcp agents cron; do
+                argocd app sync posey-${APP} --prune
+              done
+              # Wait for sync to complete
+              for APP in auth supertokens voyager mcp agents cron; do
+                argocd app wait posey-${APP}
+              done
+            fi
+          fi
           
       - name: Create minimal .env file for CI
         run: |
@@ -286,42 +447,4 @@ jobs:
           REDIS_PORT=${{ secrets.REDIS_PORT || '6379' }}
           EOF
           
-          echo "Created CI environment file with necessary deployment variables"
-          
-      - name: Deploy directly with kubectl (bypassing deploy.ts script)
-        run: |
-          cd services
-          NAMESPACE="${{ secrets.DO_REGISTRY_NAME }}"
-          
-          # Apply shared resources first with validate=false
-          echo "Applying shared resources to namespace $NAMESPACE..."
-          kubectl apply -k shared/k8s -n $NAMESPACE --validate=false || {
-            echo "Warning: Error applying shared resources, but continuing"
-          }
-          
-          # Define services to deploy
-          SERVICES="auth supertokens voyager mcp agents cron"
-          
-          # Override if service parameter is provided
-          if [[ -n "${{ github.event.inputs.service }}" ]]; then
-            SERVICES="${{ github.event.inputs.service }}"
-          fi
-          
-          # Deploy each service directly with kubectl
-          for SERVICE in $SERVICES; do
-            echo "Deploying $SERVICE service..."
-            
-            # Check if service has a k8s directory
-            if [ -d "$SERVICE/k8s" ]; then
-              # Apply using kustomize
-              kubectl apply -k $SERVICE/k8s -n $NAMESPACE --validate=false || {
-                echo "Warning: Error deploying $SERVICE, but continuing with other services"
-              }
-            else
-              echo "No k8s directory found for $SERVICE, skipping"
-            fi
-          done
-          
-          # Verify deployment
-          echo "Deployment complete. Current pods:"
-          kubectl get pods -n $NAMESPACE 
+          echo "Created CI environment file with necessary deployment variables" 
