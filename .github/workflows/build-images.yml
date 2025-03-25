@@ -289,8 +289,19 @@ jobs:
           # Get ArgoCD password
           ADMIN_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
           
+          # Format ArgoCD server URL properly
+          # The error suggests the URL is missing a proper protocol or has incorrect formatting
+          ARGOCD_SERVER_URL=${{ secrets.ARGOCD_SERVER }}
+          
+          # Ensure URL has a protocol prefix (https:// or http://)
+          if [[ ! "$ARGOCD_SERVER_URL" =~ ^https?:// ]]; then
+            ARGOCD_SERVER_URL="https://$ARGOCD_SERVER_URL"
+            echo "Added https:// prefix to ArgoCD server URL: $ARGOCD_SERVER_URL"
+          fi
+          
           # Login to ArgoCD
-          argocd login ${{ secrets.ARGOCD_SERVER }} --username admin --password "$ADMIN_PASSWORD" --insecure
+          echo "Logging in to ArgoCD at $ARGOCD_SERVER_URL"
+          argocd login "$ARGOCD_SERVER_URL" --username admin --password "$ADMIN_PASSWORD" --insecure
           
           # Get the short SHA for the latest commit
           SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
