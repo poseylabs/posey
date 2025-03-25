@@ -7,36 +7,38 @@ BASE_DIR="data"
 NAMESPACE="posey"
 ENV_FILE="${BASE_DIR}/.env"
 
+# Function to safely load environment variables
+load_env_file() {
+  local env_file=$1
+  if [ -f "$env_file" ]; then
+    echo "Loading environment variables from $env_file"
+    
+    # Create a temporary file with just the environment variables
+    grep -v "^#" "$env_file" | grep "=" > /tmp/env_vars.tmp
+    
+    # Source the temporary file
+    while IFS="=" read -r key value; do
+      # Trim whitespace
+      key=$(echo "$key" | xargs)
+      
+      # Skip empty keys
+      if [ -n "$key" ]; then
+        # Export the variable
+        export "$key"="$value"
+      fi
+    done < /tmp/env_vars.tmp
+    
+    # Clean up
+    rm /tmp/env_vars.tmp
+  else
+    echo "Warning: Environment file $env_file not found. Using existing environment variables."
+  fi
+}
+
 # Check if we're running in GitHub Actions CI environment
 if [ -z "$GITHUB_ACTIONS" ]; then
   # Only load from .env file if not in CI
-  if [ -f "$ENV_FILE" ]; then
-    echo "Loading environment variables from $ENV_FILE"
-    # Use a safer way to load env vars that handles special characters better
-    while IFS= read -r line || [ -n "$line" ]; do
-      # Skip comments and empty lines
-      if [[ $line =~ ^[[:space:]]*# ]] || [[ -z $line ]]; then
-        continue
-      fi
-      
-      # Extract the key and value
-      key=$(echo "$line" | cut -d= -f1)
-      value=$(echo "$line" | cut -d= -f2-)
-      
-      # Remove any leading/trailing whitespace
-      key=$(echo "$key" | xargs)
-      
-      # Skip if the key is empty
-      if [ -z "$key" ]; then
-        continue
-      fi
-      
-      # Export the variable - use eval to handle complex values with spaces and special chars
-      eval "export $key=\"$value\""
-    done < "$ENV_FILE"
-  else
-    echo "Warning: Environment file $ENV_FILE not found. Using existing environment variables."
-  fi
+  load_env_file "$ENV_FILE"
 else
   echo "Running in CI/CD environment, using existing environment variables"
 fi
@@ -49,6 +51,17 @@ if [ ! -f ".sealed-secrets/sealed-secrets-cert.pem" ]; then
   echo "Fetching sealed secrets certificate..."
   kubeseal --fetch-cert --controller-name=sealed-secrets --controller-namespace=sealed-secrets > .sealed-secrets/sealed-secrets-cert.pem
 fi
+
+# For debugging - print the environment variables we're using
+echo "Using these environment variables:"
+if [ -n "$POSTGRES_USER" ]; then echo "POSTGRES_USER is set"; else echo "POSTGRES_USER is not set"; fi
+if [ -n "$POSTGRES_PASSWORD" ]; then echo "POSTGRES_PASSWORD is set"; else echo "POSTGRES_PASSWORD is not set"; fi
+if [ -n "$POSTGRES_PORT" ]; then echo "POSTGRES_PORT is set"; else echo "POSTGRES_PORT is not set"; fi
+if [ -n "$POSTGRES_DB" ]; then echo "POSTGRES_DB is set"; else echo "POSTGRES_DB is not set"; fi
+if [ -n "$POSTGRES_DB_POSEY" ]; then echo "POSTGRES_DB_POSEY is set"; else echo "POSTGRES_DB_POSEY is not set"; fi
+if [ -n "$POSTGRES_HOST" ]; then echo "POSTGRES_HOST is set"; else echo "POSTGRES_HOST is not set"; fi
+if [ -n "$QDRANT_URL" ]; then echo "QDRANT_URL is set"; else echo "QDRANT_URL is not set"; fi
+if [ -n "$QDRANT_PORT" ]; then echo "QDRANT_PORT is set"; else echo "QDRANT_PORT is not set"; fi
 
 # 1. Create Postgres secret
 if [ -d "${BASE_DIR}/postgres/k8s" ]; then

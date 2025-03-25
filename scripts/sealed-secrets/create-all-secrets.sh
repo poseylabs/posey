@@ -6,6 +6,34 @@ echo "==== Posey Sealed Secrets Generator ===="
 echo "This script will create sealed secrets for all services"
 echo ""
 
+# Function to safely load environment variables
+load_env_file() {
+  local env_file=$1
+  if [ -f "$env_file" ]; then
+    echo "Loading environment variables from $env_file"
+    
+    # Create a temporary file with just the environment variables
+    grep -v "^#" "$env_file" | grep "=" > /tmp/env_vars.tmp
+    
+    # Source the temporary file
+    while IFS="=" read -r key value; do
+      # Trim whitespace
+      key=$(echo "$key" | xargs)
+      
+      # Skip empty keys
+      if [ -n "$key" ]; then
+        # Export the variable
+        export "$key"="$value"
+      fi
+    done < /tmp/env_vars.tmp
+    
+    # Clean up
+    rm /tmp/env_vars.tmp
+  else
+    echo "Warning: Environment file $env_file not found. Using existing environment variables."
+  fi
+}
+
 # Check if we're running in GitHub Actions CI
 if [ -n "$GITHUB_ACTIONS" ]; then
   echo "Running in GitHub Actions CI/CD environment"
