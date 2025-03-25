@@ -7,14 +7,39 @@ BASE_DIR="services"
 NAMESPACE="posey"
 ENV_FILE="${BASE_DIR}/.env"
 
-# Check if .env file exists
-if [ ! -f "$ENV_FILE" ]; then
-  echo "Error: Environment file $ENV_FILE not found"
-  exit 1
+# Check if we're running in GitHub Actions CI environment
+if [ -z "$GITHUB_ACTIONS" ]; then
+  # Only load from .env file if not in CI
+  if [ -f "$ENV_FILE" ]; then
+    echo "Loading environment variables from $ENV_FILE"
+    # Use a safer way to load env vars that handles special characters better
+    while IFS= read -r line || [ -n "$line" ]; do
+      # Skip comments and empty lines
+      if [[ $line =~ ^[[:space:]]*# ]] || [[ -z $line ]]; then
+        continue
+      fi
+      
+      # Extract the key and value
+      key=$(echo "$line" | cut -d= -f1)
+      value=$(echo "$line" | cut -d= -f2-)
+      
+      # Remove any leading/trailing whitespace
+      key=$(echo "$key" | xargs)
+      
+      # Skip if the key is empty
+      if [ -z "$key" ]; then
+        continue
+      fi
+      
+      # Export the variable - use eval to handle complex values with spaces and special chars
+      eval "export $key=\"$value\""
+    done < "$ENV_FILE"
+  else
+    echo "Warning: Environment file $ENV_FILE not found. Using existing environment variables."
+  fi
+else
+  echo "Running in CI/CD environment, using existing environment variables"
 fi
-
-echo "Loading environment variables from $ENV_FILE"
-export $(grep -v '^#' "$ENV_FILE" | xargs)
 
 # Create a directory for the sealed secrets certificate if it doesn't exist
 mkdir -p .sealed-secrets

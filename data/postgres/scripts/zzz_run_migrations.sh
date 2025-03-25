@@ -8,14 +8,6 @@ echo "Checking if posey database exists..."
 psql -U "$POSTGRES_USER" -d postgres -c "SELECT 1 FROM pg_database WHERE datname = 'posey'" | grep -q 1 || \
 psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE posey OWNER $POSTGRES_USER;"
 
-# Initialize Hasura metadata tables
-if [ -f "/docker-entrypoint-initdb.d/hasura-init.sql" ]; then
-  echo "Initializing Hasura metadata tables"
-  psql -U "$POSTGRES_USER" -d postgres -c "\i /docker-entrypoint-initdb.d/hasura-init.sql"
-else
-  echo "Hasura initialization file not found, skipping"
-fi
-
 # Run all SQL files in migrations directory in order
 if [ -d "/docker-entrypoint-initdb.d/migrations" ]; then
   echo "Running migrations from /docker-entrypoint-initdb.d/migrations/"

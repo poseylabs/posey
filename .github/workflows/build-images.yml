@@ -382,6 +382,7 @@ jobs:
           
           # Run the data sealed secrets generator
           cd ..
+          export GITHUB_ACTIONS=true
           ./scripts/sealed-secrets/create-data-secrets.sh
           
       - name: Generate Sealed Secrets for application services
@@ -445,6 +446,7 @@ jobs:
           
           # Run the services sealed secrets generator
           cd ..
+          export GITHUB_ACTIONS=true
           ./scripts/sealed-secrets/create-services-secrets.sh
 
       - name: Trigger ArgoCD sync

@@ -7,14 +7,39 @@ BASE_DIR="data"
 NAMESPACE="posey"
 ENV_FILE="${BASE_DIR}/.env"
 
-# Check if .env file exists
-if [ ! -f "$ENV_FILE" ]; then
-  echo "Error: Environment file $ENV_FILE not found"
-  exit 1
+# Check if we're running in GitHub Actions CI environment
+if [ -z "$GITHUB_ACTIONS" ]; then
+  # Only load from .env file if not in CI
+  if [ -f "$ENV_FILE" ]; then
+    echo "Loading environment variables from $ENV_FILE"
+    # Use a safer way to load env vars that handles special characters better
+    while IFS= read -r line || [ -n "$line" ]; do
+      # Skip comments and empty lines
+      if [[ $line =~ ^[[:space:]]*# ]] || [[ -z $line ]]; then
+        continue
+      fi
+      
+      # Extract the key and value
+      key=$(echo "$line" | cut -d= -f1)
+      value=$(echo "$line" | cut -d= -f2-)
+      
+      # Remove any leading/trailing whitespace
+      key=$(echo "$key" | xargs)
+      
+      # Skip if the key is empty
+      if [ -z "$key" ]; then
+        continue
+      fi
+      
+      # Export the variable - use eval to handle complex values with spaces and special chars
+      eval "export $key=\"$value\""
+    done < "$ENV_FILE"
+  else
+    echo "Warning: Environment file $ENV_FILE not found. Using existing environment variables."
+  fi
+else
+  echo "Running in CI/CD environment, using existing environment variables"
 fi
-
-echo "Loading environment variables from $ENV_FILE"
-export $(grep -v '^#' "$ENV_FILE" | xargs)
 
 # Create a directory for the sealed secrets certificate if it doesn't exist
 mkdir -p .sealed-secrets
@@ -78,20 +103,32 @@ fi
 if [ -d "${BASE_DIR}/vector.db/k8s" ]; then
   echo "Creating Vector DB sealed secret..."
   
-  # Check for required variables (QDRANT_API_KEY might not be in your env yet)
-  qdrant_vars=("QDRANT_URL" "QDRANT_PORT")
-  missing_vars=false
-  for var in "${qdrant_vars[@]}"; do
-    if [ -z "${!var}" ]; then
-      echo "Warning: Required Vector DB variable $var is not set"
-      missing_vars=true
+  # Extract port from URL if QDRANT_PORT is not set
+  if [ -z "$QDRANT_PORT" ] && [ -n "$QDRANT_URL" ]; then
+    # Try to extract port from URL (http://host:port)
+    PORT_FROM_URL=$(echo "$QDRANT_URL" | sed -n 's/.*:\([0-9]\+\).*/\1/p')
+    if [ -n "$PORT_FROM_URL" ]; then
+      echo "Extracted port $PORT_FROM_URL from QDRANT_URL"
+      QDRANT_PORT="$PORT_FROM_URL"
+    else
+      # Default port if not specified
+      echo "Using default port 1111 for Qdrant"
+      QDRANT_PORT="1111"
     fi
-  done
+  fi
+  
+  # Check if required variables are set now
+  if [ -z "$QDRANT_URL" ]; then
+    echo "Warning: Required Vector DB variable QDRANT_URL is not set"
+    missing_qdrant_vars=true
+  else
+    missing_qdrant_vars=false
+  fi
   
   # Default API key if not provided
   QDRANT_API_KEY=${QDRANT_API_KEY:-""}
   
-  if [ "$missing_vars" = false ]; then
+  if [ "$missing_qdrant_vars" = false ]; then
     # Generate the secret manifest
     kubectl create secret generic vector-db-credentials \
       --namespace="$NAMESPACE" \

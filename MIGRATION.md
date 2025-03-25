@@ -230,7 +230,6 @@ const authClient = new AuthClient({
 ### Backend and Data Storage
 - FastAPI (for Python API): https://fastapi.tiangolo.com/
 - PostgreSQL Documentation: https://www.postgresql.org/docs/
-- Hasura GraphQL Setup: https://hasura.io/docs/latest/getting-started/index/
 - Qdrant Vector Database: https://qdrant.tech/documentation/
 
 ### Authentication Resources
