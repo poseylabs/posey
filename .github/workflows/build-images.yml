@@ -21,7 +21,6 @@ jobs:
     name: Build Posey (all)
     runs-on:
       group: posey-runners
-      labels: posey-linux-x64
     environment: PRODUCTION
     steps:
       - name: Debug runner information
