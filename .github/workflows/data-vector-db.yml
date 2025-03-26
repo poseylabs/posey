@@ -18,7 +18,9 @@ env:
 
 jobs:
   build-vector-db:
-    name: Build Vector DB Service
+    # Skip this job if it was triggered by the orchestrator
+    if: github.event_name != 'workflow_dispatch' || !contains(github.actor, 'github-actions[bot]')
+    name: Vector DB Job
     runs-on:
       group: posey-runners
     environment: PRODUCTION
