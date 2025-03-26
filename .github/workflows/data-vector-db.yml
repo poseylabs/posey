@@ -14,7 +14,7 @@ env:
   DOCTL_VERSION: 1.92.1
   ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
   SERVICE: vector.db
-  DOCKER_IMAGE_NAME: vector-db
+  DOCKER_IMAGE_NAME: posey-vector-db
 
 jobs:
   build-vector-db:

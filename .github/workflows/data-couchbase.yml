@@ -14,7 +14,7 @@ env:
   DOCTL_VERSION: 1.92.1
   ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
   SERVICE: couchbase
-  DOCKER_IMAGE_NAME: couchbase
+  DOCKER_IMAGE_NAME: posey-couchbase
 
 jobs:
   build-couchbase:
