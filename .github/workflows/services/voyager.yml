@@ -1,0 +1,105 @@
+name: Build Voyager Service
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/voyager/**'
+      - '.github/workflows/build-service-voyager.yml'
+
+env:
+  DOCTL_VERSION: 1.92.1
+  ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
+  SERVICE: voyager
+
+jobs:
+  build-voyager:
+    name: Build Voyager Service
+    runs-on:
+      group: posey-runners
+    environment: PRODUCTION
+    steps:
+      # Common setup steps
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Install doctl
+        run: |
+          cd /tmp
+          curl -sL https://github.com/digitalocean/doctl/releases/download/v${{ env.DOCTL_VERSION }}/doctl-${{ env.DOCTL_VERSION }}-linux-arm64.tar.gz | tar -xzv
+          sudo mv doctl /usr/local/bin/
+          doctl version
+          doctl auth init -t ${{ secrets.DO_API_TOKEN }}
+
+      - name: Login to DigitalOcean Container Registry
+        run: |
+          doctl registry login --expiry-seconds 3600
+          
+      # Setup for docker builds
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.12.0
+          
+      # Cache Playwright browsers
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('services/voyager/requirements.txt') }}
+          
+      - name: Pre-install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: |
+          pip install playwright
+          python -m playwright install chromium --with-deps
+          
+      # Debug directory structure
+      - name: Debug Voyager Directory
+        run: |
+          echo "Checking service directory structure:"
+          cd services
+          ls -la ${SERVICE}/
+          echo "Content of src directory:"
+          ls -la ${SERVICE}/src/ || echo "src directory not found or empty"
+          
+      # Build voyager with extended timeout
+      - name: Build Voyager
+        timeout-minutes: 45
+        run: |
+          cd services
+          
+          # Add debugging echo to verify the build context
+          echo "Building from directory:"
+          pwd
+          
+          # Memory monitoring
+          echo "Memory usage before build:"
+          free -h
+          
+          # Voyager-specific build arguments
+          EXTRA_ARGS="--build-arg PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 --progress=plain"
+          
+          # Build with extended timeout and memory limits
+          DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
+            --platform linux/amd64 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            ${EXTRA_ARGS} \
+            --memory=8g \
+            --memory-swap=10g \
+            --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
+            --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
+            -t ${SERVICE} \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
+            -f ${SERVICE}/Dockerfile \
+            --push \
+            ${SERVICE}
+          
+          echo "Memory usage after build:"
+          free -h
