@@ -12,12 +12,17 @@ on:
       - '.github/workflows/service-*.yml'
       - '.github/workflows/data-*.yml'
 
+# Add permissions to allow workflow dispatch
+permissions:
+  contents: read
+  actions: write
+
 env:
   ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
 
 jobs:
-  trigger-service-builds:
-    name: Trigger Service Builds
+  list-workflows:
+    name: List Available Workflows
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -39,6 +44,23 @@ jobs:
           echo "Available workflows:"
           gh workflow list
 
+  trigger-service-builds:
+    name: Trigger Service Builds
+    needs: list-workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install GitHub CLI
+        run: |
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt update \
+          && sudo apt install gh -y
+
       - name: Trigger Individual Service Workflows
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -50,7 +72,7 @@ jobs:
             
             echo "Triggering workflow for $SERVICE service"
             
-            # Try to trigger the workflow with new naming convention
+            # Try to trigger the workflow with exact filename
             gh workflow run "${PREFIX}-${SERVICE}.yml" --ref "${{ github.ref_name }}" || {
               echo "Failed to trigger workflow for $SERVICE"
               return 1
@@ -59,14 +81,14 @@ jobs:
             echo "Successfully triggered workflow for $SERVICE"
           }
           
-          # Trigger service workflows
+          # Trigger service workflows with error handling
           SERVICES="voyager auth supertokens mcp agents cron"
           for SERVICE in $SERVICES; do
-            trigger_workflow "service" "$SERVICE"
+            trigger_workflow "service" "$SERVICE" || echo "Failed to trigger $SERVICE workflow, continuing..."
           done
           
-          # Trigger data services workflows
+          # Trigger data services workflows with error handling
           DATA_SERVICES="postgres vector-db couchbase"
           for SERVICE in $DATA_SERVICES; do
-            trigger_workflow "data" "$SERVICE"
+            trigger_workflow "data" "$SERVICE" || echo "Failed to trigger $SERVICE workflow, continuing..."
           done
