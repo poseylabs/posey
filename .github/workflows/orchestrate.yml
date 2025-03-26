@@ -43,8 +43,9 @@ jobs:
             
             echo "Triggering workflow for $TYPE service: $SERVICE"
             
-            # Use gh cli for workflow triggering - path relative to .github/workflows/
-            gh workflow run "services/$SERVICE.yml" --ref "${{ github.ref_name }}" || {
+            # Use the FULL path from the repository root
+            # The correct format is .github/workflows/TYPE/SERVICE.yml
+            gh workflow run .github/workflows/$TYPE/$SERVICE.yml --ref "${{ github.ref_name }}" || {
               echo "Failed to trigger workflow for $SERVICE"
               return 1
             }
