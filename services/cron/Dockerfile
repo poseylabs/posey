@@ -1,17 +1,20 @@
 # Build stage
-FROM node:20-slim AS builder
+FROM node:20-slim as builder
 
 WORKDIR /app
 
+# Enable Corepack for Yarn 4
+RUN corepack enable && corepack prepare yarn@4.5.1 --activate
+
 # Copy package files
-COPY services/cron/package*.json ./
+COPY package*.json ./
 
 # Install dependencies
 RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn install
 
 # Copy source code and config files
-COPY services/cron/tsconfig.json ./
-COPY services/cron/src ./src
+COPY tsconfig.json ./
+COPY src ./src
 
 # Build the application
 RUN yarn build
@@ -24,12 +27,10 @@ WORKDIR /app
 # Install curl for healthcheck
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy package files and install production dependencies
-COPY --from=builder /app/package*.json ./
-RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn install --production
-
-# Copy built application
+# Copy built app from builder stage
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY package*.json ./
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data \
