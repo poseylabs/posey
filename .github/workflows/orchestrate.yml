@@ -36,16 +36,33 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Function to trigger workflow with error handling
-          trigger_workflow() {
+          # List all workflows by ID
+          echo "Available workflows in the repository:"
+          WORKFLOWS=$(gh api repos/poseylabs/posey/actions/workflows | jq -r '.workflows[] | "\(.id) - \(.name) - \(.path)"')
+          echo "$WORKFLOWS"
+          
+          # Function to find workflow ID by partial path match
+          find_workflow_id() {
+            PATH_PART=$1
+            echo "$WORKFLOWS" | grep -i "$PATH_PART" | head -n 1 | cut -d ' ' -f 1
+          }
+          
+          # Function to trigger workflow by ID
+          trigger_workflow_by_id() {
             SERVICE=$1
             TYPE=$2  # 'services' or 'data'
             
-            echo "Triggering workflow for $TYPE service: $SERVICE"
+            echo "Finding workflow ID for $TYPE/$SERVICE..."
+            WORKFLOW_ID=$(find_workflow_id "$TYPE/$SERVICE")
             
-            # Use the FULL path from the repository root
-            # The correct format is .github/workflows/TYPE/SERVICE.yml
-            gh workflow run .github/workflows/$TYPE/$SERVICE.yml --ref "${{ github.ref_name }}" || {
+            if [ -z "$WORKFLOW_ID" ]; then
+              echo "Could not find workflow ID for $TYPE/$SERVICE"
+              return 1
+            fi
+            
+            echo "Triggering workflow ID $WORKFLOW_ID for $SERVICE"
+            gh api repos/poseylabs/posey/actions/workflows/$WORKFLOW_ID/dispatches \
+              -F ref="${{ github.ref_name }}" || {
               echo "Failed to trigger workflow for $SERVICE"
               return 1
             }
@@ -56,11 +73,11 @@ jobs:
           # Trigger service workflows
           SERVICES="voyager auth supertokens mcp agents cron"
           for SERVICE in $SERVICES; do
-            trigger_workflow "$SERVICE" "services"
+            trigger_workflow_by_id "$SERVICE" "services"
           done
           
           # Trigger data services workflows
           DATA_SERVICES="postgres vector-db couchbase"
           for SERVICE in $DATA_SERVICES; do
-            trigger_workflow "$SERVICE" "data"
+            trigger_workflow_by_id "$SERVICE" "data"
           done
