@@ -1,0 +1,53 @@
+name: Posey Build Orchestrator
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - 'services/*/Dockerfile'  # Individual services have their own workflows
+      - 'data/*/Dockerfile'      # Data services have their own workflows
+      - '.github/workflows/services/**'
+      - '.github/workflows/data/**'
+
+env:
+  ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
+
+jobs:
+  trigger-service-builds:
+    name: Trigger Service Builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Trigger Individual Service Workflows
+        run: |
+          GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          REPO="${{ github.repository }}"
+          
+          # Trigger service workflows
+          SERVICES="voyager auth supertokens mcp agents cron"
+          
+          for SERVICE in $SERVICES; do
+            echo "Triggering workflow for service: $SERVICE"
+            curl -X POST \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/$REPO/actions/workflows/services/$SERVICE.yml/dispatches" \
+              -d '{"ref":"${{ github.ref_name }}"}'
+          done
+          
+          # Trigger data services workflows
+          DATA_SERVICES="postgres vector-db couchbase"
+          
+          for SERVICE in $DATA_SERVICES; do
+            echo "Triggering workflow for data service: $SERVICE"
+            curl -X POST \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/$REPO/actions/workflows/data/$SERVICE.yml/dispatches" \
+              -d '{"ref":"${{ github.ref_name }}"}'
+          done

@@ -1,0 +1,82 @@
+name: Build Supertokens Service
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/supertokens/**'
+      - '.github/workflows/services/supertokens.yml'
+
+env:
+  DOCTL_VERSION: 1.92.1
+  ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
+  SERVICE: supertokens
+
+jobs:
+  build-supertokens:
+    name: Build Supertokens Service
+    runs-on:
+      group: posey-runners
+    environment: PRODUCTION
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Install doctl
+        run: |
+          cd /tmp
+          curl -sL https://github.com/digitalocean/doctl/releases/download/v${{ env.DOCTL_VERSION }}/doctl-${{ env.DOCTL_VERSION }}-linux-arm64.tar.gz | tar -xzv
+          sudo mv doctl /usr/local/bin/
+          doctl version
+          doctl auth init -t ${{ secrets.DO_API_TOKEN }}
+
+      - name: Login to DigitalOcean Container Registry
+        run: |
+          doctl registry login --expiry-seconds 3600
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.12.0
+          
+      - name: Docker Buildx Configuration
+        run: |
+          docker buildx create --name multiplatform-builder --driver docker-container --use
+          docker buildx inspect --bootstrap
+          
+      - name: Build Supertokens
+        timeout-minutes: 15
+        run: |
+          cd services
+          
+          echo "Building ${SERVICE}..."
+          
+          # Debug directory structure
+          echo "Supertokens directory contents:"
+          ls -la ${SERVICE}/
+          
+          # Add environment variables as build args for supertokens
+          EXTRA_BUILD_ARGS="--build-arg POSTGRES_USER='${{ secrets.POSTGRES_USER }}' \
+            --build-arg POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}' \
+            --build-arg POSTGRES_DB_SUPERTOKENS='${{ secrets.POSTGRES_DB_SUPERTOKENS }}' \
+            --build-arg POSTGRES_HOST='${{ secrets.POSTGRES_HOST }}' \
+            --build-arg POSTGRES_PORT='${{ secrets.POSTGRES_PORT }}' \
+            --build-arg SUPERTOKENS_API_KEY='${{ secrets.SUPERTOKENS_API_KEY }}'"
+            
+          # Build with Docker Buildx
+          DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
+            --platform linux/amd64 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            ${EXTRA_BUILD_ARGS} \
+            --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
+            --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
+            -t ${SERVICE} \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
+            -f ${SERVICE}/Dockerfile \
+            --push \
+            ${SERVICE} 
