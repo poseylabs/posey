@@ -7,10 +7,10 @@ on:
       - main
       - develop
     paths-ignore:
-      - 'services/*/Dockerfile'  # Individual services have their own workflows
-      - 'data/*/Dockerfile'      # Data services have their own workflows
-      - '.github/workflows/services/**'
-      - '.github/workflows/data/**'
+      - 'services/*/Dockerfile'
+      - 'data/*/Dockerfile'
+      - '.github/workflows/service-*.yml'
+      - '.github/workflows/data-*.yml'
 
 env:
   ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
@@ -32,37 +32,26 @@ jobs:
           && sudo apt update \
           && sudo apt install gh -y
 
+      - name: List available workflows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Available workflows:"
+          gh workflow list
+
       - name: Trigger Individual Service Workflows
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # List all workflows by ID
-          echo "Available workflows in the repository:"
-          WORKFLOWS=$(gh api repos/poseylabs/posey/actions/workflows | jq -r '.workflows[] | "\(.id) - \(.name) - \(.path)"')
-          echo "$WORKFLOWS"
-          
-          # Function to find workflow ID by partial path match
-          find_workflow_id() {
-            PATH_PART=$1
-            echo "$WORKFLOWS" | grep -i "$PATH_PART" | head -n 1 | cut -d ' ' -f 1
-          }
-          
-          # Function to trigger workflow by ID
-          trigger_workflow_by_id() {
-            SERVICE=$1
-            TYPE=$2  # 'services' or 'data'
+          # Function to trigger workflow
+          trigger_workflow() {
+            PREFIX=$1
+            SERVICE=$2
             
-            echo "Finding workflow ID for $TYPE/$SERVICE..."
-            WORKFLOW_ID=$(find_workflow_id "$TYPE/$SERVICE")
+            echo "Triggering workflow for $SERVICE service"
             
-            if [ -z "$WORKFLOW_ID" ]; then
-              echo "Could not find workflow ID for $TYPE/$SERVICE"
-              return 1
-            fi
-            
-            echo "Triggering workflow ID $WORKFLOW_ID for $SERVICE"
-            gh api repos/poseylabs/posey/actions/workflows/$WORKFLOW_ID/dispatches \
-              -F ref="${{ github.ref_name }}" || {
+            # Try to trigger the workflow with new naming convention
+            gh workflow run "${PREFIX}-${SERVICE}.yml" --ref "${{ github.ref_name }}" || {
               echo "Failed to trigger workflow for $SERVICE"
               return 1
             }
@@ -73,11 +62,11 @@ jobs:
           # Trigger service workflows
           SERVICES="voyager auth supertokens mcp agents cron"
           for SERVICE in $SERVICES; do
-            trigger_workflow_by_id "$SERVICE" "services"
+            trigger_workflow "service" "$SERVICE"
           done
           
           # Trigger data services workflows
           DATA_SERVICES="postgres vector-db couchbase"
           for SERVICE in $DATA_SERVICES; do
-            trigger_workflow_by_id "$SERVICE" "data"
+            trigger_workflow "data" "$SERVICE"
           done
