@@ -1,5 +1,6 @@
 {
   "name": "@posey.ai/cron",
+  "packageManager": "yarn@4.5.1",
   "version": "1.0.0-beta.1",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
