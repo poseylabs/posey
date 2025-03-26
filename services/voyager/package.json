@@ -1,6 +1,6 @@
 {
   "name": "@posey.ai/voyager",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "scripts": {
     "docker:build": "docker build -t registry.digitalocean.com/posey/posey-voyager:latest .",
     "docker:push": "docker push registry.digitalocean.com/posey/posey-voyager:latest",
