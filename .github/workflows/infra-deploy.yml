@@ -19,6 +19,7 @@ on:
   workflow_dispatch:  # Keep manual trigger
 
 env:
+  DOCTL_VERSION: 1.92.1  # Added this environment variable
   ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
 
 jobs:
@@ -32,6 +33,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         
+      - name: Install doctl
+        run: |
+          cd /tmp
+          curl -sL https://github.com/digitalocean/doctl/releases/download/v${{ env.DOCTL_VERSION }}/doctl-${{ env.DOCTL_VERSION }}-linux-arm64.tar.gz | tar -xzv
+          sudo mv doctl /usr/local/bin/
+          doctl version
+          doctl auth init -t ${{ secrets.DO_API_TOKEN }}
+          
       - name: Configure kubectl
         run: |
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"

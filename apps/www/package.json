@@ -1,6 +1,6 @@
 {
   "name": "@posey.ai/www",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.1",
   "license": "AGPL-3.0",
   "scripts": {
     "dev": "PORT=8888 next dev",

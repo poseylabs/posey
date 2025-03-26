@@ -1,6 +1,6 @@
 {
   "name": "@posey.ai/agents",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.1",
   "type": "module",
   "scripts": {
     "db:migrate": "python3 -m app.db.migrate",

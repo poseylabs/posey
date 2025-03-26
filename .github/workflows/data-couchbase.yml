@@ -48,21 +48,31 @@ jobs:
           docker buildx create --name multiplatform-builder --driver docker-container --use
           docker buildx inspect --bootstrap
           
+      - name: Debug directory structure
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Content of data directory:"
+          ls -la data/
+          echo "Content of data/couchbase directory:"
+          ls -la data/couchbase/
+          
       - name: Build Couchbase
         timeout-minutes: 15
         run: |
+          # Build using the data/couchbase directory as context
+          cd data/${SERVICE}
+          
           echo "Building data service $SERVICE as $DOCKER_IMAGE_NAME..."
           
-          # Build with Docker Buildx
+          # Build with Docker Buildx - removed unqualified tag
           DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
             --platform linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${{ env.ENVIRONMENT }} \
-            -t ${DOCKER_IMAGE_NAME} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:$(echo $GITHUB_SHA | cut -c1-7) \
-            -f data/${SERVICE}/Dockerfile \
+            -f Dockerfile \
             --push \
             . 
