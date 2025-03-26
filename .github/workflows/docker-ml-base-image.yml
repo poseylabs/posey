@@ -8,7 +8,7 @@ on:
       - develop
     paths:
       - 'services/agents/docker/ml-base/**'
-      - '.github/workflows/ml-base-image.yml'
+      - '.github/workflows/docker-ml-base-image.yml'
 
 env:
   DOCTL_VERSION: 1.92.1
