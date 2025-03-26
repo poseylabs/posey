@@ -22,15 +22,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-        
-      - name: Trigger Individual Service Workflows
+
+      - name: Install GitHub CLI
         run: |
-          GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
-          REPO="${{ github.repository }}"
-          
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt update \
+          && sudo apt install gh -y
+
+      - name: Trigger Individual Service Workflows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
           # Function to trigger workflow with error handling
           trigger_workflow() {
             SERVICE=$1
@@ -38,25 +43,13 @@ jobs:
             
             echo "Triggering workflow for $TYPE service: $SERVICE"
             
-            # Try to trigger the workflow
-            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/$REPO/actions/workflows/$TYPE/$SERVICE.yml/dispatches" \
-              -d "{\"ref\":\"${{ github.ref_name }}\"}")
-            
-            # Split response into body and status code
-            HTTP_BODY=$(echo "$RESPONSE" | head -n 1)
-            HTTP_STATUS=$(echo "$RESPONSE" | tail -n 1)
-            
-            if [ "$HTTP_STATUS" -ne 204 ]; then
+            # Use gh cli for workflow triggering with full path
+            gh workflow run ".github/workflows/$TYPE/$SERVICE.yml" --ref "${{ github.ref_name }}" || {
               echo "Failed to trigger workflow for $SERVICE"
-              echo "Status: $HTTP_STATUS"
-              echo "Response: $HTTP_BODY"
               return 1
-            else
-              echo "Successfully triggered workflow for $SERVICE"
-            fi
+            }
+            
+            echo "Successfully triggered workflow for $SERVICE"
           }
           
           # Trigger service workflows
