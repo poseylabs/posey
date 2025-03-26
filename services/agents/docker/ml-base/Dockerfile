@@ -8,7 +8,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
   # Add retry and timeout settings
   PIP_RETRIES=5 \
   PIP_TIMEOUT=200 \
-  PIP_DEFAULT_TIMEOUT=200
+  PIP_DEFAULT_TIMEOUT=200 \
+  # Explicitly disable CUDA to prevent hangs
+  CUDA_VISIBLE_DEVICES="" \
+  TORCH_CUDA_ARCH_LIST="None" \
+  USE_CUDA=0
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -46,8 +50,8 @@ RUN echo "=== System Resources ===" && \
 # First install core numerical packages
 RUN pip install --no-cache-dir numpy pandas scipy --verbose || (echo "Failed to install core numerical packages" && exit 1)
 
-# Install PyTorch separately to isolate potential issues
-RUN grep "^torch" ml-requirements.txt | xargs pip install --no-cache-dir --verbose || (echo "Failed to install PyTorch" && exit 1)
+# Install PyTorch separately with CPU-only version to avoid CUDA issues
+RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu --verbose || (echo "Failed to install PyTorch CPU version" && exit 1)
 
 # Install transformers libraries
 RUN grep "^transformers\|^sentence-transformers" ml-requirements.txt | xargs pip install --no-cache-dir --verbose || (echo "Failed to install transformer libraries" && exit 1)
@@ -55,11 +59,11 @@ RUN grep "^transformers\|^sentence-transformers" ml-requirements.txt | xargs pip
 # Install LangChain packages
 RUN grep "^langchain" ml-requirements.txt | xargs pip install --no-cache-dir --verbose || (echo "Failed to install LangChain packages" && exit 1)
 
-# Install all remaining packages
+# Install all remaining packages (except torch which we installed CPU-only version)
 RUN cat ml-requirements.txt | grep -v "^torch\|^transformers\|^sentence-transformers\|^langchain\|^numpy\|^pandas\|^scipy" | xargs pip install --no-cache-dir --verbose || (echo "Failed to install remaining ML packages" && exit 1)
 
 # Verify that installation succeeded
-RUN python -c "import torch; import transformers; import langchain; print('PyTorch version:', torch.__version__); print('Transformers version:', transformers.__version__); print('ML dependencies installed successfully')"
+RUN python -c "import torch; import transformers; import langchain; print('PyTorch version:', torch.__version__); print('CUDA available:', torch.cuda.is_available()); print('Transformers version:', transformers.__version__); print('ML dependencies installed successfully')"
 
 # Clean up build files
 RUN rm -rf /tmp/build

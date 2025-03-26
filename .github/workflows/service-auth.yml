@@ -15,8 +15,6 @@ env:
   ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
   SERVICE: auth
   DOCKER_IMAGE_NAME: posey-auth
-  YARN_NETWORK_CONCURRENCY: 1
-  YARN_NETWORK_TIMEOUT: 300000
   DOCKER_BUILDKIT: 1
   BUILDKIT_PROGRESS: plain
 
@@ -40,6 +38,9 @@ jobs:
           corepack enable
           corepack prepare yarn@4.5.1 --activate
           yarn --version
+          # Configure Yarn settings properly
+          yarn config set httpTimeout 300000
+          yarn config set networkConcurrency 1
           # Show available commands for troubleshooting
           yarn config -v
 
@@ -91,7 +92,6 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --build-arg YARN_NETWORK_TIMEOUT=300000 \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
