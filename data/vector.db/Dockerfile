@@ -1,10 +1,11 @@
 FROM qdrant/qdrant:latest
 
-# Install Node.js
+# Install Node.js and Yarn
 RUN apt-get update && apt-get install -y \
   curl \
   && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
   && apt-get install -y nodejs \
+  && npm install -g yarn \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -19,7 +20,7 @@ COPY scripts /qdrant/scripts/
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN yarn install --frozen-lockfile
 
 # Create startup script
 COPY docker-entrypoint.sh /docker-entrypoint.sh

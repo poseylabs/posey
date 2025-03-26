@@ -57,7 +57,7 @@ jobs:
           ls -la data/vector.db/
           
       - name: Build Vector DB
-        timeout-minutes: 15
+        timeout-minutes: 30
         run: |
           # Build using the data/vector.db directory as context
           cd data/${SERVICE}
