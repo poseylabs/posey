@@ -34,6 +34,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          
+      - name: Enable Corepack and prepare Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@4.5.1 --activate
+          yarn --version
+          
+      - name: Setup Yarn cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
           cache: 'yarn'
       
       - name: Configure DNS and network
