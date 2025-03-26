@@ -30,7 +30,6 @@ COPY services/auth ./services/auth/
 # Install dependencies (only what's needed)
 RUN yarn config set httpTimeout 120000 && \
   yarn config set networkConcurrency 1 && \
-  yarn config set verbose true && \
   yarn workspaces focus @posey.ai/auth --production --verbose
 
 # Set working directory to the auth service
