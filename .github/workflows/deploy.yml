@@ -3,9 +3,16 @@ name: Posey Deploy Manager
 on:
   workflow_run:
     workflows:
-      - "Build All Posey Services"
+      - "Posey Build Orchestrator"
       - "Build Voyager Service"
-      - "Posey Infrastructure"
+      - "Build Auth Service"
+      - "Build Supertokens Service"
+      - "Build MCP Service"
+      - "Build Agents Service"
+      - "Build Cron Service"
+      - "Build Postgres Service"
+      - "Build Vector DB Service"
+      - "Build Couchbase Service"
     types:
       - completed
   workflow_dispatch:
