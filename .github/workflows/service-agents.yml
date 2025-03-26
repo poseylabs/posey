@@ -40,45 +40,27 @@ jobs:
         id: check-ml-base
         shell: bash
         run: |
-          # Debug output to see what's happening
           echo "Checking for ML base image..."
           
-          # Debug registry access
-          echo "Available images in registry:"
-          doctl registry repository list || echo "Failed to list repositories"
+          # Define the correct image path
+          ML_BASE_IMAGE="registry.digitalocean.com/posey/agents-ml-base:latest"
           
-          # Get the image name with registry
-          IMAGE_NAME="registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/agents-ml-base:latest"
-          echo "Looking for image: $IMAGE_NAME"
-          
-          # List available tags for the repository
-          echo "Available tags for agents-ml-base:"
-          doctl registry repository list-tags agents-ml-base || echo "Failed to list tags or repository doesn't exist"
-          
-          # Try the manifest check
-          if docker manifest inspect $IMAGE_NAME &>/dev/null; then
-            echo "ML base image exists"
+          # Simple check for the image
+          echo "Looking for image: $ML_BASE_IMAGE"
+          if docker manifest inspect $ML_BASE_IMAGE &>/dev/null; then
+            echo "✅ Found ML base image"
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "ML base image does not exist"
-            echo "Attempting with explicit docker login..."
+            # Try listing repository contents for debugging
+            echo "⚠️ Image not found, checking repository contents:"
+            doctl registry repository list || echo "Failed to list repositories"
+            doctl registry repository list-tags agents-ml-base || echo "Failed to list tags"
             
-            # Try explicit docker login
-            docker login registry.digitalocean.com -u ${{ secrets.DO_API_TOKEN }} -p ${{ secrets.DO_API_TOKEN }}
-            
-            # Try again after explicit login
-            if docker manifest inspect $IMAGE_NAME &>/dev/null; then
-              echo "ML base image exists after explicit login"
-              echo "exists=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "ML base image still not found after explicit login"
-              echo "exists=false" >> "$GITHUB_OUTPUT"
-              echo "::error::ML Base Image not found! Please run the docker-ml-base-image workflow first."
-              exit 1
-            fi
+            # Fail with clear error
+            echo "❌ ML base image not found: $ML_BASE_IMAGE"
+            echo "::error::ML Base Image not found! Please run the docker-ml-base-image workflow first."
+            exit 1
           fi
-          echo "Contents of GITHUB_OUTPUT:"
-          cat "$GITHUB_OUTPUT" || echo "File not accessible"
 
   build-agents:
     name: Build Agents Service

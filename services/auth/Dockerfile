@@ -28,7 +28,7 @@ COPY packages ./packages/
 COPY services/auth ./services/auth/
 
 # Install dependencies (only what's needed)
-RUN yarn workspaces focus @posey/auth --production
+RUN yarn workspaces focus @posey.ai/auth --production
 
 # Set working directory to the auth service
 WORKDIR /app/services/auth
