@@ -15,13 +15,17 @@ RUN corepack enable && corepack prepare yarn@4.5.1 --activate
 # Create app directory
 WORKDIR /app
 
-# Copy only what's needed for the auth service
-COPY package.json ./
-COPY yarn.lock ./
-COPY .yarnrc.yml ./
-COPY .yarn/ ./.yarn/
-COPY packages/ ./packages/
-COPY services/auth/ ./services/auth/
+# Copy only the files needed for dependencies (improve caching)
+COPY package.json yarn.lock .yarnrc.yml ./
+
+# Handle the .yarn directory if it exists (but don't fail if missing)
+RUN mkdir -p ./.yarn && if [ -d ".yarn" ]; then cp -r .yarn/* ./.yarn/; fi
+
+# Copy packages (needed for workspaces)
+COPY packages ./packages/
+
+# Copy the auth service
+COPY services/auth ./services/auth/
 
 # Install dependencies (only what's needed)
 RUN yarn workspaces focus @posey/auth --production
@@ -29,8 +33,10 @@ RUN yarn workspaces focus @posey/auth --production
 # Set working directory to the auth service
 WORKDIR /app/services/auth
 
-# Set up migrations
-RUN chmod +x /app/services/auth/scripts/run-migrations.sh
+# Set up migrations (if they exist)
+RUN if [ -f "/app/services/auth/scripts/run-migrations.sh" ]; then \
+  chmod +x /app/services/auth/scripts/run-migrations.sh; \
+  fi
 
 # Add environment variables
 ARG POSTGRES_DSN_POSEY
