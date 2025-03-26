@@ -19,7 +19,7 @@ COPY requirements.txt .
 RUN mkdir -p /wheels
 
 # Build wheels for requirements with parallel installation
-RUN pip wheel --wheel-dir=/wheels -r requirements.txt -j 4
+RUN pip wheel --wheel-dir=/wheels -r requirements.txt
 
 # Final production stage - also using the ML base image
 FROM registry.digitalocean.com/posey/agents-ml-base:latest
@@ -33,7 +33,7 @@ WORKDIR /app
 
 # Copy wheels from builder and install with parallel processing
 COPY --from=builder /wheels /wheels
-RUN pip install --no-index --find-links=/wheels /wheels/*.whl -j 4 && \
+RUN pip install --no-index --find-links=/wheels /wheels/*.whl && \
     rm -rf /wheels
 
 # Create necessary directories and set permissions
