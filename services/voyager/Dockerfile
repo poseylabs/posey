@@ -42,6 +42,29 @@ RUN pip install /wheels/* \
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/voyager/.cache/ms-playwright
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
+# Install browser dependencies first as root before switching to non-root user
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends \
+  libx11-xcb1 \
+  libxcb-dri3-0 \
+  libxcomposite1 \
+  libxcursor1 \
+  libxdamage1 \
+  libxi6 \
+  libxtst6 \
+  libnss3 \
+  libcups2 \
+  libxss1 \
+  libxrandr2 \
+  libasound2 \
+  libatk1.0-0 \
+  libatk-bridge2.0-0 \
+  libpango-1.0-0 \
+  libpangocairo-1.0-0 \
+  libgtk-3-0 \
+  libgbm1 \
+  && rm -rf /var/lib/apt/lists/*
+
 # Since we're using a non-root user, make the directory now
 RUN mkdir -p ${PLAYWRIGHT_BROWSERS_PATH} && \
   chown -R voyager:voyager ${PLAYWRIGHT_BROWSERS_PATH}
@@ -53,10 +76,10 @@ RUN chown -R voyager:voyager /src
 # Switch to non-root user
 USER voyager
 
-# Download Chromium with retry mechanism for reliability
-RUN python -m playwright install chromium --with-deps || \
-  python -m playwright install chromium --with-deps || \
-  python -m playwright install chromium --with-deps
+# Download Chromium without using --with-deps since we installed deps manually
+RUN python -m playwright install chromium || \
+  python -m playwright install chromium || \
+  python -m playwright install chromium
 
 EXPOSE 7777
 
