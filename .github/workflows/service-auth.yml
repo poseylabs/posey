@@ -29,24 +29,32 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        
+
       - name: Setup node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          
+
       - name: Enable Corepack and prepare Yarn
         run: |
           corepack enable
           corepack prepare yarn@4.5.1 --activate
           yarn --version
-          
-      - name: Setup Yarn cache
-        uses: actions/setup-node@v4
+          # Show available commands for troubleshooting
+          yarn config -v
+
+      - name: Setup cache
+        uses: actions/cache@v3
         with:
-          node-version: 20
-          cache: 'yarn'
-      
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .pnp.cjs
+            .pnp.loader.mjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
       - name: Configure DNS and network
         run: |
           echo "Setting DNS cache TTL to improve networking..."
