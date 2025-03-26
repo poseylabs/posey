@@ -9,6 +9,7 @@ on:
     paths:
       - 'services/agents/**'
       - '.github/workflows/service-agents.yml'
+      - '!services/agents/docker/ml-base/**'
 
 env:
   DOCTL_VERSION: 1.92.1
@@ -17,8 +18,41 @@ env:
   DOCKER_IMAGE_NAME: posey-agents
 
 jobs:
+  check-ml-base:
+    name: Check ML Base Image
+    runs-on:
+      group: posey-runners
+    environment: PRODUCTION
+    outputs:
+      ml_base_exists: ${{ steps.check-ml-base.outputs.exists }}
+    steps:
+      - name: Install doctl
+        run: |
+          cd /tmp
+          curl -sL https://github.com/digitalocean/doctl/releases/download/v${{ env.DOCTL_VERSION }}/doctl-${{ env.DOCTL_VERSION }}-linux-arm64.tar.gz | tar -xzv
+          sudo mv doctl /usr/local/bin/
+          doctl version
+          doctl auth init -t ${{ secrets.DO_API_TOKEN }}
+
+      - name: Login to DigitalOcean Container Registry
+        run: |
+          doctl registry login --expiry-seconds 3600
+      
+      - name: Check if ML base image exists
+        id: check-ml-base
+        run: |
+          if docker manifest inspect registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/agents-ml-base:latest &>/dev/null; then
+            echo "ML base image exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "ML base image does not exist"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
   build-agents:
     name: Build Agents Service
+    needs: [check-ml-base]
+    if: needs.check-ml-base.outputs.ml_base_exists == 'true'
     runs-on:
       group: posey-runners
     environment: PRODUCTION
@@ -49,14 +83,14 @@ jobs:
           docker buildx inspect --bootstrap
           
       - name: Build Agents Service
-        timeout-minutes: 45
+        timeout-minutes: 30
         run: |
           # Change to service directory
           cd services/${SERVICE}
           
           echo "Building ${SERVICE}..."
           
-          # Build with Docker Buildx - remove local tag, use fully qualified tags only
+          # Build with Docker Buildx - using ML base image
           DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
             --platform linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
@@ -67,4 +101,17 @@ jobs:
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
             -f Dockerfile \
             --push \
-            . 
+            .
+
+  missing-ml-base:
+    name: ML Base Image Not Found
+    needs: [check-ml-base]
+    if: needs.check-ml-base.outputs.ml_base_exists != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Alert Missing ML Base Image
+        run: |
+          echo "ERROR: ML base image is missing from registry!"
+          echo "Please run the ml-base-image workflow first to build the ML base image."
+          echo "You can trigger it manually from the Actions tab."
+          exit 1 

@@ -21,9 +21,6 @@ COPY package.json yarn.lock .yarnrc.yml ./
 # Handle the .yarn directory
 RUN mkdir -p ./.yarn
 
-# Try to copy .yarn directory if it exists
-COPY [".yarn", "./.yarn/"]
-
 # Copy packages (needed for workspaces)
 COPY packages ./packages/
 
