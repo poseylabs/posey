@@ -48,9 +48,29 @@ jobs:
           docker buildx create --name multiplatform-builder --driver docker-container --use
           docker buildx inspect --bootstrap
           
+      - name: Debug directory structure
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Content of data directory:"
+          ls -la data/
+          echo "Content of data/postgres directory:"
+          ls -la data/postgres/
+          echo "Looking for src directory:"
+          find data/postgres -type d -name "src" || echo "src directory not found"
+          echo "Checking Dockerfile existence:"
+          if [ -f "data/${SERVICE}/Dockerfile" ]; then
+            echo "Dockerfile exists at data/${SERVICE}/Dockerfile"
+            cat data/${SERVICE}/Dockerfile | grep -n COPY
+          else
+            echo "ERROR: Dockerfile not found at data/${SERVICE}/Dockerfile"
+          fi
+          
       - name: Build Postgres
         timeout-minutes: 15
         run: |
+          # Build using the data/postgres directory as context
+          cd data/${SERVICE}
+          
           echo "Building data service $SERVICE as $DOCKER_IMAGE_NAME..."
           
           # Build with Docker Buildx
@@ -63,6 +83,6 @@ jobs:
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:$(echo $GITHUB_SHA | cut -c1-7) \
-            -f data/${SERVICE}/Dockerfile \
+            -f Dockerfile \
             --push \
             . 
