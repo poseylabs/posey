@@ -3,7 +3,6 @@ name: Posey Deploy Manager
 on:
   workflow_run:
     workflows:
-      - "Posey Build Orchestrator"
       - "Build Voyager Service"
       - "Build Auth Service"
       - "Build Supertokens Service"
@@ -15,7 +14,9 @@ on:
       - "Build Couchbase Service"
     types:
       - completed
-  workflow_dispatch:
+    branches:
+      - main  # Only deploy from main branch
+  workflow_dispatch:  # Keep manual trigger
 
 env:
   ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}

@@ -1,16 +1,17 @@
 name: Posey Build Orchestrator
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # Keep manual trigger
+  # Only trigger on changes to shared infrastructure or config
   push:
     branches:
       - main
       - develop
-    paths-ignore:
-      - 'services/*/Dockerfile'
-      - 'data/*/Dockerfile'
-      - '.github/workflows/service-*.yml'
-      - '.github/workflows/data-*.yml'
+    paths:
+      - 'packages/**'         # Shared packages
+      - 'k8s/shared/**'       # Shared Kubernetes config
+      - '.github/workflows/orchestrate.yml'  # Changes to this workflow itself
+      - 'scripts/**'          # Shared scripts
 
 # Add permissions to allow workflow dispatch
 permissions:
