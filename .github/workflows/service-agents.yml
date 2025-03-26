@@ -8,7 +8,7 @@ on:
       - develop
     paths:
       - 'services/agents/**'
-      - '.github/workflows/services/agents.yml'
+      - '.github/workflows/service-agents.yml'
 
 env:
   DOCTL_VERSION: 1.92.1
@@ -48,12 +48,9 @@ jobs:
           docker buildx inspect --bootstrap
           
       - name: Build Agents Service
-        timeout-minutes: 25  # Extended timeout for agents
+        timeout-minutes: 25
         run: |
-          cd services
-          
           echo "Building ${SERVICE}..."
-          echo "Using extended timeout (25m) due to potentially longer build time"
           
           # Build with Docker Buildx
           DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
@@ -65,6 +62,6 @@ jobs:
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
-            -f ${SERVICE}/Dockerfile \
+            -f services/${SERVICE}/Dockerfile \
             --push \
-            ${SERVICE} 
+            . 

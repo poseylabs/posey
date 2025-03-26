@@ -8,7 +8,7 @@ on:
       - develop
     paths:
       - 'data/couchbase/**'
-      - '.github/workflows/data/couchbase.yml'
+      - '.github/workflows/data-couchbase.yml'
 
 env:
   DOCTL_VERSION: 1.92.1
@@ -51,8 +51,6 @@ jobs:
       - name: Build Couchbase
         timeout-minutes: 15
         run: |
-          cd data
-          
           echo "Building data service $SERVICE as $DOCKER_IMAGE_NAME..."
           
           # Build with Docker Buildx
@@ -65,6 +63,6 @@ jobs:
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:$(echo $GITHUB_SHA | cut -c1-7) \
-            -f ${SERVICE}/Dockerfile \
+            -f data/${SERVICE}/Dockerfile \
             --push \
-            .. 
+            . 
