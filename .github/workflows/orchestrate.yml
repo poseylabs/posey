@@ -23,31 +23,50 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+        
       - name: Trigger Individual Service Workflows
         run: |
           GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
           REPO="${{ github.repository }}"
           
-          # Trigger service workflows
-          SERVICES="voyager auth supertokens mcp agents cron"
-          
-          for SERVICE in $SERVICES; do
-            echo "Triggering workflow for service: $SERVICE"
-            curl -X POST \
+          # Function to trigger workflow with error handling
+          trigger_workflow() {
+            SERVICE=$1
+            TYPE=$2  # 'services' or 'data'
+            
+            echo "Triggering workflow for $TYPE service: $SERVICE"
+            
+            # Try to trigger the workflow
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
               -H "Authorization: token $GITHUB_TOKEN" \
               -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/$REPO/actions/workflows/services/$SERVICE.yml/dispatches" \
-              -d '{"ref":"${{ github.ref_name }}"}'
+              "https://api.github.com/repos/$REPO/actions/workflows/$TYPE/$SERVICE.yml/dispatches" \
+              -d "{\"ref\":\"${{ github.ref_name }}\"}")
+            
+            # Split response into body and status code
+            HTTP_BODY=$(echo "$RESPONSE" | head -n 1)
+            HTTP_STATUS=$(echo "$RESPONSE" | tail -n 1)
+            
+            if [ "$HTTP_STATUS" -ne 204 ]; then
+              echo "Failed to trigger workflow for $SERVICE"
+              echo "Status: $HTTP_STATUS"
+              echo "Response: $HTTP_BODY"
+              return 1
+            else
+              echo "Successfully triggered workflow for $SERVICE"
+            fi
+          }
+          
+          # Trigger service workflows
+          SERVICES="voyager auth supertokens mcp agents cron"
+          for SERVICE in $SERVICES; do
+            trigger_workflow "$SERVICE" "services"
           done
           
           # Trigger data services workflows
           DATA_SERVICES="postgres vector-db couchbase"
-          
           for SERVICE in $DATA_SERVICES; do
-            echo "Triggering workflow for data service: $SERVICE"
-            curl -X POST \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/$REPO/actions/workflows/data/$SERVICE.yml/dispatches" \
-              -d '{"ref":"${{ github.ref_name }}"}'
+            trigger_workflow "$SERVICE" "data"
           done
