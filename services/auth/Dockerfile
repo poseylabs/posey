@@ -18,8 +18,11 @@ WORKDIR /app
 # Copy only the files needed for dependencies (improve caching)
 COPY package.json yarn.lock .yarnrc.yml ./
 
-# Handle the .yarn directory if it exists (but don't fail if missing)
-RUN mkdir -p ./.yarn && if [ -d ".yarn" ]; then cp -r .yarn/* ./.yarn/; fi
+# Handle the .yarn directory
+RUN mkdir -p ./.yarn
+
+# Try to copy .yarn directory if it exists
+COPY [".yarn", "./.yarn/"]
 
 # Copy packages (needed for workspaces)
 COPY packages ./packages/

@@ -4,13 +4,21 @@ FROM node:20-slim as builder
 WORKDIR /app
 
 # Enable Corepack for Yarn 4
-RUN corepack enable && corepack prepare yarn@4.5.1 --activate
+RUN corepack enable
+
+# Create package.json with packageManager field to avoid Yarn warnings
+RUN echo '{"packageManager": "yarn@4.5.1"}' > /app/package.json.temp
 
 # Copy package files
 COPY package*.json ./
+RUN if [ ! -f "package.json" ]; then mv package.json.temp package.json; else rm package.json.temp; fi
 
-# Install dependencies
-RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn install
+# Prepare Yarn and install dependencies with a timeout
+RUN corepack prepare yarn@4.5.1 --activate && \
+  yarn config set httpTimeout 600000 && \
+  yarn config set networkTimeout 600000 && \
+  yarn install --network-timeout 600000 || \
+  (echo "Retrying yarn install..." && yarn install --network-timeout 600000)
 
 # Copy source code and config files
 COPY tsconfig.json ./
