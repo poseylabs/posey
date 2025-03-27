@@ -1,7 +1,19 @@
 # Build stage
 FROM node:20-slim AS builder
 
+# Install only the minimal dependencies needed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
+
+# Set up npm for faster installs
+ENV NODE_ENV=production
+ENV NPM_CONFIG_LOGLEVEL=error
+ENV NPM_CONFIG_FUND=false
+ENV NPM_CONFIG_AUDIT=false
+ENV NPM_CONFIG_CACHE=/tmp/.npm
 
 # Configure npm for better network resilience
 RUN npm config set fetch-retries 5 \
@@ -9,16 +21,15 @@ RUN npm config set fetch-retries 5 \
   && npm config set fetch-retry-maxtimeout 60000 \
   && npm config set registry https://registry.npmjs.org/
 
-# Copy only the necessary files for the cron service
-COPY services/cron/package*.json ./services/cron/
-COPY services/cron/tsconfig.json ./services/cron/
-COPY services/cron/src ./services/cron/src
+# Copy package files first for better layer caching
+COPY package*.json ./
 
-# Move to the service directory
-WORKDIR /app/services/cron
+# Install dependencies using npm ci instead of npm install (faster and more reliable)
+RUN npm ci --omit=dev --no-optional
 
-# Install dependencies with npm with retry logic
-RUN for i in 1 2 3 4 5; do npm install && break || if [ $i -eq 5 ]; then exit 1; fi; sleep 15; done
+# Copy only the necessary source files
+COPY tsconfig.json ./
+COPY src ./src
 
 # Build the application
 RUN npm run build
@@ -28,13 +39,17 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install curl for healthcheck
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Install curl for healthcheck (minimal installation)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  curl \
+  && rm -rf /var/lib/apt/lists/*
 
-# Copy built app from builder stage
-COPY --from=builder /app/services/cron/dist ./dist
-COPY --from=builder /app/services/cron/node_modules ./node_modules
-COPY --from=builder /app/services/cron/package*.json ./
+ENV NODE_ENV=production
+
+# Copy only what's needed from the builder stage
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data \
