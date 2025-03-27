@@ -34,6 +34,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: services/cron/package-lock.json
+
       - name: Enable npm debug logs
         run: |
           npm config set loglevel verbose
@@ -44,8 +51,8 @@ jobs:
 
       - name: Reconfigure git to use HTTP instead of SSH
         run: |
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://github.com/".insteadOf git@github.com:"
+          git config --global url."https://github.com/".insteadOf ssh://git@github.com/"
 
       - name: Configure network
         run: |
@@ -80,7 +87,7 @@ jobs:
           docker buildx inspect
           
       - name: Build Cron Service
-        timeout-minutes: 60
+        timeout-minutes: 90
         working-directory: services/cron
         run: |
           echo "Building ${SERVICE} service..."

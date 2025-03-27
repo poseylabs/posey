@@ -44,7 +44,7 @@ RUN --mount=type=bind,target=/app/npm-logs \
   npm cache clean --force && \
   for i in 1 2 3 4 5; do \
   echo "Attempt $i: Installing npm dependencies..." && \
-  TIMING=1 npm install --no-optional --no-audit --no-fund --prefer-offline --verbose 2>&1 | tee "/app/npm-logs/npm-install-attempt-${i}.log" && break || \
+  TIMING=1 npm ci --no-optional --no-audit --no-fund --prefer-offline --verbose 2>&1 | tee "/app/npm-logs/npm-install-attempt-${i}.log" && break || \
   if [ $i -eq 5 ]; then \
   echo "All npm install attempts failed. Check logs at /app/npm-logs/" && \
   cat "/app/npm-logs/npm-install-attempt-${i}.log" && \
