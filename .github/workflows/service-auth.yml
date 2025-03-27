@@ -48,30 +48,29 @@ jobs:
           # Build stage
           FROM node:20-slim as builder
 
-          # Install postgres client
+          # Install postgres client and other tools
           RUN apt-get update \\
-            && apt-get install -y postgresql-client \\
+            && apt-get install -y postgresql-client curl \\
             && rm -rf /var/lib/apt/lists/*
 
           # Enable Corepack for Yarn 4
           RUN corepack enable && corepack prepare yarn@4.5.1 --activate
 
-          # Create app directory
+          # Create service directory
           WORKDIR /app
 
-          # Copy entire repo to ensure context is available
-          COPY . /app
+          # Copy only auth service files to avoid workspace dependency issues
+          COPY services/auth/ ./
 
-          # Configure Yarn with relaxed settings
-          RUN yarn config set httpTimeout 300000 && \\
-              yarn config set networkConcurrency 4 && \\
-              yarn config set compressionLevel 0
-              
-          # Move to the auth service directory
-          WORKDIR /app/services/auth
+          # Set up standalone mode to avoid workspace resolution
+          RUN echo '{"name": "auth-service", "private": true, "packageManager": "yarn@4.5.1"}' > package.json
           
-          # Install dependencies with fallback options
-          RUN yarn install || yarn install --mode=update-lockfile || yarn install --no-immutable
+          # Install dependencies with optimized settings
+          RUN yarn config set httpTimeout 600000 && \\
+              yarn config set networkConcurrency 1 && \\
+              yarn config set compressionLevel 0 && \\
+              yarn config set enableGlobalCache false && \\
+              yarn install --no-immutable --no-lockfile --network-timeout 600000 --verbose
 
           # Build the service
           RUN yarn build
@@ -86,9 +85,9 @@ jobs:
 
           # Copy built app from builder
           WORKDIR /app
-          COPY --from=builder /app/services/auth/dist ./dist
-          COPY --from=builder /app/services/auth/package.json ./
-          COPY --from=builder /app/services/auth/node_modules ./node_modules
+          COPY --from=builder /app/dist ./dist
+          COPY --from=builder /app/node_modules ./node_modules
+          COPY --from=builder /app/package.json ./
 
           # Environment variables
           ENV NODE_ENV=production
