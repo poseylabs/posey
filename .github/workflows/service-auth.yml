@@ -39,18 +39,59 @@ jobs:
 
       - name: Optimize original Dockerfile
         run: |
-          # Create multi-stage build by patching the existing Dockerfile
-          sed -i -E 's/^FROM node:20-slim$/FROM node:20-slim AS builder/' services/${SERVICE}/Dockerfile
+          # Check original Dockerfile
+          echo "==== Original Dockerfile ===="
+          cat services/${SERVICE}/Dockerfile
           
-          # Add production stage at the end
-          cat >> services/${SERVICE}/Dockerfile << 'EOF'
+          # Create an optimized Dockerfile - safer than trying to edit in place
+          cat > services/${SERVICE}/Dockerfile.new << EOF
+          # Build stage
+          FROM node:20-slim as builder
+
+          # Install postgres client
+          RUN apt-get update \\
+            && apt-get install -y postgresql-client \\
+            && rm -rf /var/lib/apt/lists/*
+
+          # Enable Corepack for Yarn 4
+          RUN corepack enable && corepack prepare yarn@4.5.1 --activate
+
+          # Create app directory
+          WORKDIR /app
+
+          # Copy only the files needed for dependencies (improve caching)
+          COPY package.json ./
+          COPY .yarnrc.yml ./
+          # Add a dummy yarn.lock if it doesn't exist
+          RUN if [ ! -f yarn.lock ]; then echo '{}' > yarn.lock; fi
+
+          # Handle the .yarn directory
+          RUN mkdir -p ./.yarn
+
+          # Copy packages (needed for workspaces)
+          COPY packages ./packages/
+
+          # Copy the auth service
+          COPY services/auth ./services/auth/
+
+          # Install dependencies with optimized settings
+          RUN yarn config set httpTimeout 300000 && \\
+              yarn config set networkConcurrency 4 && \\
+              yarn config set compressionLevel 0 && \\
+              yarn install --immutable
+
+          # Set working directory to the auth service
+          WORKDIR /app/services/auth
+
+          # Build the service
+          RUN yarn build
 
           # Production image
           FROM node:20-slim
 
           # Install postgres client
-          RUN apt-get update \
-            && apt-get install -y postgresql-client \
+          RUN apt-get update \\
+            && apt-get install -y postgresql-client \\
             && rm -rf /var/lib/apt/lists/*
 
           # Copy built app from builder
@@ -66,13 +107,11 @@ jobs:
           CMD ["node", "dist/main.js"]
           EOF
           
-          # Optimize Yarn configuration in the Dockerfile
-          sed -i 's/yarn config set httpTimeout [0-9]*/yarn config set httpTimeout 300000/' services/${SERVICE}/Dockerfile
-          sed -i 's/networkConcurrency 1/networkConcurrency 4/' services/${SERVICE}/Dockerfile
-          sed -i '/RUN yarn/i RUN yarn config set compressionLevel 0' services/${SERVICE}/Dockerfile
+          # Replace with optimized version
+          mv services/${SERVICE}/Dockerfile.new services/${SERVICE}/Dockerfile
           
-          # Update install command to use workspaces focus for production 
-          sed -i 's/yarn install/yarn workspaces focus --production @posey\/auth/' services/${SERVICE}/Dockerfile
+          echo "==== Optimized Dockerfile ===="
+          cat services/${SERVICE}/Dockerfile
           
       - name: Install doctl
         run: |
