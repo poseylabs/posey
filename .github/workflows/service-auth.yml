@@ -62,19 +62,17 @@ jobs:
           # Copy the entire repository context
           COPY . /app
 
-          # Configure Yarn settings (keeping relevant ones)
-          RUN yarn config set httpTimeout 600000 && \\
-              yarn config set networkConcurrency 4 && \\
-              yarn config set compressionLevel 0 && \\
+          # Configure Yarn settings
+          RUN yarn config set httpTimeout 600000 && \
+              yarn config set networkConcurrency 1 && \
+              yarn config set compressionLevel 0 && \
               yarn config set enableGlobalCache false
               
           # Move to the auth service directory within the monorepo context
           WORKDIR /app/services/auth
           
-          # Install dependencies using the checked-in lockfile
-          # --immutable ensures reproducibility in CI
-          # --check-cache verifies integrity of cached packages
-          RUN yarn install --immutable --check-cache
+          # Install dependencies with fresh lockfile generation
+          RUN yarn install --mode=update-lockfile
 
           # Build the service
           # Removed the || echo part - let the build fail if it fails
