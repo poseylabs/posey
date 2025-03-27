@@ -1,16 +1,13 @@
 # Build stage
 FROM node:20-slim AS builder
 
-# Accept build arguments for npm/yarn configuration
-ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
-ARG NPM_CONFIG_FETCH_RETRIES=5
-ARG NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=10000
-ARG NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=60000
-ARG NPM_CONFIG_LOGLEVEL=verbose
-ARG NPM_CONFIG_TIMING=true
+# Set up environment for faster installs
+ENV NODE_ENV=production
+ENV YARN_NETWORK_TIMEOUT=300000
+ENV YARN_ENABLE_TELEMETRY=false
 
 # Install only the minimal dependencies needed
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
   git \
@@ -22,47 +19,44 @@ RUN git config --global url."https://github.com/".insteadOf git@github.com: \
 
 WORKDIR /app
 
-# Set up environment for faster installs
-ENV NODE_ENV=production
-ENV NPM_CONFIG_FUND=false
-ENV NPM_CONFIG_AUDIT=false
-ENV NPM_CONFIG_CACHE=/tmp/.npm
-
 # Enable Corepack for Yarn
-RUN corepack enable && \
-  corepack prepare yarn@stable --activate
+RUN corepack enable
 
 # Create a dummy root package.json with workspace reference
-RUN echo '{"name":"root","private":true,"workspaces":{"packages":["services/cron"]}}' > /app/package.json
-
-# Create services directory structure
 RUN mkdir -p /app/services/cron
 
-# Copy package files to the service directory
-COPY package.json tsconfig.json /app/services/cron/
+# Copy package.json first to read the package name and Yarn version
+COPY package.json /app/services/cron/
+COPY tsconfig.json /app/services/cron/
 COPY src /app/services/cron/src/
+
+# Extract package name and Yarn version from package.json
+RUN PACKAGE_NAME=$(node -p "require('/app/services/cron/package.json').name") && \
+  YARN_VERSION=$(node -p "require('/app/services/cron/package.json').packageManager.replace('yarn@', '')") && \
+  corepack prepare yarn@$YARN_VERSION --activate
+
+# Create workspace root package.json using the actual package name
+RUN PACKAGE_NAME=$(node -p "require('/app/services/cron/package.json').name") && \
+  echo "{\"name\":\"root\",\"private\":true,\"workspaces\":{\"packages\":[\"services/cron\"]}}" > /app/package.json
 
 # Create log directories
 RUN mkdir -p /app/yarn-logs
 
-# Change to service directory for next operations
-WORKDIR /app/services/cron
+# Change to the app root directory
+WORKDIR /app
 
-# Install dependencies using Yarn without lockfile enforcement
-RUN for i in 1 2 3 4 5; do \
-  echo "Attempt $i: Installing yarn dependencies..." && \
-  cd /app && \
-  YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn workspaces focus cron --production 2>&1 | tee "/app/yarn-logs/yarn-install-attempt-${i}.log" && break || \
-  if [ $i -eq 5 ]; then \
-  echo "All yarn install attempts failed. Check logs at /app/yarn-logs/" && \
-  cat "/app/yarn-logs/yarn-install-attempt-${i}.log" && \
-  exit 1; \
-  fi; \
-  echo "Retrying in 15 seconds..." && sleep 15; \
+# Try to install dependencies using yarn
+RUN mkdir -p /var/log/yarn_attempts && \
+  for i in $(seq 1 5); do \
+  echo "Yarn install attempt $i" > /var/log/yarn_attempts/attempt_$i.log && \
+  PACKAGE_NAME=$(node -p "require('./services/cron/package.json').name") && \
+  yarn workspace $PACKAGE_NAME install && break || \
+  if [ $i -eq 5 ]; then exit 1; fi; \
   done
 
 # Build the service
-RUN cd /app && yarn workspace cron build
+RUN PACKAGE_NAME=$(node -p "require('./services/cron/package.json').name") && \
+  yarn workspace $PACKAGE_NAME build
 
 # Production stage
 FROM node:20-slim
@@ -70,7 +64,7 @@ FROM node:20-slim
 WORKDIR /app
 
 # Install curl for healthcheck (minimal installation)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   curl \
   && rm -rf /var/lib/apt/lists/*
 
