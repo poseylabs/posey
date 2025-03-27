@@ -15,14 +15,22 @@ WORKDIR /app
 # Copy requirements file
 COPY requirements.txt .
 
-# Filter out dependencies already in the base image to prevent conflicts and reinstallation
-RUN grep -v -E "^(numpy|pandas|scipy|torch|transformers|sentence-transformers|langchain|pydantic_ai|scikit-learn)($|[><=])" requirements.txt > filtered-requirements.txt
+# Get list of already installed packages to avoid reinstallation
+RUN pip freeze | cut -d= -f1 > installed-packages.txt
+
+# Filter out any packages that are already installed in the base image
+RUN grep -v -f installed-packages.txt requirements.txt > unique-requirements.txt || true
+RUN echo "Unique packages to install:" && cat unique-requirements.txt
 
 # Create wheel directory
 RUN mkdir -p /wheels
 
-# Build wheels for requirements with parallel installation
-RUN pip wheel --wheel-dir=/wheels -r filtered-requirements.txt
+# Build wheels only for packages that aren't already installed
+RUN if [ -s unique-requirements.txt ]; then \
+    pip wheel --wheel-dir=/wheels -r unique-requirements.txt; \
+    else \
+    echo "No new packages to install"; \
+    fi
 
 # Final production stage - also using the ML base image
 FROM registry.digitalocean.com/posey/agents-ml-base:latest
@@ -34,9 +42,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Copy wheels from builder and install with parallel processing
+# Copy wheels from builder and install with --no-deps to prevent any conflicts
 COPY --from=builder /wheels /wheels
-RUN pip install --no-index --find-links=/wheels /wheels/*.whl && \
+RUN if [ -d "/wheels" ] && [ "$(ls -A /wheels 2>/dev/null)" ]; then \
+    pip install --no-index --find-links=/wheels --no-deps /wheels/*.whl; \
+    fi && \
     rm -rf /wheels
 
 # Create necessary directories and set permissions
