@@ -59,7 +59,6 @@ jobs:
 
           # Configure Yarn with relaxed settings
           RUN yarn config set httpTimeout 300000 && \\
-              yarn config set networkTimeout 300000 && \\
               yarn config set networkConcurrency 4 && \\
               yarn config set compressionLevel 0
               
