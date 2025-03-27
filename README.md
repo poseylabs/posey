@@ -7,7 +7,8 @@ This repository contains the source code for Posey – a lifelong personalized A
 ## Posey Status
 
 #### Infrastructure
-[![Posey Deploy Manager](https://github.com/poseylabs/posey/actions/workflows/deploy.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/deploy.yml)
+[![Posey Build Orchestrator](https://github.com/poseylabs/posey/actions/workflows/infra-orchestrate.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/infra-orchestrate.yml)
+[![Posey Deploy Manager](https://github.com/poseylabs/posey/actions/workflows/infra-deploy.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/infra-deploy.yml)
 
 #### Data Services
 [![Postgres](https://github.com/poseylabs/posey/actions/workflows/data-postgres.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/data-postgres.yml)

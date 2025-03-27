@@ -1,4 +1,9 @@
-FROM python:3.12-slim
+FROM --platform=$BUILDPLATFORM python:3.12-slim
+
+# Set ARG for platform targeting
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+RUN echo "Building on $BUILDPLATFORM for $TARGETPLATFORM"
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
