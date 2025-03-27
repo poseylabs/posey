@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-slim as builder
+FROM node:20-slim AS builder
 
 # Install postgres client and other tools
 RUN apt-get update \
@@ -9,20 +9,17 @@ RUN apt-get update \
 # Set base working directory
 WORKDIR /app
 
-# Enable Corepack for Yarn 4
-RUN corepack enable && corepack prepare yarn@4.5.1 --activate
-
 # Copy the entire repository context
 COPY . /app
 
 # Move to the auth service directory within the monorepo context
 WORKDIR /app/services/auth
 
-# Install dependencies with Yarn
-RUN yarn install --immutable
+# Install dependencies with npm
+RUN npm install
 
 # Build the service
-RUN yarn build
+RUN npm run build
 
 # Production image
 FROM node:20-slim
