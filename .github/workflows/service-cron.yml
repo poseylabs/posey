@@ -32,16 +32,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'yarn'
 
-      - name: Enable Corepack and prepare Yarn
+      - name: Configure DNS and network
+        run: |
+          echo "Setting DNS cache TTL to improve networking..."
+          echo "options single-request-reopen" | sudo tee -a /etc/resolv.conf
+          echo "options timeout:10" | sudo tee -a /etc/resolv.conf
+          # Increase TCP performance
+          sudo sysctl -w net.ipv4.tcp_slow_start_after_idle=0
+          sudo sysctl -w net.ipv4.tcp_fastopen=3
+
+      - name: Enable Corepack and optimize Yarn
         run: |
           corepack enable
           corepack prepare yarn@4.5.1 --activate
           yarn --version
-          # Configure Yarn settings properly
-          yarn config set httpTimeout 600000
-          yarn config set networkConcurrency 1
-          # Show available commands for troubleshooting
+          # Configure Yarn for maximum performance
+          yarn config set httpTimeout 300000
+          yarn config set networkConcurrency 4
+          yarn config set compressionLevel 0
+          yarn config set enableGlobalCache true
+          yarn config set nmMode hardlinks-local
+          yarn config set enableImmutableInstalls false
+          # Show all settings
           yarn config -v
 
       - name: Setup cache
@@ -52,16 +66,66 @@ jobs:
             .yarn/unplugged
             .pnp.cjs
             .pnp.loader.mjs
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+            node_modules/.cache
+            node_modules/.yarn-state.yml
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}-${{ github.run_id }}
           restore-keys: |
+            ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}-
             ${{ runner.os }}-yarn-
 
-      - name: Configure DNS and network
+      - name: Create optimized Dockerfile
         run: |
-          echo "Setting DNS cache TTL to improve networking..."
-          echo "options single-request-reopen" | sudo tee -a /etc/resolv.conf
-          echo "options timeout:10" | sudo tee -a /etc/resolv.conf
-        
+          cat > services/${SERVICE}/Dockerfile.optimized << 'EOF'
+          FROM node:20-slim AS builder
+
+          # Enable Corepack for Yarn
+          RUN corepack enable
+          RUN corepack prepare yarn@4.5.1 --activate
+
+          # Set up workdir
+          WORKDIR /app
+
+          # Optimize Yarn
+          RUN echo '{"packageManager": "yarn@4.5.1"}' > /app/package.json.temp
+          RUN if [ ! -f "package.json" ]; then mv package.json.temp package.json; else rm package.json.temp; fi
+
+          # Copy only essential files for dependencies
+          COPY package.json .yarnrc.yml ./
+          COPY packages/core/package.json ./packages/core/
+          COPY services/cron/package.json ./services/cron/
+
+          # Create required directories
+          RUN mkdir -p ./.yarn ./packages/core/src ./services/cron/src
+
+          # Optimized install 
+          RUN yarn config set httpTimeout 300000 && \
+              yarn config set networkConcurrency 4 && \
+              yarn config set compressionLevel 0 && \
+              yarn workspaces focus --production @posey/cron
+
+          # Copy service source files
+          COPY services/cron ./services/cron/
+          COPY packages/core/src ./packages/core/src/
+
+          # Build the application
+          WORKDIR /app/services/cron
+          RUN yarn build
+
+          # Production image
+          FROM node:20-slim
+
+          # Copy built app from builder
+          WORKDIR /app
+          COPY --from=builder /app/services/cron/dist ./dist
+          COPY --from=builder /app/services/cron/package.json ./
+          COPY --from=builder /app/node_modules ./node_modules
+
+          # Environment variables
+          ENV NODE_ENV=production
+
+          CMD ["node", "dist/main.js"]
+          EOF
+          
       - name: Install doctl
         run: |
           cd /tmp
@@ -97,9 +161,9 @@ jobs:
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
-            -f services/${SERVICE}/Dockerfile \
+            -f services/${SERVICE}/Dockerfile.optimized \
             --push \
-            services/${SERVICE}
+            .
             
       - name: Push images to registry
         run: |
