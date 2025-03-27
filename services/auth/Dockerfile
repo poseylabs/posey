@@ -17,8 +17,14 @@ COPY services/auth/src ./services/auth/src
 # Move to the auth service directory
 WORKDIR /app/services/auth
 
-# Install dependencies with npm
-RUN npm install
+# Configure npm for better network resilience
+RUN npm config set fetch-retries 5 \
+  && npm config set fetch-retry-mintimeout 10000 \
+  && npm config set fetch-retry-maxtimeout 60000 \
+  && npm config set registry https://registry.npmjs.org/
+
+# Install dependencies with npm (with retry logic)
+RUN for i in 1 2 3 4 5; do npm install && break || if [ $i -eq 5 ]; then exit 1; fi; sleep 15; done
 
 # Build the service
 RUN npm run build

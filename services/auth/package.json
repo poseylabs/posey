@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "nodemon --exec node --require ts-node/register src/main.ts",
     "dev:node": "NODE_ENV=development",
-    "build": "node --require ts-node/register src/main.ts",
+    "build": "tsc",
     "start:container": "scripts/run-migrations.sh && NODE_PATH=./src node --require ts-node/register --no-warnings src/main.ts",
     "start": "docker compose up -d",
     "docker:build": "docker build -t registry.digitalocean.com/posey/posey-auth:latest -f Dockerfile ../..",
