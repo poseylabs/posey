@@ -3,8 +3,10 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Copy entire context to ensure files are available
-COPY . /app
+# Copy only the necessary files for the cron service
+COPY services/cron/package*.json ./services/cron/
+COPY services/cron/tsconfig.json ./services/cron/
+COPY services/cron/src ./services/cron/src
 
 # Move to the service directory
 WORKDIR /app/services/cron
