@@ -1,10 +1,20 @@
 # Build stage
 FROM node:20-slim AS builder
 
+# Accept build arguments for npm configuration
+ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
+ARG NPM_CONFIG_FETCH_RETRIES=5
+ARG NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=10000
+ARG NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=60000
+
 # Install postgres client and other tools
 RUN apt-get update \
-  && apt-get install -y postgresql-client curl \
+  && apt-get install -y postgresql-client curl git \
   && rm -rf /var/lib/apt/lists/*
+
+# Set git to use HTTPS instead of SSH for GitHub
+RUN git config --global url."https://github.com/".insteadOf git@github.com: \
+  && git config --global url."https://github.com/".insteadOf ssh://git@github.com/
 
 # Set base working directory
 WORKDIR /app
@@ -18,13 +28,19 @@ COPY services/auth/src ./services/auth/src
 WORKDIR /app/services/auth
 
 # Configure npm for better network resilience
-RUN npm config set fetch-retries 5 \
-  && npm config set fetch-retry-mintimeout 10000 \
-  && npm config set fetch-retry-maxtimeout 60000 \
-  && npm config set registry https://registry.npmjs.org/
+RUN npm config set fetch-retries ${NPM_CONFIG_FETCH_RETRIES} \
+  && npm config set fetch-retry-mintimeout ${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT} \
+  && npm config set fetch-retry-maxtimeout ${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT} \
+  && npm config set registry ${NPM_CONFIG_REGISTRY}
 
-# Install dependencies with npm (with retry logic)
-RUN for i in 1 2 3 4 5; do npm install && break || if [ $i -eq 5 ]; then exit 1; fi; sleep 15; done
+# Install dependencies with clear cache first to ensure fresh install
+RUN npm cache clean --force \
+  && for i in 1 2 3 4 5; do \
+  echo "Attempt $i: Installing npm dependencies..." && \
+  npm install --no-fund --no-audit --prefer-offline && break || \
+  if [ $i -eq 5 ]; then exit 1; fi; \
+  echo "Retrying in 15 seconds..." && sleep 15; \
+  done
 
 # Build the service
 RUN npm run build
