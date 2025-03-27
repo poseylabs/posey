@@ -16,7 +16,10 @@ RUN corepack enable && corepack prepare yarn@4.5.1 --activate
 WORKDIR /app
 
 # Copy only the files needed for dependencies (improve caching)
-COPY package.json yarn.lock .yarnrc.yml ./
+COPY package.json ./
+COPY .yarnrc.yml ./
+# Add a dummy yarn.lock if it doesn't exist
+RUN if [ ! -f yarn.lock ]; then echo '{}' > yarn.lock; fi
 
 # Handle the .yarn directory
 RUN mkdir -p ./.yarn
@@ -30,7 +33,7 @@ COPY services/auth ./services/auth/
 # Install dependencies (only what's needed)
 RUN yarn config set httpTimeout 120000 && \
   yarn config set networkConcurrency 1 && \
-  yarn install --immutable
+  yarn install
 
 # Set working directory to the auth service
 WORKDIR /app/services/auth
