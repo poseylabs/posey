@@ -50,15 +50,6 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('services/agents/docker/ml-base/ml-requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-            
-      # Cache Docker layers to speed up builds
-      - name: Set up Docker cache
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
 
       - name: Install doctl
         run: |
@@ -199,16 +190,11 @@ jobs:
           DATE_TAG=$(date +%Y%m%d)
           GIT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
           
-          # Create cache directory if it doesn't exist
-          mkdir -p /tmp/.buildx-cache
-          
-          # Build with Docker Buildx - with improved caching
+          # Build with Docker Buildx - use registry-based caching instead of local
           docker buildx build \
             --platform linux/amd64 \
             --memory=14g \
             --memory-swap=16g \
-            --cache-from type=local,src=/tmp/.buildx-cache \
-            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg PIP_TIMEOUT=200 \
             --build-arg PIP_DEFAULT_TIMEOUT=200 \
@@ -220,10 +206,6 @@ jobs:
             -f Dockerfile \
             --push \
             . || (echo "BUILD FAILED - CHECKING LOGS" && docker logs $(docker ps -lq) && exit 1)
-            
-          # Move cache to prevent growth
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
             
       - name: Verify ML Base Image
         run: |
