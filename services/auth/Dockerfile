@@ -9,10 +9,12 @@ RUN apt-get update \
 # Set base working directory
 WORKDIR /app
 
-# Copy the entire repository context
-COPY . /app
+# Copy only the necessary files for the auth service
+COPY services/auth/package*.json ./services/auth/
+COPY services/auth/tsconfig.json ./services/auth/
+COPY services/auth/src ./services/auth/src
 
-# Move to the auth service directory within the monorepo context
+# Move to the auth service directory
 WORKDIR /app/services/auth
 
 # Install dependencies with npm
