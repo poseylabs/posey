@@ -95,7 +95,7 @@ jobs:
           docker buildx inspect --bootstrap
           
       - name: Build Agents Service
-        timeout-minutes: 30
+        timeout-minutes: 60
         run: |
           # Change to service directory
           cd services/${SERVICE}
