@@ -3,8 +3,9 @@ FROM node:20-slim AS builder
 
 # Set up environment for faster installs
 ENV NODE_ENV=production
-ENV YARN_NETWORK_TIMEOUT=300000
+# Use correct Yarn 4.x configuration format
 ENV YARN_ENABLE_TELEMETRY=false
+# Note: networkTimeout isn't used directly as an env var in Yarn 4.x
 
 # Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -22,6 +23,9 @@ WORKDIR /app
 
 # Enable Corepack for Yarn
 RUN corepack enable
+
+# Create Yarn configuration
+RUN echo 'httpTimeout: 300000' > /app/.yarnrc.yml
 
 # Create a dummy root package.json with workspace reference
 RUN mkdir -p /app/services/auth
