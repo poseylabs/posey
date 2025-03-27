@@ -48,25 +48,27 @@ jobs:
           # Build stage
           FROM node:20-slim as builder
 
+          # Install necessary tools
+          RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
           # Enable Corepack for Yarn 4
           RUN corepack enable && corepack prepare yarn@4.5.1 --activate
 
-          # Create app directory
+          # Create service directory
           WORKDIR /app
 
-          # Copy entire repo to ensure context is available
-          COPY . /app
+          # Copy only cron service files to avoid workspace dependency issues
+          COPY services/cron/ ./
 
-          # Configure Yarn with relaxed settings
-          RUN yarn config set httpTimeout 300000 && \\
-              yarn config set networkConcurrency 4 && \\
-              yarn config set compressionLevel 0
-              
-          # Move to the cron service directory
-          WORKDIR /app/services/cron
+          # Set up standalone mode to avoid workspace resolution
+          RUN echo '{"name": "cron-service", "private": true, "packageManager": "yarn@4.5.1"}' > package.json
           
-          # Install dependencies with fallback options
-          RUN yarn install || yarn install --mode=update-lockfile || yarn install --no-immutable
+          # Install dependencies with optimized settings
+          RUN yarn config set httpTimeout 600000 && \\
+              yarn config set networkConcurrency 1 && \\
+              yarn config set compressionLevel 0 && \\
+              yarn config set enableGlobalCache false && \\
+              yarn install --no-immutable --no-lockfile --network-timeout 600000 --verbose
 
           # Build the application
           RUN yarn build
@@ -80,9 +82,9 @@ jobs:
           RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
           # Copy built app from builder stage
-          COPY --from=builder /app/services/cron/dist ./dist
-          COPY --from=builder /app/services/cron/node_modules ./node_modules
-          COPY --from=builder /app/services/cron/package*.json ./
+          COPY --from=builder /app/dist ./dist
+          COPY --from=builder /app/node_modules ./node_modules
+          COPY --from=builder /app/package.json ./
 
           # Create necessary directories
           RUN mkdir -p /app/logs /app/data \\
