@@ -28,7 +28,7 @@ jobs:
     runs-on:
       group: posey-runners
     environment: PRODUCTION
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -61,7 +61,7 @@ jobs:
 
       - name: Login to DigitalOcean Container Registry
         run: |
-          doctl registry login --expiry-seconds 7200
+          doctl registry login --expiry-seconds 14400  # Extended token validity (4 hours)
           
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -87,7 +87,12 @@ jobs:
           # Create an optimized Dockerfile with better caching
           cat > Dockerfile.optimized << 'EOF'
           # syntax=docker/dockerfile:1.4
-          FROM python:3.12-slim
+          FROM --platform=$BUILDPLATFORM python:3.12-slim
+
+          # Set ARG for platform targeting
+          ARG TARGETPLATFORM
+          ARG BUILDPLATFORM
+          RUN echo "Building on $BUILDPLATFORM for $TARGETPLATFORM"
 
           # Set environment variables
           ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -149,9 +154,9 @@ jobs:
           RUN --mount=type=cache,target=/root/.cache/pip \
               grep "^langchain" ml-requirements.txt | xargs pip install
 
-          # Install remaining packages with cache mount
+          # Install remaining packages with cache mount - filter out comments and empty lines
           RUN --mount=type=cache,target=/root/.cache/pip \
-              cat ml-requirements.txt | grep -v "^torch\|^transformers\|^sentence-transformers\|^langchain\|^numpy\|^pandas\|^scipy" | xargs pip install
+              cat ml-requirements.txt | grep -v "^#\|^torch\|^transformers\|^sentence-transformers\|^langchain\|^numpy\|^pandas\|^scipy" | grep -v "^\s*$" | xargs -r pip install
 
           # Verify installation
           RUN python -c "import torch; import transformers; import langchain; print('PyTorch version:', torch.__version__); print('CUDA available:', torch.cuda.is_available()); print('Transformers version:', transformers.__version__); print('ML dependencies installed successfully')"
@@ -178,19 +183,20 @@ jobs:
           echo "Modified Dockerfile for better layer management and caching:"
           cat Dockerfile
           
-      - name: Build ML Base Image
-        timeout-minutes: 110
+      - name: Build ML Base Image - AMD64
+        id: build-amd64
+        timeout-minutes: 120
         run: |
           # Change to ML base directory
           cd services/agents/docker/ml-base
           
-          echo "Building ML base image..."
+          echo "Building ML base image for AMD64..."
           
           # Get current date for versioning
           DATE_TAG=$(date +%Y%m%d)
           GIT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
           
-          # Build with Docker Buildx - use registry-based caching instead of local
+          # Build AMD64 image first - more likely to succeed and useful on its own
           docker buildx build \
             --platform linux/amd64 \
             --memory=14g \
@@ -200,15 +206,179 @@ jobs:
             --build-arg PIP_DEFAULT_TIMEOUT=200 \
             --build-arg PIP_RETRIES=5 \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:latest \
-            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:latest \
-            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:${DATE_TAG} \
-            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:${GIT_SHA} \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:amd64-latest \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:amd64-${DATE_TAG} \
             -f Dockerfile \
-            --push \
-            . || (echo "BUILD FAILED - CHECKING LOGS" && docker logs $(docker ps -lq) && exit 1)
+            --output type=docker,dest=ml-base-amd64.tar \
+            .
+            
+          echo "ML base AMD64 image built successfully"
+
+      - name: Push AMD64 Image with Retry
+        run: |
+          cd services/agents/docker/ml-base
+          # Load the image from tar
+          docker load -i ml-base-amd64.tar
+          
+          # Push with retry logic
+          attempt=1
+          max_attempts=5
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt to push AMD64 image to registry..."
+            if docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:amd64-latest; then
+              echo "Push successful on attempt $attempt"
+              break
+            else
+              echo "Push failed on attempt $attempt"
+              
+              if [ $attempt -eq $max_attempts ]; then
+                echo "All attempts failed, giving up"
+                exit 1
+              fi
+              
+              # Exponential backoff
+              sleep_time=$((10 * 2 ** (attempt - 1)))
+              echo "Waiting ${sleep_time}s before retry..."
+              sleep $sleep_time
+              
+              # Refresh login token
+              doctl registry login --expiry-seconds 14400
+              
+              attempt=$((attempt + 1))
+            fi
+          done
+          
+          # Push the date-tagged version
+          DATE_TAG=$(date +%Y%m%d)
+          docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:amd64-${DATE_TAG}
+            
+      - name: Build ML Base Image - ARM64
+        id: build-arm64
+        timeout-minutes: 120
+        run: |
+          # Only attempt ARM64 build if AMD64 succeeded
+          cd services/agents/docker/ml-base
+          
+          echo "Building ML base image for ARM64..."
+          
+          # Get current date for versioning
+          DATE_TAG=$(date +%Y%m%d)
+          GIT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          
+          # Build ARM64 image 
+          docker buildx build \
+            --platform linux/arm64 \
+            --memory=14g \
+            --memory-swap=16g \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg PIP_TIMEOUT=200 \
+            --build-arg PIP_DEFAULT_TIMEOUT=200 \
+            --build-arg PIP_RETRIES=5 \
+            --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:amd64-latest \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:arm64-latest \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:arm64-${DATE_TAG} \
+            -f Dockerfile \
+            --output type=docker,dest=ml-base-arm64.tar \
+            .
+            
+          echo "ML base ARM64 image built successfully"
+        
+      - name: Push ARM64 Image with Retry
+        run: |
+          cd services/agents/docker/ml-base
+          # Check if ARM64 image was built
+          if [ ! -f ml-base-arm64.tar ]; then
+            echo "ARM64 image not built, skipping push"
+            exit 0
+          fi
+          
+          # Load the image from tar
+          docker load -i ml-base-arm64.tar
+          
+          # Push with retry logic
+          attempt=1
+          max_attempts=5
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt to push ARM64 image to registry..."
+            if docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:arm64-latest; then
+              echo "Push successful on attempt $attempt"
+              break
+            else
+              echo "Push failed on attempt $attempt"
+              
+              if [ $attempt -eq $max_attempts ]; then
+                echo "All attempts failed, giving up"
+                exit 1
+              fi
+              
+              # Exponential backoff
+              sleep_time=$((10 * 2 ** (attempt - 1)))
+              echo "Waiting ${sleep_time}s before retry..."
+              sleep $sleep_time
+              
+              # Refresh login token
+              doctl registry login --expiry-seconds 14400
+              
+              attempt=$((attempt + 1))
+            fi
+          done
+          
+          # Push the date-tagged version
+          DATE_TAG=$(date +%Y%m%d)
+          docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:arm64-${DATE_TAG}
+          
+      - name: Create and Push Multi-Architecture Manifest
+        run: |
+          # Create and push manifest to combine AMD64 and ARM64 images
+          DATE_TAG=$(date +%Y%m%d)
+          
+          # Create manifest for latest tag
+          docker manifest create \
+            registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:latest \
+            registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:amd64-latest \
+            registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:arm64-latest || true
+            
+          # Create manifest for date tag
+          docker manifest create \
+            registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:${DATE_TAG} \
+            registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:amd64-${DATE_TAG} \
+            registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:arm64-${DATE_TAG} || true
+            
+          # Push manifests with retry
+          for tag in latest ${DATE_TAG}; do
+            attempt=1
+            max_attempts=5
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "Attempt $attempt to push manifest for ${tag}..."
+              if docker manifest push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:${tag}; then
+                echo "Manifest push successful on attempt $attempt"
+                break
+              else
+                echo "Manifest push failed on attempt $attempt"
+                
+                if [ $attempt -eq $max_attempts ]; then
+                  echo "All attempts failed, giving up"
+                  exit 1
+                fi
+                
+                # Exponential backoff
+                sleep_time=$((10 * 2 ** (attempt - 1)))
+                echo "Waiting ${sleep_time}s before retry..."
+                sleep $sleep_time
+                
+                # Refresh login token
+                doctl registry login --expiry-seconds 14400
+                
+                attempt=$((attempt + 1))
+              fi
+            done
+          done
             
       - name: Verify ML Base Image
         run: |
           echo "Verifying ML base image was pushed successfully..."
-          docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:latest
+          docker manifest inspect registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:latest
           echo "ML base image build and push successful!" 
