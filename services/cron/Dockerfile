@@ -18,49 +18,34 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 RUN git config --global url."https://github.com/".insteadOf git@github.com: \
   && git config --global url."https://github.com/".insteadOf ssh://git@github.com/
 
-WORKDIR /app
-
 # Enable Corepack for Yarn
 RUN corepack enable
 
 # Create Yarn configuration
-RUN echo 'httpTimeout: 300000' > /app/.yarnrc.yml
+RUN echo 'httpTimeout: 300000' > /root/.yarnrc.yml
 
-# Create a dummy root package.json with workspace reference
-RUN mkdir -p /app/services/cron
-
-# Copy package.json first to read the package name and Yarn version
-COPY package.json /app/services/cron/
-COPY tsconfig.json /app/services/cron/
-COPY src /app/services/cron/src/
-
-# Extract package name and Yarn version from package.json
-RUN PACKAGE_NAME=$(node -p "require('/app/services/cron/package.json').name") && \
-  YARN_VERSION=$(node -p "require('/app/services/cron/package.json').packageManager.replace('yarn@', '')") && \
-  corepack prepare yarn@$YARN_VERSION --activate
-
-# Create workspace root package.json using the actual package name
-RUN PACKAGE_NAME=$(node -p "require('/app/services/cron/package.json').name") && \
-  echo "{\"name\":\"root\",\"private\":true,\"workspaces\":{\"packages\":[\"services/cron\"]}}" > /app/package.json
-
-# Create log directories
-RUN mkdir -p /app/yarn-logs
-
-# Change to the app root directory
+# Setup workspace structure
 WORKDIR /app
 
-# Try to install dependencies using yarn
-RUN mkdir -p /var/log/yarn_attempts && \
-  for i in $(seq 1 5); do \
-  echo "Yarn install attempt $i" > /var/log/yarn_attempts/attempt_$i.log && \
-  PACKAGE_NAME=$(node -p "require('./services/cron/package.json').name") && \
-  yarn workspace $PACKAGE_NAME install && break || \
-  if [ $i -eq 5 ]; then exit 1; fi; \
-  done
+# Copy root package.json and workspace configuration first
+COPY package.json .
+COPY .yarnrc.yml* ./.yarnrc.yml
+
+# Create service directory
+RUN mkdir -p /app/services/cron
+
+# Copy cron service package files
+COPY services/cron/package.json /app/services/cron/
+COPY services/cron/tsconfig.json /app/services/cron/
+COPY services/cron/src /app/services/cron/src/
+
+# Install dependencies
+RUN yarn workspaces focus @posey.ai/cron --production || \
+  (echo "Retrying install..." && yarn workspaces focus @posey.ai/cron --production) || \
+  (echo "Final retry..." && yarn workspaces focus @posey.ai/cron --production)
 
 # Build the service
-RUN PACKAGE_NAME=$(node -p "require('./services/cron/package.json').name") && \
-  yarn workspace $PACKAGE_NAME build
+RUN yarn workspace @posey.ai/cron build
 
 # Production stage
 FROM node:20-slim
