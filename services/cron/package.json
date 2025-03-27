@@ -1,6 +1,5 @@
 {
   "name": "@posey.ai/cron",
-  "packageManager": "yarn@4.5.1",
   "version": "1.0.0-beta.1",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -12,17 +11,17 @@
     "docker:push": "docker push registry.digitalocean.com/posey/posey-cron:latest",
     "docker:start": "docker run -p 2222:2222 registry.digitalocean.com/posey/posey-cron:latest",
     "docker:stop": "docker stop $(docker ps -q --filter ancestor=registry.digitalocean.com/posey/posey-cron:latest)",
-    "build:docker": "yarn docker:build && yarn docker:push",
+    "build:docker": "npm run docker:build && npm run docker:push",
     "build:local": "echo '🔨 Building Docker image posey-cron:latest...' && docker build -t posey-cron:latest -f Dockerfile ../.. && docker images posey-cron:latest",
     "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
     "deploy": "bash ../../scripts/k8s-deploy.sh cron",
-    "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f ./k8s/cron-pvc.yaml -n posey && kubectl apply -f ./k8s/service.yaml -n posey && kubectl apply -f ./k8s/deployment-local.yaml -n posey",
+    "deploy:local": "npm run build:local && npm run k8s:check && kubectl apply -f ./k8s/cron-pvc.yaml -n posey && kubectl apply -f ./k8s/service.yaml -n posey && kubectl apply -f ./k8s/deployment-local.yaml -n posey",
     "verify": "kubectl get pods -n posey -l app=posey-cron && kubectl get services -n posey -l app=posey-cron",
     "debug": "echo '🔍 Checking Docker images:' && docker images | grep cron && echo '🔍 Checking Kubernetes pods:' && kubectl get pods -n posey -l app=posey-cron -o wide && echo '🔍 Checking pod details:' && kubectl describe pod -n posey -l app=posey-cron || echo 'No pods found' && echo '🔍 Checking PVC status:' && kubectl get pvc -n posey | grep cron && echo '🔍 Checking Kubernetes events:' && kubectl get events -n posey --sort-by=.metadata.creationTimestamp | tail -n 15",
-    "clean": "yarn k8s:check && kubectl delete -f ./k8s/ -n posey --ignore-not-found",
+    "clean": "npm run k8s:check && kubectl delete -f ./k8s/ -n posey --ignore-not-found",
     "connect": "echo 'Cron service is available at: http://localhost:2222 (when port-forwarded)' && echo 'To port-forward: kubectl port-forward service/posey-cron 2222:2222 -n posey'",
     "port-forward": "kubectl port-forward service/posey-cron 2222:2222 -n posey",
-    "redeploy": "yarn clean && yarn deploy:local"
+    "redeploy": "npm run clean && npm run deploy:local"
   },
   "dependencies": {
     "axios": "^1.8.4",

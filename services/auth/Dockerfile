@@ -9,17 +9,20 @@ RUN apt-get update \
 # Set base working directory
 WORKDIR /app
 
+# Enable Corepack for Yarn 4
+RUN corepack enable && corepack prepare yarn@4.5.1 --activate
+
 # Copy the entire repository context
 COPY . /app
 
 # Move to the auth service directory within the monorepo context
 WORKDIR /app/services/auth
 
-# Install dependencies with npm
-RUN npm install
+# Install dependencies with Yarn
+RUN yarn install --immutable
 
 # Build the service
-RUN npm run build
+RUN yarn build
 
 # Production image
 FROM node:20-slim
