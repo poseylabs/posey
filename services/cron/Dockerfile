@@ -9,20 +9,22 @@ RUN corepack enable
 # Create package.json with packageManager field to avoid Yarn warnings
 RUN echo '{"packageManager": "yarn@4.5.1"}' > /app/package.json.temp
 
-# Copy package files
-COPY package*.json ./
-RUN if [ ! -f "package.json" ]; then mv package.json.temp package.json; else rm package.json.temp; fi
+# Copy entire context to ensure files are available
+COPY . /app
 
-# Prepare Yarn and install dependencies with a timeout
+# Move to the service directory
+WORKDIR /app/services/cron
+
+# Use the temporary package.json if needed
+RUN if [ ! -f "package.json" ]; then cp /app/package.json.temp ./package.json; else rm /app/package.json.temp; fi
+
+# Prepare Yarn and install dependencies with optimized settings
 RUN corepack prepare yarn@4.5.1 --activate && \
-  yarn config set httpTimeout 600000 && \
-  yarn config set networkTimeout 600000 && \
-  yarn install --network-timeout 600000 || \
-  (echo "Retrying yarn install..." && yarn install --network-timeout 600000)
-
-# Copy source code and config files
-COPY tsconfig.json ./
-COPY src ./src
+  yarn config set httpTimeout 300000 && \
+  yarn config set networkTimeout 300000 && \
+  yarn config set networkConcurrency 4 && \
+  yarn config set compressionLevel 0 && \
+  yarn install --immutable || yarn install --check-cache
 
 # Build the application
 RUN yarn build
@@ -36,9 +38,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Copy built app from builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY package*.json ./
+COPY --from=builder /app/services/cron/dist ./dist
+COPY --from=builder /app/services/cron/node_modules ./node_modules
+COPY --from=builder /app/services/cron/package*.json ./
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data \

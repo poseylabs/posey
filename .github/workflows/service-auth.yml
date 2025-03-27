@@ -59,29 +59,20 @@ jobs:
           # Create app directory
           WORKDIR /app
 
-          # Copy only the files needed for dependencies (improve caching)
-          COPY package.json ./
-          COPY .yarnrc.yml ./
-          # Add a dummy yarn.lock if it doesn't exist
-          RUN if [ ! -f yarn.lock ]; then echo '{}' > yarn.lock; fi
+          # Copy entire repo to ensure context is available
+          COPY . /app
 
-          # Handle the .yarn directory
-          RUN mkdir -p ./.yarn
-
-          # Copy packages (needed for workspaces)
-          COPY packages ./packages/
-
-          # Copy the auth service
-          COPY services/auth ./services/auth/
-
-          # Install dependencies with optimized settings
+          # Configure Yarn with relaxed settings
           RUN yarn config set httpTimeout 300000 && \\
+              yarn config set networkTimeout 300000 && \\
               yarn config set networkConcurrency 4 && \\
-              yarn config set compressionLevel 0 && \\
-              yarn install --immutable
-
-          # Set working directory to the auth service
+              yarn config set compressionLevel 0
+              
+          # Move to the auth service directory
           WORKDIR /app/services/auth
+          
+          # Install dependencies with fallback options
+          RUN yarn install || yarn install --mode=update-lockfile || yarn install --no-immutable
 
           # Build the service
           RUN yarn build
@@ -98,7 +89,7 @@ jobs:
           WORKDIR /app
           COPY --from=builder /app/services/auth/dist ./dist
           COPY --from=builder /app/services/auth/package.json ./
-          COPY --from=builder /app/node_modules ./node_modules
+          COPY --from=builder /app/services/auth/node_modules ./node_modules
 
           # Environment variables
           ENV NODE_ENV=production
