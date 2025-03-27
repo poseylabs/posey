@@ -12,14 +12,17 @@ ARG PIP_CACHE_DIR=/pip-cache
 
 WORKDIR /app
 
-# Copy requirements file - already filtered to exclude base image dependencies
+# Copy requirements file
 COPY requirements.txt .
+
+# Filter out dependencies already in the base image to prevent conflicts and reinstallation
+RUN grep -v -E "^(numpy|pandas|scipy|torch|transformers|sentence-transformers|langchain|pydantic_ai|scikit-learn)($|[><=])" requirements.txt > filtered-requirements.txt
 
 # Create wheel directory
 RUN mkdir -p /wheels
 
 # Build wheels for requirements with parallel installation
-RUN pip wheel --wheel-dir=/wheels -r requirements.txt
+RUN pip wheel --wheel-dir=/wheels -r filtered-requirements.txt
 
 # Final production stage - also using the ML base image
 FROM registry.digitalocean.com/posey/agents-ml-base:latest
