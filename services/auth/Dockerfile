@@ -30,7 +30,7 @@ COPY services/auth ./services/auth/
 # Install dependencies (only what's needed)
 RUN yarn config set httpTimeout 120000 && \
   yarn config set networkConcurrency 1 && \
-  cd services/auth && yarn install --production
+  yarn install
 
 # Set working directory to the auth service
 WORKDIR /app/services/auth
