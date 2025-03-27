@@ -65,7 +65,8 @@ RUN grep "^transformers\|^sentence-transformers" ml-requirements.txt | xargs pip
 RUN grep "^langchain" ml-requirements.txt | xargs pip install --no-cache-dir --verbose || (echo "Failed to install LangChain packages" && exit 1)
 
 # Install all remaining packages (except torch which we installed CPU-only version)
-RUN cat ml-requirements.txt | grep -v "^torch\|^transformers\|^sentence-transformers\|^langchain\|^numpy\|^pandas\|^scipy" | xargs pip install --no-cache-dir --verbose || (echo "Failed to install remaining ML packages" && exit 1)
+# Filter out both excluded packages and comment lines
+RUN cat ml-requirements.txt | grep -v "^#\|^torch\|^transformers\|^sentence-transformers\|^langchain\|^numpy\|^pandas\|^scipy" | grep -v "^\s*$" | xargs -r pip install --no-cache-dir --verbose || (echo "Failed to install remaining ML packages" && exit 1)
 
 # Verify that installation succeeded
 RUN python -c "import torch; import transformers; import langchain; print('PyTorch version:', torch.__version__); print('CUDA available:', torch.cuda.is_available()); print('Transformers version:', transformers.__version__); print('ML dependencies installed successfully')"

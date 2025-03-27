@@ -38,9 +38,9 @@ jobs:
 
       - name: Login to DigitalOcean Container Registry
         run: |
-          doctl registry login --expiry-seconds 3600
+          doctl registry login --expiry-seconds 7200
       
-      - name: Check if ML base image exists
+      - name: Check ML base image architectures
         id: check-ml-base
         shell: bash
         run: |
@@ -49,10 +49,31 @@ jobs:
           # Define the correct image path
           ML_BASE_IMAGE="registry.digitalocean.com/posey/agents-ml-base:latest"
           
-          # Simple check for the image
+          # Check for the image and available architectures
           echo "Looking for image: $ML_BASE_IMAGE"
           if docker manifest inspect $ML_BASE_IMAGE &>/dev/null; then
             echo "✅ Found ML base image"
+            echo "Available architectures:"
+            docker manifest inspect $ML_BASE_IMAGE | grep architecture || true
+            
+            # Check if AMD64 architecture is available
+            if docker manifest inspect $ML_BASE_IMAGE | grep -q "amd64"; then
+              echo "✅ AMD64 architecture available"
+              echo "amd64_available=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "⚠️ AMD64 architecture not available, will use platform-specific tag"
+              echo "amd64_available=false" >> "$GITHUB_OUTPUT"
+            fi
+            
+            # Check if ARM64 architecture is available
+            if docker manifest inspect $ML_BASE_IMAGE | grep -q "arm64"; then
+              echo "✅ ARM64 architecture available"
+              echo "arm64_available=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "⚠️ ARM64 architecture not available, will use platform-specific tag"
+              echo "arm64_available=false" >> "$GITHUB_OUTPUT"
+            fi
+            
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             # Try listing repository contents for debugging
@@ -86,7 +107,7 @@ jobs:
 
       - name: Login to DigitalOcean Container Registry
         run: |
-          doctl registry login --expiry-seconds 3600
+          doctl registry login --expiry-seconds 7200
           
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -98,7 +119,7 @@ jobs:
           docker buildx create --name multiplatform-builder --driver docker-container --use
           docker buildx inspect --bootstrap
           
-      - name: Build Agents Service
+      - name: Build Agents Service (Local)
         timeout-minutes: 60
         run: |
           # Change to service directory
@@ -109,20 +130,87 @@ jobs:
           free -h || echo "free command not available"
           df -h
           
-          # Pull latest base images to ensure cache is used - specify amd64 platform
-          # Note: We must explicitly use the amd64 version since the image isn't multi-arch
-          docker pull --platform=linux/amd64 registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/agents-ml-base:latest
+          # Determine if we're running on ARM64 or AMD64
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+            PLATFORM="linux/arm64"
+            ML_BASE_TAG="arm64-latest"
+            echo "Running on ARM64 architecture"
+          else
+            PLATFORM="linux/amd64"
+            ML_BASE_TAG="amd64-latest"
+            echo "Running on AMD64 architecture"
+          fi
+          
+          # Pull latest base images to ensure cache is used
+          echo "Pulling ML base image: registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/agents-ml-base:${ML_BASE_TAG}"
+          docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/agents-ml-base:${ML_BASE_TAG} || docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/agents-ml-base:latest
+          
+          echo "Pulling previous service image for caching"
           docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest || true
           
-          # Build with Docker Buildx - using ML base image for amd64 only
+          # Get current date and git sha for versioning
+          DATE_TAG=$(date +%Y%m%d)
+          GIT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          
+          # Build with Docker Buildx to local tar file
+          echo "Building image for $PLATFORM..."
           docker buildx build \
-            --platform linux/amd64 \
+            --platform $PLATFORM \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
-            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
-            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
-            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${ML_BASE_TAG/latest/$GIT_SHA} \
+            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${ML_BASE_TAG} \
             -f Dockerfile \
-            --push \
-            . 
+            --output type=docker,dest=agent-service.tar \
+            .
+            
+          echo "Service image built successfully"
+      
+      - name: Push Service Image with Retry
+        timeout-minutes: 15
+        run: |
+          cd services/${SERVICE}
+          
+          # Load the image from tar
+          docker load -i agent-service.tar
+          
+          # Get repository tags
+          REPO_NAME="${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}"
+          TAGS=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "$REPO_NAME")
+          
+          # For each tag, push with retry logic
+          for TAG in $TAGS; do
+            echo "Pushing tag: $TAG"
+            
+            attempt=1
+            max_attempts=5
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "Attempt $attempt to push image to registry..."
+              if docker push $TAG; then
+                echo "Push successful on attempt $attempt"
+                break
+              else
+                echo "Push failed on attempt $attempt"
+                
+                if [ $attempt -eq $max_attempts ]; then
+                  echo "All attempts failed, giving up"
+                  exit 1
+                fi
+                
+                # Exponential backoff
+                sleep_time=$((10 * 2 ** (attempt - 1)))
+                echo "Waiting ${sleep_time}s before retry..."
+                sleep $sleep_time
+                
+                # Refresh login token
+                doctl registry login --expiry-seconds 7200
+                
+                attempt=$((attempt + 1))
+              fi
+            done
+          done
+          
+          echo "All image tags pushed successfully" 
