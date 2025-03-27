@@ -16,6 +16,10 @@ env:
   ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
   SERVICE: agents
   DOCKER_IMAGE_NAME: posey-agents
+  # Add Docker build environment variables to speed up builds
+  DOCKER_BUILDKIT: 1
+  BUILDKIT_PROGRESS: plain
+  BUILDKIT_INLINE_CACHE: 1
 
 jobs:
   check-ml-base:
@@ -101,9 +105,16 @@ jobs:
           cd services/${SERVICE}
           
           echo "Building ${SERVICE}..."
+          echo "System resources:"
+          free -h || echo "free command not available"
+          df -h
+          
+          # Pull latest base images to ensure cache is used
+          docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/agents-ml-base:latest
+          docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest || true
           
           # Build with Docker Buildx - using ML base image
-          DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
+          docker buildx build \
             --platform linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
