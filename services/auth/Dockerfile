@@ -8,31 +8,26 @@ ARG NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=10000
 ARG NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=60000
 ARG NPM_CONFIG_LOGLEVEL=verbose
 ARG NPM_CONFIG_TIMING=true
-ARG NPM_CONFIG_LOGS_MAX=10
-ARG NPM_CONFIG_LOGS_DIR=/app/services/auth/npm-logs
 
-# Install postgres client and other tools
-RUN apt-get update \
-  && apt-get install -y postgresql-client curl git \
+# Install only the minimal dependencies needed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  ca-certificates \
+  curl \
+  git \
+  postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
 # Set git to use HTTPS instead of SSH for GitHub
 RUN git config --global url."https://github.com/".insteadOf git@github.com: \
   && git config --global url."https://github.com/".insteadOf ssh://git@github.com/
 
-# Set base working directory
 WORKDIR /app
 
-# Create npm logs directory
-RUN mkdir -p ${NPM_CONFIG_LOGS_DIR}
-
-# Copy only the necessary files for the auth service
-COPY services/auth/package*.json ./services/auth/
-COPY services/auth/tsconfig.json ./services/auth/
-COPY services/auth/src ./services/auth/src
-
-# Move to the auth service directory
-WORKDIR /app/services/auth
+# Set up npm for faster installs
+ENV NODE_ENV=production
+ENV NPM_CONFIG_FUND=false
+ENV NPM_CONFIG_AUDIT=false
+ENV NPM_CONFIG_CACHE=/tmp/.npm
 
 # Configure npm for better network resilience and logging
 RUN npm config set fetch-retries ${NPM_CONFIG_FETCH_RETRIES} \
@@ -40,43 +35,57 @@ RUN npm config set fetch-retries ${NPM_CONFIG_FETCH_RETRIES} \
   && npm config set fetch-retry-maxtimeout ${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT} \
   && npm config set registry ${NPM_CONFIG_REGISTRY} \
   && npm config set loglevel ${NPM_CONFIG_LOGLEVEL} \
-  && npm config set timing ${NPM_CONFIG_TIMING} \
-  && npm config set logs-max ${NPM_CONFIG_LOGS_MAX} \
-  && npm config set logs-dir ${NPM_CONFIG_LOGS_DIR}
+  && npm config set timing ${NPM_CONFIG_TIMING}
+
+# Copy package files first for better layer caching
+COPY package*.json ./
 
 # Install dependencies with clear cache first to ensure fresh install
-RUN npm cache clean --force \
-  && for i in 1 2 3 4 5; do \
+RUN --mount=type=bind,target=/app/npm-logs \
+  npm cache clean --force && \
+  for i in 1 2 3 4 5; do \
   echo "Attempt $i: Installing npm dependencies..." && \
-  TIMING=1 npm install --no-fund --no-audit --prefer-offline --verbose 2>&1 | tee "${NPM_CONFIG_LOGS_DIR}/npm-install-attempt-${i}.log" && break || \
+  TIMING=1 npm install --no-audit --no-fund --prefer-offline --verbose 2>&1 | tee "/app/npm-logs/npm-install-attempt-${i}.log" && break || \
   if [ $i -eq 5 ]; then \
-  echo "All npm install attempts failed. Check logs at ${NPM_CONFIG_LOGS_DIR}/" && \
-  cat "${NPM_CONFIG_LOGS_DIR}/npm-install-attempt-${i}.log" && \
+  echo "All npm install attempts failed. Check logs at /app/npm-logs/" && \
+  cat "/app/npm-logs/npm-install-attempt-${i}.log" && \
   exit 1; \
   fi; \
   echo "Retrying in 15 seconds..." && sleep 15; \
   done
 
-# Build the service
-RUN TIMING=1 npm run build --verbose 2>&1 | tee "${NPM_CONFIG_LOGS_DIR}/npm-build.log"
+# Copy only the necessary source files
+COPY tsconfig.json ./
+COPY src ./src
 
-# Production image
+# Build the service with logging
+RUN --mount=type=bind,target=/app/npm-logs \
+  TIMING=1 npm run build --verbose 2>&1 | tee "/app/npm-logs/npm-build.log"
+
+# Production stage
 FROM node:20-slim
 
+WORKDIR /app
+
 # Install postgres client
-RUN apt-get update \
-  && apt-get install -y postgresql-client \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
-# Copy built app from builder (correct paths for monorepo structure)
-WORKDIR /app
-COPY --from=builder /app/services/auth/dist ./dist
-COPY --from=builder /app/services/auth/node_modules ./node_modules
-COPY --from=builder /app/services/auth/package.json ./
-COPY --from=builder /app/services/auth/npm-logs ./npm-logs
-
-# Environment variables
 ENV NODE_ENV=production
+
+# Copy only necessary files from builder
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/npm-logs ./npm-logs
+
+# Create necessary directories
+RUN mkdir -p /app/logs \
+  && chown -R node:node /app/logs
+
+# Switch to non-root user
+USER node
 
 EXPOSE 9999
 CMD ["node", "dist/main.js"]
