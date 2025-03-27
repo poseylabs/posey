@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
 
       - name: Configure network
         run: |
@@ -46,6 +48,7 @@ jobs:
           doctl auth init -t ${{ secrets.DO_API_TOKEN }}
 
       - name: Login to DigitalOcean Container Registry
+        timeout-minutes: 2
         run: |
           doctl registry login --expiry-seconds 7200
           
@@ -61,19 +64,23 @@ jobs:
           
       - name: Build Cron Service
         timeout-minutes: 60
+        working-directory: services/cron
         run: |
-          echo "Building ${SERVICE}..."
+          echo "Building ${SERVICE} service..."
           
+          # Only build for amd64 to speed up build time
           docker buildx build \
             --platform linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg NODE_ENV=production \
+            --build-arg BUILDKIT_MAX_PARALLELISM=4 \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
-            -f services/${SERVICE}/Dockerfile \
+            --no-cache-filter=*/node_modules/* \
+            -f Dockerfile \
             --push \
             .
             
