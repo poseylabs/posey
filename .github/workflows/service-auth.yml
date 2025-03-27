@@ -53,26 +53,31 @@ jobs:
             && apt-get install -y postgresql-client curl \\
             && rm -rf /var/lib/apt/lists/*
 
-          # Enable Corepack for Yarn 4
+          # Enable Corepack for Yarn 4 (as recommended in Yarn 4 docs)
           RUN corepack enable && corepack prepare yarn@4.5.1 --activate
 
-          # Create service directory
+          # Set base working directory
           WORKDIR /app
 
-          # Copy only auth service files to avoid workspace dependency issues
-          COPY services/auth/ ./
+          # Copy the entire repository context
+          COPY . /app
 
-          # Set up standalone mode to avoid workspace resolution
-          RUN echo '{"name": "auth-service", "private": true, "packageManager": "yarn@4.5.1"}' > package.json
-          
-          # Install dependencies with optimized settings
+          # Configure Yarn settings (keeping relevant ones)
           RUN yarn config set httpTimeout 600000 && \\
-              yarn config set networkConcurrency 1 && \\
+              yarn config set networkConcurrency 4 && \\
               yarn config set compressionLevel 0 && \\
-              yarn config set enableGlobalCache false && \\
-              yarn install --no-immutable --no-lockfile --network-timeout 600000 --verbose
+              yarn config set enableGlobalCache false
+              
+          # Move to the auth service directory within the monorepo context
+          WORKDIR /app/services/auth
+          
+          # Install dependencies using the checked-in lockfile
+          # --immutable ensures reproducibility in CI
+          # --check-cache verifies integrity of cached packages
+          RUN yarn install --immutable --check-cache
 
           # Build the service
+          # Removed the || echo part - let the build fail if it fails
           RUN yarn build
 
           # Production image
@@ -83,11 +88,11 @@ jobs:
             && apt-get install -y postgresql-client \\
             && rm -rf /var/lib/apt/lists/*
 
-          # Copy built app from builder
+          # Copy built app from builder (correct paths for monorepo structure)
           WORKDIR /app
-          COPY --from=builder /app/dist ./dist
-          COPY --from=builder /app/node_modules ./node_modules
-          COPY --from=builder /app/package.json ./
+          COPY --from=builder /app/services/auth/dist ./dist
+          COPY --from=builder /app/services/auth/node_modules ./node_modules
+          COPY --from=builder /app/services/auth/package.json ./
 
           # Environment variables
           ENV NODE_ENV=production
