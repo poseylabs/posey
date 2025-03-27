@@ -37,79 +37,6 @@ jobs:
           sudo sysctl -w net.ipv4.tcp_slow_start_after_idle=0
           sudo sysctl -w net.ipv4.tcp_fastopen=3
 
-      - name: Optimize original Dockerfile
-        run: |
-          # Check original Dockerfile
-          echo "==== Original Dockerfile ===="
-          cat services/${SERVICE}/Dockerfile
-          
-          # Create an optimized Dockerfile - safer than trying to edit in place
-          cat > services/${SERVICE}/Dockerfile.new << EOF
-          # Build stage
-          FROM node:20-slim as builder
-
-          # Install necessary tools
-          RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
-          # Enable Corepack for Yarn 4 (as recommended in Yarn 4 docs)
-          RUN corepack enable && corepack prepare yarn@4.5.1 --activate
-
-          # Set base working directory
-          WORKDIR /app
-
-          # Copy the entire repository context
-          COPY . /app
-
-          # Configure Yarn settings
-          RUN yarn config set httpTimeout 600000 && \
-              yarn config set networkConcurrency 1 && \
-              yarn config set compressionLevel 0 && \
-              yarn config set enableGlobalCache false
-              
-          # Move to the cron service directory within the monorepo context
-          WORKDIR /app/services/cron
-          
-          # Install dependencies with fresh lockfile generation
-          RUN yarn install --mode=update-lockfile
-
-          # Build the application
-          # Removed the || echo part - let the build fail if it fails
-          RUN yarn build
-
-          # Production stage
-          FROM node:20-slim
-
-          WORKDIR /app
-
-          # Install curl for healthcheck
-          RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
-          # Copy built app from builder stage (correct paths for monorepo structure)
-          COPY --from=builder /app/services/cron/dist ./dist
-          COPY --from=builder /app/services/cron/node_modules ./node_modules
-          COPY --from=builder /app/services/cron/package.json ./
-
-          # Create necessary directories
-          RUN mkdir -p /app/logs /app/data \\
-            && chown -R node:node /app/logs /app/data
-
-          # Switch to non-root user
-          USER node
-
-          EXPOSE 2222
-
-          HEALTHCHECK --interval=30s --timeout=10s --retries=3 \\
-            CMD curl -f http://localhost:2222/health || exit 1
-
-          CMD ["node", "dist/index.js"]
-          EOF
-          
-          # Replace with optimized version
-          mv services/${SERVICE}/Dockerfile.new services/${SERVICE}/Dockerfile
-          
-          echo "==== Optimized Dockerfile ===="
-          cat services/${SERVICE}/Dockerfile
-
       - name: Install doctl
         run: |
           cd /tmp
@@ -140,6 +67,7 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg NODE_ENV=production \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \

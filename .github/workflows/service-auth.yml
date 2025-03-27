@@ -37,74 +37,6 @@ jobs:
           sudo sysctl -w net.ipv4.tcp_slow_start_after_idle=0
           sudo sysctl -w net.ipv4.tcp_fastopen=3
 
-      - name: Optimize original Dockerfile
-        run: |
-          # Check original Dockerfile
-          echo "==== Original Dockerfile ===="
-          cat services/${SERVICE}/Dockerfile
-          
-          # Create an optimized Dockerfile - safer than trying to edit in place
-          cat > services/${SERVICE}/Dockerfile.new << EOF
-          # Build stage
-          FROM node:20-slim as builder
-
-          # Install postgres client and other tools
-          RUN apt-get update \\
-            && apt-get install -y postgresql-client curl \\
-            && rm -rf /var/lib/apt/lists/*
-
-          # Enable Corepack for Yarn 4 (as recommended in Yarn 4 docs)
-          RUN corepack enable && corepack prepare yarn@4.5.1 --activate
-
-          # Set base working directory
-          WORKDIR /app
-
-          # Copy the entire repository context
-          COPY . /app
-
-          # Configure Yarn settings
-          RUN yarn config set httpTimeout 600000 && \
-              yarn config set networkConcurrency 1 && \
-              yarn config set compressionLevel 0 && \
-              yarn config set enableGlobalCache false
-              
-          # Move to the auth service directory within the monorepo context
-          WORKDIR /app/services/auth
-          
-          # Install dependencies with fresh lockfile generation
-          RUN yarn install --mode=update-lockfile
-
-          # Build the service
-          # Removed the || echo part - let the build fail if it fails
-          RUN yarn build
-
-          # Production image
-          FROM node:20-slim
-
-          # Install postgres client
-          RUN apt-get update \\
-            && apt-get install -y postgresql-client \\
-            && rm -rf /var/lib/apt/lists/*
-
-          # Copy built app from builder (correct paths for monorepo structure)
-          WORKDIR /app
-          COPY --from=builder /app/services/auth/dist ./dist
-          COPY --from=builder /app/services/auth/node_modules ./node_modules
-          COPY --from=builder /app/services/auth/package.json ./
-
-          # Environment variables
-          ENV NODE_ENV=production
-
-          EXPOSE 9999
-          CMD ["node", "dist/main.js"]
-          EOF
-          
-          # Replace with optimized version
-          mv services/${SERVICE}/Dockerfile.new services/${SERVICE}/Dockerfile
-          
-          echo "==== Optimized Dockerfile ===="
-          cat services/${SERVICE}/Dockerfile
-          
       - name: Install doctl
         run: |
           cd /tmp
@@ -135,6 +67,7 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg NODE_ENV=production \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
