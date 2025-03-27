@@ -34,10 +34,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup build logs directory
+      - name: Enable npm debug logs
         run: |
-          mkdir -p ${{ github.workspace }}/npm-logs
-          chmod -R 777 ${{ github.workspace }}/npm-logs
+          npm config set loglevel verbose
+          npm config set timing true
+          npm config set logs-max 10
+          npm config set logs-dir ./npm-logs
+          mkdir -p ./npm-logs
 
       - name: Reconfigure git to use HTTP instead of SSH
         run: |
@@ -94,7 +97,8 @@ jobs:
             --build-arg NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 \
             --build-arg NPM_CONFIG_LOGLEVEL=verbose \
             --build-arg NPM_CONFIG_TIMING=true \
-            --mount=type=bind,source=${{ github.workspace }}/npm-logs,target=/app/npm-logs \
+            --build-arg NPM_CONFIG_LOGS_MAX=10 \
+            --build-arg NPM_CONFIG_LOGS_DIR=/app/npm-logs \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
@@ -110,10 +114,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: npm-logs-${{ github.sha }}
-          path: ${{ github.workspace }}/npm-logs
+          path: |
+            ./npm-logs
+            /app/npm-logs
           retention-days: 5
-          compression-level: 6  # Balanced between speed and size
-            
+          compression-level: 6
+          
       - name: Push images to registry
         run: |
           echo "Pushing ${SERVICE} images to registry..."
