@@ -44,9 +44,20 @@ jobs:
           sed -i 's/networkConcurrency 1/networkConcurrency 4/' services/${SERVICE}/Dockerfile
           sed -i 's/yarn config set networkTimeout [0-9]*/yarn config set networkTimeout 300000/' services/${SERVICE}/Dockerfile
           sed -i '/yarn config set networkTimeout/a\\  yarn config set compressionLevel 0 \\' services/${SERVICE}/Dockerfile
-
-          # Change the install command to use workspaces focus for production 
-          sed -i 's/yarn install.*$/yarn workspaces focus --production @posey\/cron/' services/${SERVICE}/Dockerfile
+          
+          # Let's look at the original install command first
+          grep -A 2 "yarn install" services/${SERVICE}/Dockerfile
+          
+          # Use a more careful approach to modify the yarn install command
+          # Replace the entire yarn install line(s) with our optimized version
+          awk '{
+            if ($0 ~ /yarn install/) {
+              print "  yarn workspaces focus --production @posey/cron";
+            } else {
+              print $0;
+            }
+          }' services/${SERVICE}/Dockerfile > services/${SERVICE}/Dockerfile.temp
+          mv services/${SERVICE}/Dockerfile.temp services/${SERVICE}/Dockerfile
 
       - name: Install doctl
         run: |
