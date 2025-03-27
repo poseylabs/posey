@@ -50,6 +50,14 @@ jobs:
           # Setup kubeconfig for DO Kubernetes
           doctl kubernetes cluster kubeconfig save ${{ secrets.DO_KUBERNETES_CLUSTER_ID }}
       
+      - name: Install kubeseal
+        run: |
+          KUBESEAL_VERSION=$(curl -s https://api.github.com/repos/bitnami-labs/sealed-secrets/releases/latest | jq -r '.tag_name')
+          curl -L https://github.com/bitnami-labs/sealed-secrets/releases/download/${KUBESEAL_VERSION}/kubeseal-${KUBESEAL_VERSION#v}-linux-arm64.tar.gz -o kubeseal.tar.gz
+          tar -xvzf kubeseal.tar.gz kubeseal
+          sudo install -m 755 kubeseal /usr/local/bin/kubeseal
+          rm kubeseal kubeseal.tar.gz
+      
       - name: Generate service secrets and deploy
         run: |
           cd services
