@@ -34,30 +34,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Cache npm dependencies
-        uses: actions/cache@v4
-        id: npm-cache
-        with:
-          path: |
-            ~/.npm
-            node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Enable npm debug logs
-        run: |
-          npm config set loglevel verbose
-          npm config set timing true
-          npm config set logs-max 10
-          npm config set logs-dir ./npm-logs
-          mkdir -p ./npm-logs
-
       - name: Reconfigure git to use HTTP instead of SSH
         run: |
           git config --global url."https://github.com/".insteadOf git@github.com:
@@ -113,24 +89,25 @@ jobs:
             --build-arg NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 \
             --build-arg NPM_CONFIG_LOGLEVEL=verbose \
             --build-arg NPM_CONFIG_TIMING=true \
+            --cache-from type=registry,ref=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:buildcache \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
+            --cache-to type=registry,ref=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:buildcache,mode=max \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
-            --no-cache-filter=*/node_modules/* \
             -f Dockerfile \
             --push \
             .
 
-      - name: Upload npm logs
+      - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: npm-logs-${{ github.sha }}
+          name: yarn-logs-${{ github.sha }}
           path: |
-            ./npm-logs
-            /app/npm-logs
+            ./yarn-logs
+            /app/yarn-logs
           retention-days: 5
           compression-level: 6
           
