@@ -28,6 +28,7 @@ jobs:
     runs-on:
       group: posey-runners
     environment: PRODUCTION
+    timeout-minutes: 120
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -40,7 +41,25 @@ jobs:
           cat /proc/cpuinfo | grep "model name" | head -1
           cat /proc/meminfo | grep MemTotal
           echo "===================="
-        
+      
+      # Cache pip packages to speed up builds  
+      - name: Set up pip cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('services/agents/docker/ml-base/ml-requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            
+      # Cache Docker layers to speed up builds
+      - name: Set up Docker cache
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
       - name: Install doctl
         run: |
           cd /tmp
@@ -62,17 +81,114 @@ jobs:
         run: |
           docker buildx create --name multiplatform-builder --driver docker-container --use
           docker buildx inspect --bootstrap
-      
-      - name: Modify Dockerfile for better diagnostics
+          
+      - name: Pull previous images for layer cache
         run: |
-          # Add better error reporting and timeout handling to pip install command
+          # Pull latest image for caching if available
+          docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${ML_BASE_IMAGE_NAME}:latest || true
+          echo "Pulled latest image for layer caching"
+      
+      - name: Modify Dockerfile for better performance
+        run: |
+          # Check current directory and ML base dockerfile location
           cd services/agents/docker/ml-base
-          sed -i 's/RUN pip install --no-cache-dir -r ml-requirements.txt/RUN pip install --no-cache-dir --verbose -r ml-requirements.txt || (echo "PIP INSTALL FAILED" \&\& exit 1)/' Dockerfile
-          echo "Modified Dockerfile:"
+          
+          # Create an optimized Dockerfile with better caching
+          cat > Dockerfile.optimized << 'EOF'
+          # syntax=docker/dockerfile:1.4
+          FROM python:3.12-slim
+
+          # Set environment variables
+          ENV PYTHONDONTWRITEBYTECODE=1 \
+            PYTHONUNBUFFERED=1 \
+            PIP_NO_CACHE_DIR=0 \
+            PIP_DISABLE_PIP_VERSION_CHECK=1 \
+            # Add retry and timeout settings
+            PIP_RETRIES=5 \
+            PIP_TIMEOUT=200 \
+            PIP_DEFAULT_TIMEOUT=200 \
+            # Explicitly disable CUDA to prevent hangs
+            CUDA_VISIBLE_DEVICES="" \
+            TORCH_CUDA_ARCH_LIST="None" \
+            USE_CUDA=0
+
+          # Install system dependencies
+          RUN --mount=type=cache,target=/var/cache/apt \
+              apt-get update && apt-get install -y --no-install-recommends \
+              gcc \
+              g++ \
+              make \
+              cmake \
+              libc6-dev \
+              libpq-dev \
+              git \
+              curl \
+              ca-certificates \
+              libmagic1 \
+              postgresql-client \
+              postgresql-server-dev-all \
+              && apt-get clean \
+              && rm -rf /var/lib/apt/lists/*
+
+          # Upgrade pip and install wheel
+          RUN --mount=type=cache,target=/root/.cache/pip \
+              pip install --upgrade pip wheel setuptools
+
+          WORKDIR /tmp/build
+
+          # Copy only requirements file first (better caching)
+          COPY ml-requirements.txt .
+
+          # Install core numerical packages with cache mount
+          RUN --mount=type=cache,target=/root/.cache/pip \
+              pip install numpy pandas scipy
+
+          # Install PyTorch with cache mount
+          RUN --mount=type=cache,target=/root/.cache/pip \
+              pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
+
+          # Install transformer libraries with cache mount
+          RUN --mount=type=cache,target=/root/.cache/pip \
+              grep "^transformers" ml-requirements.txt | xargs pip install
+
+          RUN --mount=type=cache,target=/root/.cache/pip \
+              grep "^sentence-transformers" ml-requirements.txt | xargs pip install
+
+          # Install LangChain packages with cache mount
+          RUN --mount=type=cache,target=/root/.cache/pip \
+              grep "^langchain" ml-requirements.txt | xargs pip install
+
+          # Install remaining packages with cache mount
+          RUN --mount=type=cache,target=/root/.cache/pip \
+              cat ml-requirements.txt | grep -v "^torch\|^transformers\|^sentence-transformers\|^langchain\|^numpy\|^pandas\|^scipy" | xargs pip install
+
+          # Verify installation
+          RUN python -c "import torch; import transformers; import langchain; print('PyTorch version:', torch.__version__); print('CUDA available:', torch.cuda.is_available()); print('Transformers version:', transformers.__version__); print('ML dependencies installed successfully')"
+
+          # Clean up and prepare final image
+          RUN rm -rf /tmp/build
+          WORKDIR /app
+
+          # Create a non-root user
+          RUN groupadd -r posey-agents && useradd -r -g posey-agents posey-agents && \
+              mkdir -p /app && \
+              chown -R posey-agents:posey-agents /app
+
+          # Label the image
+          LABEL org.opencontainers.image.description="Posey Agents ML Base Image with PyTorch, Transformers, and other heavy dependencies pre-installed"
+          LABEL org.opencontainers.image.source="https://github.com/posey/posey" 
+
+          CMD ["python"]
+          EOF
+          
+          # Use the optimized Dockerfile
+          mv Dockerfile.optimized Dockerfile
+          
+          echo "Modified Dockerfile for better layer management and caching:"
           cat Dockerfile
           
       - name: Build ML Base Image
-        timeout-minutes: 60
+        timeout-minutes: 110
         run: |
           # Change to ML base directory
           cd services/agents/docker/ml-base
@@ -83,11 +199,16 @@ jobs:
           DATE_TAG=$(date +%Y%m%d)
           GIT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
           
-          # Build with Docker Buildx - add memory limits and improved error handling
+          # Create cache directory if it doesn't exist
+          mkdir -p /tmp/.buildx-cache
+          
+          # Build with Docker Buildx - with improved caching
           docker buildx build \
             --platform linux/amd64 \
             --memory=14g \
             --memory-swap=16g \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg PIP_TIMEOUT=200 \
             --build-arg PIP_DEFAULT_TIMEOUT=200 \
@@ -99,6 +220,10 @@ jobs:
             -f Dockerfile \
             --push \
             . || (echo "BUILD FAILED - CHECKING LOGS" && docker logs $(docker ps -lq) && exit 1)
+            
+          # Move cache to prevent growth
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
             
       - name: Verify ML Base Image
         run: |
