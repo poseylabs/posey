@@ -107,11 +107,12 @@ jobs:
 
       - name: Upload npm logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: npm-logs-${{ github.sha }}
           path: ${{ github.workspace }}/npm-logs
           retention-days: 5
+          compression-level: 6  # Balanced between speed and size
             
       - name: Push images to registry
         run: |
