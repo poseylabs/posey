@@ -15,6 +15,8 @@ env:
   ENVIRONMENT: ${{ github.ref_name == 'main' && 'PRODUCTION' || 'STAGING' }}
   SERVICE: cron
   DOCKER_IMAGE_NAME: posey-cron
+  DOCKER_BUILDKIT: 1
+  BUILDKIT_PROGRESS: plain
 
 jobs:
   build-cron:
@@ -25,18 +27,52 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable Corepack and prepare Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@4.5.1 --activate
+          yarn --version
+          # Configure Yarn settings properly
+          yarn config set httpTimeout 600000
+          yarn config set networkConcurrency 1
+          # Show available commands for troubleshooting
+          yarn config -v
+
+      - name: Setup cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            .yarn/cache
+            .yarn/unplugged
+            .pnp.cjs
+            .pnp.loader.mjs
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Configure DNS and network
+        run: |
+          echo "Setting DNS cache TTL to improve networking..."
+          echo "options single-request-reopen" | sudo tee -a /etc/resolv.conf
+          echo "options timeout:10" | sudo tee -a /etc/resolv.conf
         
       - name: Install doctl
         run: |
           cd /tmp
-          curl -sL https://github.com/digitalocean/doctl/releases/download/v${{ env.DOCTL_VERSION }}/doctl-${{ env.DOCTL_VERSION }}-linux-arm64.tar.gz | tar -xzv
+          curl -sL --retry 5 --retry-delay 5 https://github.com/digitalocean/doctl/releases/download/v${{ env.DOCTL_VERSION }}/doctl-${{ env.DOCTL_VERSION }}-linux-arm64.tar.gz | tar -xzv
           sudo mv doctl /usr/local/bin/
           doctl version
           doctl auth init -t ${{ secrets.DO_API_TOKEN }}
 
       - name: Login to DigitalOcean Container Registry
         run: |
-          doctl registry login --expiry-seconds 3600
+          doctl registry login --expiry-seconds 7200
           
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -45,19 +81,15 @@ jobs:
           
       - name: Docker Buildx Configuration
         run: |
-          docker buildx create --name multiplatform-builder --driver docker-container --use
-          docker buildx inspect --bootstrap
+          docker buildx create --name multiplatform-builder --driver docker-container --use --bootstrap
+          docker buildx inspect
           
       - name: Build Cron Service
         timeout-minutes: 60
         run: |
-          # Change to service directory
-          cd services/${SERVICE}
-          
           echo "Building ${SERVICE}..."
           
-          # Build with Docker Buildx - remove local tag, use fully qualified tags only
-          DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker buildx build \
+          docker buildx build \
             --platform linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
@@ -65,6 +97,18 @@ jobs:
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
-            -f Dockerfile \
+            -f services/${SERVICE}/Dockerfile \
             --push \
             .
+            
+      - name: Push images to registry
+        run: |
+          echo "Pushing ${SERVICE} images to registry..."
+          docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:latest || true
+          docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:${{ env.ENVIRONMENT }} || true
+          docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) || true
+          
+      - name: Verify push status
+        run: |
+          echo "Verifying image availability in registry..."
+          doctl registry repository list-tags ${{ secrets.DO_REGISTRY_NAME }}/${SERVICE} --format Tag
