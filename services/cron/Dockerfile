@@ -28,23 +28,31 @@ ENV NPM_CONFIG_FUND=false
 ENV NPM_CONFIG_AUDIT=false
 ENV NPM_CONFIG_CACHE=/tmp/.npm
 
-# Enable Corepack for Yarn 4
+# Enable Corepack for Yarn
 RUN corepack enable && \
-  corepack prepare yarn@4 --activate && \
-  yarn config set networkTimeout 300000 && \
-  yarn config set npmRegistryServer ${NPM_CONFIG_REGISTRY} && \
-  yarn config set enableTelemetry false && \
-  yarn config set logFilters --json '[ { "code": "YN0013", "level": "discard" } ]'
+  corepack prepare yarn@stable --activate
 
-# Copy package files first for better layer caching
-COPY package.json .yarnrc.yml ./
-COPY .yarn ./.yarn
+# Create a dummy root package.json with workspace reference
+RUN echo '{"name":"root","private":true,"workspaces":{"packages":["services/cron"]}}' > /app/package.json
 
-# Install dependencies with clear cache first to ensure fresh install
-RUN --mount=type=bind,target=/app/yarn-logs \
-  for i in 1 2 3 4 5; do \
+# Create services directory structure
+RUN mkdir -p /app/services/cron
+
+# Copy package files to the service directory
+COPY package.json tsconfig.json /app/services/cron/
+COPY src /app/services/cron/src/
+
+# Create log directories
+RUN mkdir -p /app/yarn-logs
+
+# Change to service directory for next operations
+WORKDIR /app/services/cron
+
+# Install dependencies using Yarn without lockfile enforcement
+RUN for i in 1 2 3 4 5; do \
   echo "Attempt $i: Installing yarn dependencies..." && \
-  TIMING=1 yarn install --immutable 2>&1 | tee "/app/yarn-logs/yarn-install-attempt-${i}.log" && break || \
+  cd /app && \
+  YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn workspaces focus cron --production 2>&1 | tee "/app/yarn-logs/yarn-install-attempt-${i}.log" && break || \
   if [ $i -eq 5 ]; then \
   echo "All yarn install attempts failed. Check logs at /app/yarn-logs/" && \
   cat "/app/yarn-logs/yarn-install-attempt-${i}.log" && \
@@ -53,13 +61,8 @@ RUN --mount=type=bind,target=/app/yarn-logs \
   echo "Retrying in 15 seconds..." && sleep 15; \
   done
 
-# Copy only the necessary source files
-COPY tsconfig.json ./
-COPY src ./src
-
-# Build the service with logging
-RUN --mount=type=bind,target=/app/yarn-logs \
-  TIMING=1 yarn build 2>&1 | tee "/app/yarn-logs/yarn-build.log"
+# Build the service
+RUN cd /app && yarn workspace cron build
 
 # Production stage
 FROM node:20-slim
@@ -74,9 +77,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV NODE_ENV=production
 
 # Copy only what's needed from the builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
+COPY --from=builder /app/services/cron/dist ./dist
+COPY --from=builder /app/services/cron/node_modules ./node_modules
+COPY --from=builder /app/services/cron/package.json ./
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data \
