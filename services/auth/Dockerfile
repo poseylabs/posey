@@ -1,3 +1,27 @@
+# Build stage
+FROM node:20-slim as builder
+
+# Install postgres client and other tools
+RUN apt-get update \
+  && apt-get install -y postgresql-client curl \
+  && rm -rf /var/lib/apt/lists/*
+
+# Set base working directory
+WORKDIR /app
+
+# Copy the entire repository context
+COPY . /app
+
+# Move to the auth service directory within the monorepo context
+WORKDIR /app/services/auth
+
+# Install dependencies with npm
+RUN npm install
+
+# Build the service
+RUN npm run build
+
+# Production image
 FROM node:20-slim
 
 # Install postgres client
@@ -5,58 +29,14 @@ RUN apt-get update \
   && apt-get install -y postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
-# Add build argument for NODE_ENV
-ARG NODE_ENV
-ENV NODE_ENV=$NODE_ENV
-
-# Enable Corepack for Yarn 4
-RUN corepack enable && corepack prepare yarn@4.5.1 --activate
-
-# Create app directory
+# Copy built app from builder (correct paths for monorepo structure)
 WORKDIR /app
+COPY --from=builder /app/services/auth/dist ./dist
+COPY --from=builder /app/services/auth/node_modules ./node_modules
+COPY --from=builder /app/services/auth/package.json ./
 
-# Copy only the files needed for dependencies (improve caching)
-COPY package.json ./
-COPY .yarnrc.yml ./
-# Add a dummy yarn.lock if it doesn't exist
-RUN if [ ! -f yarn.lock ]; then echo '{}' > yarn.lock; fi
-
-# Handle the .yarn directory
-RUN mkdir -p ./.yarn
-
-# Copy packages (needed for workspaces)
-COPY packages ./packages/
-
-# Copy the auth service
-COPY services/auth ./services/auth/
-
-# Install dependencies (only what's needed)
-RUN yarn config set httpTimeout 120000 && \
-  yarn config set networkConcurrency 1 && \
-  yarn install
-
-# Set working directory to the auth service
-WORKDIR /app/services/auth
-
-# Set up migrations (if they exist)
-RUN if [ -f "/app/services/auth/scripts/run-migrations.sh" ]; then \
-  chmod +x /app/services/auth/scripts/run-migrations.sh; \
-  fi
-
-# Add environment variables
-ARG POSTGRES_DSN_POSEY
-ARG POSTGRES_USER
-ARG POSTGRES_DSN_SUPERTOKENS
-
-ENV POSTGRES_USER=$POSTGRES_USER
-ENV POSTGRES_DSN_POSEY=$POSTGRES_DSN_POSEY
-ENV POSTGRES_DSN_SUPERTOKENS=$POSTGRES_DSN_SUPERTOKENS
-
-# Add development dependencies if we're not in production
-RUN if [ "$NODE_ENV" != "production" ]; then \
-  yarn add -D @types/node @types/express @types/cors @types/pg tsconfig-paths; \
-  fi
+# Environment variables
+ENV NODE_ENV=production
 
 EXPOSE 9999
-
-CMD ["yarn", "start:container"]
+CMD ["node", "dist/main.js"]

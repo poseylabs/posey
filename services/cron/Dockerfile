@@ -3,31 +3,17 @@ FROM node:20-slim as builder
 
 WORKDIR /app
 
-# Enable Corepack for Yarn 4
-RUN corepack enable
-
-# Create package.json with packageManager field to avoid Yarn warnings
-RUN echo '{"packageManager": "yarn@4.5.1"}' > /app/package.json.temp
-
 # Copy entire context to ensure files are available
 COPY . /app
 
 # Move to the service directory
 WORKDIR /app/services/cron
 
-# Use the temporary package.json if needed
-RUN if [ ! -f "package.json" ]; then cp /app/package.json.temp ./package.json; else rm /app/package.json.temp; fi
-
-# Prepare Yarn and install dependencies with optimized settings
-RUN corepack prepare yarn@4.5.1 --activate && \
-  yarn config set httpTimeout 300000 && \
-  yarn config set networkTimeout 300000 && \
-  yarn config set networkConcurrency 4 && \
-  yarn config set compressionLevel 0 && \
-  yarn install --immutable || yarn install --check-cache
+# Install dependencies with npm
+RUN npm install
 
 # Build the application
-RUN yarn build
+RUN npm run build
 
 # Production stage
 FROM node:20-slim
