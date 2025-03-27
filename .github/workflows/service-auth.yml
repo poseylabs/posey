@@ -85,7 +85,7 @@ jobs:
           docker buildx inspect
           
       - name: Build Auth Service
-        timeout-minutes: 45
+        timeout-minutes: 60
         run: |
           echo "Building ${SERVICE}..."
           

@@ -57,7 +57,7 @@ jobs:
           ls -la data/couchbase/
           
       - name: Build Couchbase
-        timeout-minutes: 30
+        timeout-minutes: 60
         run: |
           # Build using the data/couchbase directory as context
           cd data/${SERVICE}
