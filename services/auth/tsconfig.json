@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -25,7 +25,9 @@
     "allowJs": true
   },
   "ts-node": {
-    "transpileOnly": true
+    "transpileOnly": true,
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
   },
   "include": [
     "src/**/*"
