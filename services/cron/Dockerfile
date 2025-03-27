@@ -24,8 +24,8 @@ RUN npm config set fetch-retries 5 \
 # Copy package files first for better layer caching
 COPY package*.json ./
 
-# Install dependencies using npm ci instead of npm install (faster and more reliable)
-RUN npm ci --omit=dev --no-optional
+# Install dependencies using npm install (with optimizations)
+RUN npm install --production --no-optional --no-audit --no-fund --prefer-offline
 
 # Copy only the necessary source files
 COPY tsconfig.json ./
