@@ -15,12 +15,14 @@ RUN corepack enable
 WORKDIR /qdrant
 
 # Copy our custom config
-COPY config.yaml config/production.yaml
+COPY data/vector.db/config.yaml config/production.yaml
 
 # Copy initialization scripts and package files
-COPY scripts /qdrant/scripts/
-COPY package*.json ./
-COPY yarn.lock .yarnrc.yml ./
+COPY data/vector.db/scripts /qdrant/scripts/
+COPY data/vector.db/package.json ./
+
+# Copy root yarn files
+COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 COPY .pnp.cjs .pnp.loader.mjs ./
 
@@ -28,7 +30,7 @@ COPY .pnp.cjs .pnp.loader.mjs ./
 RUN yarn install --immutable --inline-builds
 
 # Create startup script
-COPY docker-entrypoint.sh /docker-entrypoint.sh
+COPY data/vector.db/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 # Expose ports (REST API, GRPC, and our custom port)
