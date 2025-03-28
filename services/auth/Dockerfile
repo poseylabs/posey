@@ -34,7 +34,7 @@ RUN mkdir -p /usr/local/share/.cache/yarn && \
 
 # Copy root package files first for better caching
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn ./.yarn
+COPY .yarn/ ./.yarn/
 
 # Install dependencies
 RUN yarn config set nodeLinker node-modules && \

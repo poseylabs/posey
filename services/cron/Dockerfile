@@ -32,7 +32,7 @@ RUN mkdir -p /usr/local/share/.cache/yarn && \
 COPY package.json yarn.lock .yarnrc.yml ./
 
 # Only copy .yarn directory if it exists
-COPY .yarn ./.yarn 2>/dev/null || true
+COPY .yarn/ ./.yarn/
 
 # Install dependencies with proper caching
 RUN yarn config set nodeLinker node-modules && \
