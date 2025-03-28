@@ -51,11 +51,31 @@ COPY services/cron/src /app/services/cron/src/
 # Create log directories
 RUN mkdir -p /app/yarn-logs /var/log/yarn_attempts
 
-# Install dependencies with redirected logging
-RUN yarn workspaces focus @posey.ai/cron --production --verbose > /var/log/yarn_attempts/attempt_1.log 2>&1 || \
-  (echo "Retrying install..." && yarn workspaces focus @posey.ai/cron --production --verbose > /var/log/yarn_attempts/attempt_2.log 2>&1) || \
-  (echo "Final retry..." && yarn workspaces focus @posey.ai/cron --production --verbose > /var/log/yarn_attempts/attempt_3.log 2>&1 && \
-  yarn cache clean)
+# Verify npm/yarn/node versions & Corepack status
+RUN node --version && npm --version && yarn --version && corepack --version
+
+# Debug workspace content
+RUN ls -la && cat package.json && ls -la services/cron && cat services/cron/package.json
+
+# Install dependencies with detailed logging
+RUN set -x && \
+  yarn --version > /var/log/yarn_attempts/yarn_version.log && \
+  yarn config > /var/log/yarn_attempts/yarn_config.log && \
+  # First attempt - simple install without workspace focus
+  (yarn install --verbose > /var/log/yarn_attempts/install_1.log 2>&1 && \
+  # Then try workspace focus if simple install works
+  yarn workspaces focus @posey.ai/cron --production --verbose > /var/log/yarn_attempts/focus_1.log 2>&1) || \
+  # Second attempt - try with workaround for Yarn 4 workspace issue
+  (echo "Attempting workaround install..." && \
+  cd services/cron && yarn install --production --verbose > /var/log/yarn_attempts/install_2.log 2>&1 && cd /app) || \
+  # Final attempt with error dump
+  (echo "Final attempt with error dump..." && \
+  yarn install --verbose > /var/log/yarn_attempts/install_3.log 2>&1 && \
+  cat /var/log/yarn_attempts/*.log && \
+  exit 1)
+
+# Clean yarn cache
+RUN yarn cache clean
 
 # Build the service (with verbose output)
 RUN yarn workspace @posey.ai/cron build --verbose
