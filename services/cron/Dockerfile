@@ -31,19 +31,12 @@ RUN yarn config set httpTimeout 600000 && \
   yarn config set networkConcurrency 4 && \
   npm config set registry https://registry.npmjs.org/
 
-# Copy just what's needed for dependency installation
-COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn/ ./.yarn/
-COPY .pnp.cjs .pnp.loader.mjs ./
-COPY services/cron/package.json ./services/cron/
+# Copy the entire monorepo to ensure workspace structure is intact
+COPY . .
 
-# Install dependencies with dev dependencies included (removing --production flag)
+# Install dependencies focused on cron service
 RUN yarn workspaces focus @posey.ai/cron && \
   yarn cache clean
-
-# Copy source code for the build
-COPY services/cron/tsconfig.json ./services/cron/
-COPY services/cron/src ./services/cron/src/
 
 # Build the service
 WORKDIR /app/services/cron
