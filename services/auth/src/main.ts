@@ -343,7 +343,7 @@ app.post("/auth/session/refresh", verifySession({
   }
 });
 
-app.post("/auth/preferences", verifySession(), async (req: SessionRequest, res) => {
+app.post("/auth/preferences", verifySession(), async (req: SessionRequest & { body: any }, res) => {
   try {
     const session = req.session!;
     const userId = session.getUserId();
@@ -378,7 +378,7 @@ app.post("/auth/signout", verifySession(), async (req: SessionRequest, res) => {
 });
 
 // Add update user endpoint
-app.put("/auth/user", verifySession(), async (req: SessionRequest, res) => {
+app.put("/auth/user", verifySession(), async (req: SessionRequest & { body: any }, res) => {
   try {
     const session = req.session!;
     const userId = session.getUserId();
