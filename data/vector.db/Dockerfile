@@ -5,7 +5,12 @@ ENV NODE_ENV=production \
   YARN_ENABLE_TELEMETRY=false \
   NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ \
   NPM_CONFIG_STRICT_SSL=false \
-  NODE_OPTIONS="--max-old-space-size=4096"
+  NODE_OPTIONS="--max-old-space-size=4096" \
+  YARN_ENABLE_PROGRESS_BARS=true \
+  YARN_VERBOSE=true \
+  DEBUG="yarn*,pnp*" \
+  YARN_COLORS=true \
+  YARN_LOG_LEVEL=info
 
 # Install Node.js and Yarn with optimized apt settings
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -40,11 +45,16 @@ COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 COPY .pnp.cjs .pnp.loader.mjs ./
 
-# Install dependencies with optimized settings
-# First install only the production dependencies with focused approach
+# Temporarily set NODE_ENV to development to ensure all dependencies are installed
+ENV NODE_ENV=development
+
+# Install dependencies with optimized settings - breaking into smaller steps for better layer caching
 RUN yarn install --immutable --network-timeout 600000 --inline-builds \
   --mode=skip-build && \
   yarn cache clean
+
+# Reset NODE_ENV back to production for runtime
+ENV NODE_ENV=production
 
 # Create startup script
 COPY data/vector.db/docker-entrypoint.sh /docker-entrypoint.sh
