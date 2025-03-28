@@ -36,8 +36,9 @@ RUN yarn config set httpTimeout 600000 && \
   yarn config set networkConcurrency 4 && \
   npm config set registry https://registry.npmjs.org/
 
-# Install dependencies
-RUN yarn install --inline-builds --network-timeout 600000
+# Install dependencies with dev dependencies included 
+RUN yarn workspaces focus @posey.ai/auth && \
+  yarn cache clean
 
 # Copy service-specific files
 COPY services/auth/package.json ./services/auth/

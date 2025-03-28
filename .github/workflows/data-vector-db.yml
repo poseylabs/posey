@@ -29,6 +29,7 @@ jobs:
     runs-on:
       group: posey-runners
     environment: PRODUCTION
+    timeout-minutes: 120  # Increased from 60 to 120 minutes
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -45,6 +46,8 @@ jobs:
           echo "Setting DNS cache TTL to improve networking..."
           echo "options single-request-reopen" | sudo tee -a /etc/resolv.conf
           echo "options timeout:10" | sudo tee -a /etc/resolv.conf
+          echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+          echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf
           # Increase TCP performance
           sudo sysctl -w net.ipv4.tcp_slow_start_after_idle=0
           sudo sysctl -w net.ipv4.tcp_fastopen=3
@@ -66,12 +69,14 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           version: v0.12.0
+          driver: docker-container
           buildkitd-flags: --debug
           
-      - name: Docker Buildx Configuration
+      - name: Pull existing images for caching
         run: |
-          docker buildx create --name multiplatform-builder --driver docker-container --use --bootstrap
-          docker buildx inspect
+          echo "Pulling existing images for caching..."
+          docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest || true
+          docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:${ENVIRONMENT} || true
           
       - name: Debug directory structure
         run: |
@@ -82,7 +87,7 @@ jobs:
           ls -la data/vector.db/
           
       - name: Build Vector DB
-        timeout-minutes: 60
+        timeout-minutes: 90
         run: |
           # Create yarn logs directory
           mkdir -p yarn-logs
@@ -99,6 +104,7 @@ jobs:
             --build-arg YARN_ENABLE_PROGRESS_BARS=false \
             --build-arg YARN_VERBOSE=true \
             --build-arg DEBUG="yarn*" \
+            --memory=12g \
             --progress=plain \
             --cache-from type=registry,ref=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:buildcache \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME}:latest \

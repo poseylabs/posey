@@ -29,19 +29,22 @@ COPY data/vector.db/config.yaml config/production.yaml
 COPY data/vector.db/scripts /qdrant/scripts/
 COPY data/vector.db/package.json ./
 
-# Copy root yarn files
-COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn/ ./.yarn/
-COPY .pnp.cjs .pnp.loader.mjs ./
-
 # Configure Yarn network settings to prevent hanging
 RUN yarn config set httpTimeout 600000 && \
   yarn config set httpRetry 5 && \
   yarn config set networkConcurrency 4 && \
   npm config set registry https://registry.npmjs.org/
 
+# Copy only the package files needed for installation
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn/ ./.yarn/
+COPY .pnp.cjs .pnp.loader.mjs ./
+
 # Install dependencies with optimized settings
-RUN yarn install --inline-builds --network-timeout 600000
+# First install only the production dependencies with focused approach
+RUN yarn install --immutable --network-timeout 600000 --inline-builds \
+  --mode=skip-build && \
+  yarn cache clean
 
 # Create startup script
 COPY data/vector.db/docker-entrypoint.sh /docker-entrypoint.sh
