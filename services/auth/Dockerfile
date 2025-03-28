@@ -25,13 +25,21 @@ RUN corepack enable
 # Setup working directory
 WORKDIR /app
 
+# Pre-install node-gyp globally
+RUN npm install -g node-gyp
+
 # Copy root package files first for better caching
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 COPY .pnp.cjs .pnp.loader.mjs ./
 
+# Configure Yarn network settings to prevent hanging
+RUN yarn config set networkTimeout 300000 && \
+  yarn config set httpRetry 3 && \
+  yarn config set networkConcurrency 8
+
 # Install dependencies with immutable flag
-RUN yarn install --inline-builds
+RUN yarn install --inline-builds --network-timeout 600000
 
 # Copy service-specific files
 COPY services/auth/package.json ./services/auth/
