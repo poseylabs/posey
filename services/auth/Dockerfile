@@ -2,11 +2,16 @@
 FROM node:20 AS builder
 
 # Set up environment
-ENV NODE_ENV=production \
-  YARN_ENABLE_TELEMETRY=false \
-  NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ \
-  NPM_CONFIG_STRICT_SSL=false \
-  NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_ENV=production
+ENV YARN_ENABLE_TELEMETRY=false
+ENV NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
+ENV NPM_CONFIG_STRICT_SSL=false
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+ENV YARN_ENABLE_PROGRESS_BARS=true
+ENV YARN_VERBOSE=true
+ENV DEBUG="yarn*"
+ENV YARN_COLORS=true
 
 # Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \

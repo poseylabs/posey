@@ -98,9 +98,10 @@ jobs:
             --build-arg NODE_ENV=production \
             --build-arg BUILDKIT_MAX_PARALLELISM=4 \
             --build-arg YARN_ENABLE_TELEMETRY=false \
-            --build-arg YARN_ENABLE_PROGRESS_BARS=false \
+            --build-arg YARN_ENABLE_PROGRESS_BARS=true \
             --build-arg YARN_VERBOSE=true \
-            --build-arg DEBUG="yarn*" \
+            --build-arg DEBUG="yarn*,pnp*" \
+            --build-arg YARN_LOG_LEVEL=info \
             --build-arg YARN_NETWORK_TIMEOUT=600000 \
             --memory=12g \
             --progress=plain \
