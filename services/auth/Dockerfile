@@ -33,7 +33,7 @@ COPY .pnp.cjs .pnp.loader.mjs ./
 # Configure Yarn network settings to prevent hanging
 RUN yarn config set httpTimeout 600000 && \
   yarn config set httpRetry 5 && \
-  yarn config set concurrent 4 && \
+  yarn config set networkConcurrency 4 && \
   npm config set registry https://registry.npmjs.org/
 
 # Install dependencies
