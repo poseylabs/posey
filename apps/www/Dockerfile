@@ -15,7 +15,7 @@ COPY packages packages/
 COPY apps/www apps/www/
 
 # Install dependencies with immutable flag
-RUN yarn install --immutable --inline-builds
+RUN yarn install --inline-builds
 
 # Build the app
 RUN yarn nx build www

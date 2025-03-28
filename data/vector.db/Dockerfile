@@ -27,7 +27,7 @@ COPY .yarn/ ./.yarn/
 COPY .pnp.cjs .pnp.loader.mjs ./
 
 # Install dependencies
-RUN yarn install --immutable --inline-builds
+RUN yarn install --inline-builds
 
 # Create startup script
 COPY data/vector.db/docker-entrypoint.sh /docker-entrypoint.sh

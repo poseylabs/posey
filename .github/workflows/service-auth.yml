@@ -81,7 +81,7 @@ jobs:
           mkdir -p yarn-logs
           
           # Only build for amd64 to speed up build time
-          DOCKER_BUILDKIT=1 docker buildx build \
+          set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
             --platform linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg NODE_ENV=production \
