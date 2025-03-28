@@ -37,8 +37,8 @@ WORKDIR /app
 # Copy root package.json and workspace configuration first
 COPY package.json .
 COPY yarn.lock .
-COPY .yarnrc.yml* ./.yarnrc.yml
-COPY .yarn ./.yarn
+# Try to copy Yarn config file (if it exists)
+COPY [".yarnrc.yml", "./"]
 
 # Create service directory
 RUN mkdir -p /app/services/cron
@@ -73,7 +73,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 ENV NODE_ENV=production
 
 # Copy Yarn related files to ensure consistent behavior if needed at runtime
-COPY --from=builder /app/.yarn ./.yarn 
 COPY --from=builder /app/.yarnrc.yml ./.yarnrc.yml
 
 # Copy only what's needed from the builder stage
@@ -83,7 +82,7 @@ COPY --from=builder /app/services/cron/package.json ./
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data \
-  && chown -R node:node /app/logs /app/data /app/.yarn ./.yarnrc.yml
+  && chown -R node:node /app/logs /app/data ./.yarnrc.yml
 
 # Switch to non-root user
 USER node
