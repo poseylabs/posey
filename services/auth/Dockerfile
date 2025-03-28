@@ -1,18 +1,18 @@
 # Build stage
-FROM node:20-slim AS builder
+FROM node:20 AS builder
 
 # Set up environment
 ENV NODE_ENV=production \
-  YARN_ENABLE_TELEMETRY=false
+  YARN_ENABLE_TELEMETRY=false \
+  NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ \
+  NPM_CONFIG_STRICT_SSL=false \
+  NODE_OPTIONS="--max-old-space-size=4096"
 
 # Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
   git \
-  postgresql-client \
-  python3 \
-  build-essential \
   && rm -rf /var/lib/apt/lists/*
 
 # Set git to use HTTPS instead of SSH for GitHub
@@ -25,20 +25,18 @@ RUN corepack enable
 # Setup working directory
 WORKDIR /app
 
-# Pre-install node-gyp globally
-RUN npm install -g node-gyp
-
 # Copy root package files first for better caching
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 COPY .pnp.cjs .pnp.loader.mjs ./
 
 # Configure Yarn network settings to prevent hanging
-RUN yarn config set networkTimeout 300000 && \
-  yarn config set httpRetry 3 && \
-  yarn config set networkConcurrency 8
+RUN yarn config set networkTimeout 600000 && \
+  yarn config set httpRetry 5 && \
+  yarn config set networkConcurrency 4 && \
+  npm config set registry https://registry.npmjs.org/
 
-# Install dependencies with immutable flag
+# Install dependencies
 RUN yarn install --inline-builds --network-timeout 600000
 
 # Copy service-specific files
@@ -71,16 +69,15 @@ COPY --from=builder /app/services/auth/package.json ./
 COPY --from=builder /app/.pnp.cjs /app/.pnp.loader.mjs ./
 COPY --from=builder /app/.yarn ./.yarn
 
-# Create necessary directories
-RUN mkdir -p /app/logs \
-  && chown -R node:node /app/logs
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/logs && \
+  chown -R node:node /app/logs
 
 # Switch to non-root user
 USER node
 
 EXPOSE 9999
 
-# Add before CMD
 HEALTHCHECK --interval=30s --timeout=3s \
   CMD curl -f http://localhost:9999/health || exit 1
 

@@ -1,7 +1,15 @@
 FROM qdrant/qdrant:latest
 
-# Install Node.js and Yarn
-RUN apt-get update && apt-get install -y \
+# Set up environment variables for better npm/yarn behavior
+ENV NODE_ENV=production \
+  YARN_ENABLE_TELEMETRY=false \
+  NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ \
+  NPM_CONFIG_STRICT_SSL=false \
+  NODE_OPTIONS="--max-old-space-size=4096"
+
+# Install Node.js and Yarn with optimized apt settings
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  ca-certificates \
   curl \
   && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
   && apt-get install -y nodejs \
@@ -26,15 +34,13 @@ COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 COPY .pnp.cjs .pnp.loader.mjs ./
 
-# Pre-install node-gyp globally
-RUN npm install -g node-gyp
-
 # Configure Yarn network settings to prevent hanging
-RUN yarn config set networkTimeout 300000 && \
-  yarn config set httpRetry 3 && \
-  yarn config set networkConcurrency 8
+RUN yarn config set networkTimeout 600000 && \
+  yarn config set httpRetry 5 && \
+  yarn config set networkConcurrency 4 && \
+  npm config set registry https://registry.npmjs.org/
 
-# Install dependencies
+# Install dependencies with optimized settings
 RUN yarn install --inline-builds --network-timeout 600000
 
 # Create startup script
