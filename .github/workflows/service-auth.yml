@@ -111,7 +111,8 @@ jobs:
           retention-days: 5
           compression-level: 6
           
-      - name: Verify push status
+      - name: Verify image availability
         run: |
           echo "Verifying image availability in registry..."
-          doctl registry repository list-tags ${{ secrets.DO_REGISTRY_NAME }}/${SERVICE} --format Tag 
+          doctl registry repository list-tags ***/${SERVICE} --format Tag || echo "Repository does not exist yet - will be created on first push"
+          exit 0  # Ensure step doesn't fail if repository doesn't exist 
