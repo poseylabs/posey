@@ -6,7 +6,7 @@ ENV NODE_ENV=production \
   YARN_ENABLE_TELEMETRY=false \
   YARN_CACHE_FOLDER=/usr/local/share/.cache/yarn
 
-# Install minimal dependencies
+# Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
@@ -16,7 +16,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
   build-essential \
   && rm -rf /var/lib/apt/lists/*
 
-# Set up Yarn properly
+# Enable Corepack and set up Yarn
 RUN corepack enable && \
   corepack prepare yarn@stable --activate && \
   yarn set version stable
@@ -24,14 +24,21 @@ RUN corepack enable && \
 # Setup working directory
 WORKDIR /app
 
-# Copy package files first for better caching
+# Create cache directories
+RUN mkdir -p /usr/local/share/.cache/yarn && \
+  chmod -R 777 /usr/local/share/.cache/yarn
+
+# Copy root package files first for better caching
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn ./.yarn
+
+# Only copy .yarn directory if it exists
+COPY .yarn ./.yarn 2>/dev/null || true
 
 # Install dependencies with proper caching
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
-  yarn install --immutable --inline-builds && \
-  yarn cache clean
+RUN yarn config set nodeLinker node-modules && \
+  yarn config set enableGlobalCache false && \
+  yarn config set nmMode hardlinks-local && \
+  yarn install --immutable --inline-builds
 
 # Copy service-specific files
 COPY services/cron/package.json ./services/cron/
