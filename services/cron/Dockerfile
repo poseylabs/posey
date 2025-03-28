@@ -27,7 +27,7 @@ COPY .yarn/ ./.yarn/
 COPY .pnp.cjs .pnp.loader.mjs ./
 
 # Install dependencies with immutable flag
-RUN yarn install --immutable --inline-builds
+RUN yarn install --inline-builds
 
 # Copy service-specific files
 COPY services/cron/package.json ./services/cron/

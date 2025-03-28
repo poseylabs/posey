@@ -84,7 +84,7 @@ jobs:
           for i in {1..3}; do
             echo "Attempt $i of 3..."
             
-            if DOCKER_BUILDKIT=1 docker buildx build \
+            if set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
               --platform linux/amd64 \
               --build-arg BUILDKIT_INLINE_CACHE=1 \
               --build-arg NODE_ENV=production \
