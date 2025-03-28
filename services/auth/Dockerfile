@@ -3,8 +3,7 @@ FROM node:20-slim AS builder
 
 # Set up environment
 ENV NODE_ENV=production \
-  YARN_ENABLE_TELEMETRY=false \
-  YARN_CACHE_FOLDER=/usr/local/share/.cache/yarn
+  YARN_ENABLE_TELEMETRY=false
 
 # Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -21,27 +20,18 @@ RUN git config --global url."https://github.com/".insteadOf git@github.com: \
   && git config --global url."https://github.com/".insteadOf ssh://git@github.com/
 
 # Enable Corepack and set up Yarn
-RUN corepack enable && \
-  corepack prepare yarn@stable --activate && \
-  yarn set version stable
+RUN corepack enable
 
 # Setup working directory
 WORKDIR /app
 
-# Create cache directories
-RUN mkdir -p /usr/local/share/.cache/yarn && \
-  chmod -R 777 /usr/local/share/.cache/yarn
-
 # Copy root package files first for better caching
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
+COPY .pnp.cjs .pnp.loader.mjs ./
 
-# Install dependencies
-RUN yarn config set nodeLinker node-modules && \
-  yarn config set enableGlobalCache false && \
-  yarn config set nmMode hardlinks-local && \
-  yarn install --immutable --inline-builds && \
-  yarn cache clean
+# Install dependencies with immutable flag
+RUN yarn install --immutable --inline-builds
 
 # Copy service-specific files
 COPY services/auth/package.json ./services/auth/
@@ -62,12 +52,16 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
   postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
+# Enable Corepack
+RUN corepack enable
+
 ENV NODE_ENV=production
 
-# Copy only necessary files from builder
+# Copy necessary files from builder
 COPY --from=builder /app/services/auth/dist ./dist
-COPY --from=builder /app/services/auth/node_modules ./node_modules
 COPY --from=builder /app/services/auth/package.json ./
+COPY --from=builder /app/.pnp.cjs /app/.pnp.loader.mjs ./
+COPY --from=builder /app/.yarn ./.yarn
 
 # Create necessary directories
 RUN mkdir -p /app/logs \

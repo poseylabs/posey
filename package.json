@@ -46,7 +46,7 @@
     "url": "https://github.com/posey-ai/posey/issues"
   },
   "homepage": "https://github.com/posey-ai/posey#readme",
-  "packageManager": "yarn@4.5.1",
+  "packageManager": "yarn@4.7.0",
   "workspaces": [
     "apps/*",
     "data",

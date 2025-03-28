@@ -3,8 +3,7 @@ FROM node:20-slim AS builder
 
 # Set up environment
 ENV NODE_ENV=production \
-  YARN_ENABLE_TELEMETRY=false \
-  YARN_CACHE_FOLDER=/usr/local/share/.cache/yarn
+  YARN_ENABLE_TELEMETRY=false
 
 # Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -17,28 +16,18 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
   && rm -rf /var/lib/apt/lists/*
 
 # Enable Corepack and set up Yarn
-RUN corepack enable && \
-  corepack prepare yarn@stable --activate && \
-  yarn set version stable
+RUN corepack enable
 
 # Setup working directory
 WORKDIR /app
 
-# Create cache directories
-RUN mkdir -p /usr/local/share/.cache/yarn && \
-  chmod -R 777 /usr/local/share/.cache/yarn
-
 # Copy root package files first for better caching
 COPY package.json yarn.lock .yarnrc.yml ./
-
-# Only copy .yarn directory if it exists
 COPY .yarn/ ./.yarn/
+COPY .pnp.cjs .pnp.loader.mjs ./
 
-# Install dependencies with proper caching
-RUN yarn config set nodeLinker node-modules && \
-  yarn config set enableGlobalCache false && \
-  yarn config set nmMode hardlinks-local && \
-  yarn install --immutable --inline-builds
+# Install dependencies with immutable flag
+RUN yarn install --immutable --inline-builds
 
 # Copy service-specific files
 COPY services/cron/package.json ./services/cron/
@@ -59,12 +48,16 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
   postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
+# Enable Corepack
+RUN corepack enable
+
 ENV NODE_ENV=production
 
-# Copy only necessary files from builder
+# Copy necessary files from builder
 COPY --from=builder /app/services/cron/dist ./dist
-COPY --from=builder /app/services/cron/node_modules ./node_modules
 COPY --from=builder /app/services/cron/package.json ./
+COPY --from=builder /app/.pnp.cjs /app/.pnp.loader.mjs ./
+COPY --from=builder /app/.yarn ./.yarn
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs && \
