@@ -1,7 +1,6 @@
-name: Build Auth Service
+name: Auth Service CI/CD
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -9,6 +8,20 @@ on:
     paths:
       - 'services/auth/**'
       - '.github/workflows/service-auth.yml'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.yarnrc.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/auth/**'
+      - '.github/workflows/service-auth.yml'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.yarnrc.yml'
+  workflow_dispatch:
 
 env:
   DOCTL_VERSION: 1.92.1
@@ -17,7 +30,6 @@ env:
   DOCKER_IMAGE_NAME: posey-auth
   DOCKER_BUILDKIT: 1
   BUILDKIT_PROGRESS: plain
-  # Enable debug logging for npm and GitHub Actions
   ACTIONS_STEP_DEBUG: true
   ACTIONS_RUNNER_DEBUG: true
   NPM_CONFIG_LOGLEVEL: verbose
@@ -28,6 +40,7 @@ jobs:
     runs-on:
       group: posey-runners
     environment: PRODUCTION
+    timeout-minutes: 120
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -70,10 +83,10 @@ jobs:
           buildkitd-flags: --debug
           driver: docker-container
           
-      - name: Docker Buildx Configuration
+      - name: Setup Docker Buildx with Memory Limits
         run: |
-          docker buildx create --name multiplatform-builder --driver docker-container --use --bootstrap
-          docker buildx inspect
+          docker buildx create --use --name=multiplatform-builder --driver=docker-container --driver-opt=network=host --buildkitd-flags="--allow-insecure-entitlement network.host" --bootstrap
+          docker buildx inspect --bootstrap
           
       - name: Pull existing images for cache
         run: |
@@ -91,30 +104,54 @@ jobs:
           # Create yarn logs directory
           mkdir -p yarn-logs
           
-          # Only build for amd64 to speed up build time
-          set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
-            --platform linux/amd64 \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --build-arg NODE_ENV=production \
-            --build-arg BUILDKIT_MAX_PARALLELISM=4 \
-            --build-arg YARN_ENABLE_TELEMETRY=false \
-            --build-arg YARN_ENABLE_PROGRESS_BARS=true \
-            --build-arg YARN_VERBOSE=true \
-            --build-arg DEBUG="yarn*,pnp*" \
-            --build-arg YARN_LOG_LEVEL=info \
-            --build-arg YARN_NETWORK_TIMEOUT=600000 \
-            --memory=12g \
-            --progress=plain \
-            --cache-from type=registry,ref=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:buildcache \
-            --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
-            --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
-            --cache-to type=registry,ref=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:buildcache,mode=max \
-            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
-            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
-            -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
-            -f services/auth/Dockerfile \
-            --push \
-            . 2>&1 | tee yarn-logs/build.log
+          # Try the build up to 3 times to handle network failures
+          max_attempts=3
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Build attempt $attempt of $max_attempts"
+            
+            # Only build for amd64 to speed up build time
+            set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
+              --platform linux/amd64 \
+              --build-arg BUILDKIT_INLINE_CACHE=1 \
+              --build-arg NODE_ENV=production \
+              --build-arg BUILDKIT_MAX_PARALLELISM=4 \
+              --build-arg YARN_ENABLE_TELEMETRY=false \
+              --build-arg YARN_ENABLE_PROGRESS_BARS=true \
+              --build-arg YARN_VERBOSE=true \
+              --build-arg DEBUG="yarn*,pnp*" \
+              --build-arg YARN_LOG_LEVEL=info \
+              --build-arg YARN_NETWORK_TIMEOUT=600000 \
+              --memory=12g \
+              --progress=plain \
+              --cache-from type=registry,ref=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:buildcache \
+              --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
+              --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
+              --cache-to type=registry,ref=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:buildcache,mode=max \
+              -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
+              -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
+              -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
+              -f services/auth/Dockerfile \
+              --push \
+              . 2>&1 | tee yarn-logs/build-attempt-$attempt.log
+              
+            if [ ${PIPESTATUS[0]} -eq 0 ]; then
+              echo "Build succeeded on attempt $attempt"
+              cp yarn-logs/build-attempt-$attempt.log yarn-logs/build.log
+              break
+            else
+              echo "Build failed on attempt $attempt"
+              if [ $attempt -eq $max_attempts ]; then
+                echo "All build attempts failed"
+                cp yarn-logs/build-attempt-$attempt.log yarn-logs/build.log
+                exit 1
+              fi
+              attempt=$((attempt+1))
+              echo "Waiting 60 seconds before next attempt..."
+              sleep 60
+            fi
+          done
 
       - name: Upload build logs
         if: always()

@@ -9,9 +9,7 @@ ENV NPM_CONFIG_STRICT_SSL=false
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 ENV YARN_ENABLE_PROGRESS_BARS=true
-ENV YARN_VERBOSE=true
 ENV DEBUG="yarn*"
-ENV YARN_COLORS=true
 
 # Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -31,7 +29,7 @@ RUN corepack enable
 WORKDIR /app
 
 # Configure Yarn network settings to prevent hanging
-RUN yarn config set httpTimeout 600000 && \
+RUN yarn config set networkTimeout 600000 && \
   yarn config set httpRetry 5 && \
   yarn config set networkConcurrency 4 && \
   npm config set registry https://registry.npmjs.org/
@@ -43,7 +41,7 @@ COPY . .
 ENV NODE_ENV=development
 
 # Install dependencies focused on auth service with development dependencies
-RUN yarn workspaces focus @posey.ai/auth
+RUN cd services/auth && yarn install
 
 # Build the service
 WORKDIR /app/services/auth

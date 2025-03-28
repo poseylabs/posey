@@ -135,7 +135,8 @@ const RAW_RUNTIME_STATE =
           ["lint-staged", "npm:15.5.0"],\
           ["nx", "virtual:95859b275be8c06e60195fb0e93ec71f534475075e466a656e449394adcb9070ac9f39ff497deb00bcadba7cab5dd94f96e338050596616843084e95d8e4266d#npm:20.4.2"],\
           ["prettier", "npm:3.5.3"],\
-          ["turbo", "npm:2.4.4"]\
+          ["turbo", "npm:2.4.4"],\
+          ["typescript", "patch:typescript@npm%3A5.8.2#optional!builtin<compat/typescript>::version=5.8.2&hash=5786d5"]\
         ],\
         "linkType": "SOFT"\
       }]\
@@ -9143,7 +9144,8 @@ const RAW_RUNTIME_STATE =
           ["lint-staged", "npm:15.5.0"],\
           ["nx", "virtual:95859b275be8c06e60195fb0e93ec71f534475075e466a656e449394adcb9070ac9f39ff497deb00bcadba7cab5dd94f96e338050596616843084e95d8e4266d#npm:20.4.2"],\
           ["prettier", "npm:3.5.3"],\
-          ["turbo", "npm:2.4.4"]\
+          ["turbo", "npm:2.4.4"],\
+          ["typescript", "patch:typescript@npm%3A5.8.2#optional!builtin<compat/typescript>::version=5.8.2&hash=5786d5"]\
         ],\
         "linkType": "SOFT"\
       }]\

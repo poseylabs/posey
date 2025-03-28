@@ -33,7 +33,8 @@
     "lint-staged": "^15.4.3",
     "nx": "20.4.2",
     "prettier": "^3.5.0",
-    "turbo": "^2.4.4"
+    "turbo": "^2.4.4",
+    "typescript": "^5.8.2"
   },
   "directories": {
     "doc": "docs"
