@@ -7,10 +7,7 @@ ENV YARN_ENABLE_TELEMETRY=false
 ENV NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
 ENV NPM_CONFIG_STRICT_SSL=false
 ENV NODE_OPTIONS="--max-old-space-size=4096"
-ENV YARN_ENABLE_PROGRESS_BARS=true
-ENV YARN_VERBOSE=true
-ENV DEBUG="yarn*"
-ENV YARN_COLORS=true
+ENV COREPACK_ENABLE=1
 
 # Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -30,7 +27,7 @@ RUN corepack enable
 WORKDIR /app
 
 # Configure Yarn network settings to prevent hanging
-RUN yarn config set httpTimeout 600000 && \
+RUN yarn config set networkTimeout 600000 && \
   yarn config set httpRetry 5 && \
   yarn config set networkConcurrency 4 && \
   npm config set registry https://registry.npmjs.org/
