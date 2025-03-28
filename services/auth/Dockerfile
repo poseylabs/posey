@@ -38,7 +38,7 @@ COPY . .
 ENV NODE_ENV=development
 
 # Install dependencies focused on auth service with development dependencies
-RUN yarn workspaces focus @posey.ai/auth --production=false && \
+RUN yarn workspaces focus --production=false @posey.ai/auth && \
   yarn cache clean
 
 # Build the service
