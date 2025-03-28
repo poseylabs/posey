@@ -71,4 +71,9 @@ RUN mkdir -p /app/logs \
 USER node
 
 EXPOSE 9999
+
+# Add before CMD
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:9999/health || exit 1
+
 CMD ["node", "dist/main.js"]
