@@ -34,13 +34,19 @@ RUN yarn config set httpTimeout 600000 && \
 # Copy the entire monorepo to ensure workspace structure is intact
 COPY . .
 
-# Install dependencies focused on cron service
-RUN yarn workspaces focus @posey.ai/cron && \
+# Temporarily set NODE_ENV to development to ensure devDependencies are installed
+ENV NODE_ENV=development
+
+# Install dependencies focused on cron service with development dependencies
+RUN yarn workspaces focus @posey.ai/cron --production=false && \
   yarn cache clean
 
 # Build the service
 WORKDIR /app/services/cron
 RUN yarn build
+
+# Set NODE_ENV back to production for the remainder of the build
+ENV NODE_ENV=production
 
 # Production stage
 FROM node:20-slim
