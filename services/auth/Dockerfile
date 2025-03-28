@@ -25,25 +25,18 @@ RUN corepack enable
 # Setup working directory
 WORKDIR /app
 
-# Copy root package files first for better caching
-COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn/ ./.yarn/
-COPY .pnp.cjs .pnp.loader.mjs ./
-
 # Configure Yarn network settings to prevent hanging
 RUN yarn config set httpTimeout 600000 && \
   yarn config set httpRetry 5 && \
   yarn config set networkConcurrency 4 && \
   npm config set registry https://registry.npmjs.org/
 
-# Install dependencies with dev dependencies included 
+# Copy the entire monorepo to ensure workspace structure is intact
+COPY . .
+
+# Install dependencies focused on auth service 
 RUN yarn workspaces focus @posey.ai/auth && \
   yarn cache clean
-
-# Copy service-specific files
-COPY services/auth/package.json ./services/auth/
-COPY services/auth/tsconfig.json ./services/auth/
-COPY services/auth/src ./services/auth/src/
 
 # Build the service
 WORKDIR /app/services/auth

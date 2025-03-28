@@ -44,6 +44,8 @@ jobs:
           echo "Setting DNS cache TTL to improve networking..."
           echo "options single-request-reopen" | sudo tee -a /etc/resolv.conf
           echo "options timeout:10" | sudo tee -a /etc/resolv.conf
+          echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+          echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf
           # Increase TCP performance
           sudo sysctl -w net.ipv4.tcp_slow_start_after_idle=0
           sudo sysctl -w net.ipv4.tcp_fastopen=3
@@ -66,11 +68,20 @@ jobs:
         with:
           version: v0.12.0
           buildkitd-flags: --debug
+          driver: docker-container
           
       - name: Docker Buildx Configuration
         run: |
           docker buildx create --name multiplatform-builder --driver docker-container --use --bootstrap
           docker buildx inspect
+          
+      - name: Pull existing images for cache
+        run: |
+          echo "Pulling existing images for caching..."
+          # Pull latest, buildcache, and env-specific images to use as cache
+          docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest || echo "No latest image found"
+          docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:buildcache || echo "No buildcache image found" 
+          docker pull registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} || echo "No ${{ env.ENVIRONMENT }} image found"
           
       - name: Build Auth Service
         timeout-minutes: 90
@@ -90,6 +101,8 @@ jobs:
             --build-arg YARN_ENABLE_PROGRESS_BARS=false \
             --build-arg YARN_VERBOSE=true \
             --build-arg DEBUG="yarn*" \
+            --build-arg YARN_NETWORK_TIMEOUT=600000 \
+            --memory=12g \
             --progress=plain \
             --cache-from type=registry,ref=registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:buildcache \
             --cache-from registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
@@ -114,5 +127,5 @@ jobs:
       - name: Verify image availability
         run: |
           echo "Verifying image availability in registry..."
-          doctl registry repository list-tags ***/${SERVICE} --format Tag || echo "Repository does not exist yet - will be created on first push"
+          doctl registry repository list-tags ${{ secrets.DO_REGISTRY_NAME }}/${SERVICE} --format Tag || echo "Repository does not exist yet - will be created on first push"
           exit 0  # Ensure step doesn't fail if repository doesn't exist 
