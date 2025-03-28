@@ -28,13 +28,20 @@ RUN corepack enable && \
 # Setup working directory
 WORKDIR /app
 
+# Create cache directories
+RUN mkdir -p /usr/local/share/.cache/yarn && \
+  chmod -R 777 /usr/local/share/.cache/yarn
+
 # Copy root package files first for better caching
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn ./.yarn
 
-# Install dependencies with proper caching
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
-  yarn install --immutable --inline-builds
+# Install dependencies
+RUN yarn config set nodeLinker node-modules && \
+  yarn config set enableGlobalCache false && \
+  yarn config set nmMode hardlinks-local && \
+  yarn install --immutable --inline-builds && \
+  yarn cache clean
 
 # Copy service-specific files
 COPY services/auth/package.json ./services/auth/
