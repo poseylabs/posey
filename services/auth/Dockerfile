@@ -1,9 +1,10 @@
 # Build stage
 FROM node:20-slim AS builder
 
-# Set up environment for faster installs
-ENV NODE_ENV=production
-ENV YARN_ENABLE_TELEMETRY=false
+# Set up environment
+ENV NODE_ENV=production \
+  YARN_ENABLE_TELEMETRY=false \
+  YARN_CACHE_FOLDER=/usr/local/share/.cache/yarn
 
 # Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -20,31 +21,29 @@ RUN git config --global url."https://github.com/".insteadOf git@github.com: \
   && git config --global url."https://github.com/".insteadOf ssh://git@github.com/
 
 # Enable Corepack and set up Yarn
-RUN corepack enable \
-  && corepack prepare yarn@stable --activate
+RUN corepack enable && \
+  corepack prepare yarn@stable --activate && \
+  yarn set version stable
 
-# Setup service directory
+# Setup working directory
+WORKDIR /app
+
+# Copy root package files first for better caching
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn ./.yarn
+
+# Install dependencies with proper caching
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
+  yarn install --immutable --inline-builds
+
+# Copy service-specific files
+COPY services/auth/package.json ./services/auth/
+COPY services/auth/tsconfig.json ./services/auth/
+COPY services/auth/src ./services/auth/src/
+
+# Build the service
 WORKDIR /app/services/auth
-
-# Copy service package files
-COPY services/auth/package.json ./
-COPY services/auth/tsconfig.json ./
-COPY services/auth/src ./src/
-
-# Create log directory
-RUN mkdir -p /var/log/yarn
-
-# Debug info
-RUN echo "Node: $(node --version)" && \
-  echo "NPM: $(npm --version)" && \
-  echo "Yarn: $(yarn --version)" && \
-  echo "Corepack: $(corepack --version)"
-
-# Install dependencies and build
-RUN yarn set version stable && \
-  yarn config set nodeLinker node-modules && \
-  yarn install --immutable && \
-  yarn build
+RUN yarn build
 
 # Production stage
 FROM node:20-slim

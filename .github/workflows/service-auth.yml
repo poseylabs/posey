@@ -65,6 +65,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           version: v0.12.0
+          buildkitd-flags: --debug
           
       - name: Docker Buildx Configuration
         run: |
@@ -97,6 +98,7 @@ jobs:
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:latest \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:${{ env.ENVIRONMENT }} \
             -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/${DOCKER_IMAGE_NAME:-$SERVICE}:$(echo $GITHUB_SHA | cut -c1-7) \
+            --mount type=cache,target=/usr/local/share/.cache/yarn \
             -f services/auth/Dockerfile \
             --push \
             . 2>&1 | tee yarn-logs/build.log
