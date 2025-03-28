@@ -38,7 +38,7 @@ COPY .pnp.cjs .pnp.loader.mjs ./
 COPY services/cron/package.json ./services/cron/
 
 # Install dependencies with production flag to only install what's needed
-RUN yarn workspaces focus --production cron && \
+RUN yarn workspaces focus @posey.ai/cron && \
   yarn cache clean
 
 # Copy source code for the build
