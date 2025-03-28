@@ -19,8 +19,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 RUN git config --global url."https://github.com/".insteadOf git@github.com: \
   && git config --global url."https://github.com/".insteadOf ssh://git@github.com/
 
-# Enable Corepack for Yarn
-RUN corepack enable
+# Enable Corepack and set up Yarn
+RUN corepack enable \
+  && corepack prepare yarn@stable --activate
 
 # Setup service directory
 WORKDIR /app/services/auth
@@ -39,12 +40,11 @@ RUN echo "Node: $(node --version)" && \
   echo "Yarn: $(yarn --version)" && \
   echo "Corepack: $(corepack --version)"
 
-# Install using direct approach
-RUN yarn install --production
-RUN yarn cache clean
-
-# Build the service
-RUN yarn build
+# Install dependencies and build
+RUN yarn set version stable && \
+  yarn config set nodeLinker node-modules && \
+  yarn install --immutable && \
+  yarn build
 
 # Production stage
 FROM node:20-slim
