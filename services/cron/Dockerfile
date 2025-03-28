@@ -25,22 +25,23 @@ RUN corepack enable
 # Setup working directory
 WORKDIR /app
 
-# Copy root package files first for better caching
-COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn/ ./.yarn/
-COPY .pnp.cjs .pnp.loader.mjs ./
-
 # Configure Yarn network settings to prevent hanging
 RUN yarn config set httpTimeout 600000 && \
   yarn config set httpRetry 5 && \
   yarn config set networkConcurrency 4 && \
   npm config set registry https://registry.npmjs.org/
 
-# Install dependencies
-RUN yarn install --inline-builds --network-timeout 600000
-
-# Copy service-specific files
+# Copy just what's needed for dependency installation
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn/ ./.yarn/
+COPY .pnp.cjs .pnp.loader.mjs ./
 COPY services/cron/package.json ./services/cron/
+
+# Install dependencies with production flag to only install what's needed
+RUN yarn workspaces focus --production cron && \
+  yarn cache clean
+
+# Copy source code for the build
 COPY services/cron/tsconfig.json ./services/cron/
 COPY services/cron/src ./services/cron/src/
 
