@@ -26,8 +26,16 @@ COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 COPY .pnp.cjs .pnp.loader.mjs ./
 
+# Pre-install node-gyp globally
+RUN npm install -g node-gyp
+
+# Configure Yarn network settings to prevent hanging
+RUN yarn config set networkTimeout 300000 && \
+  yarn config set httpRetry 3 && \
+  yarn config set networkConcurrency 8
+
 # Install dependencies
-RUN yarn install --inline-builds
+RUN yarn install --inline-builds --network-timeout 600000
 
 # Create startup script
 COPY data/vector.db/docker-entrypoint.sh /docker-entrypoint.sh
