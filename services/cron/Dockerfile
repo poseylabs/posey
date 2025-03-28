@@ -38,7 +38,7 @@ COPY . .
 ENV NODE_ENV=development
 
 # Install dependencies focused on cron service with development dependencies
-RUN yarn workspaces focus @posey.ai/cron --production=false && \
+RUN yarn workspaces focus --production=false @posey.ai/cron && \
   yarn cache clean
 
 # Build the service
