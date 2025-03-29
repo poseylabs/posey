@@ -173,7 +173,9 @@ workflows:
     when: << pipeline.parameters.run-voyager-workflow >>
     jobs:
       - build-voyager-service:
-          context: posey-production
+          context: 
+            - posey-prod-core
+            - posey-prod-services
           filters:
             branches:
               only:

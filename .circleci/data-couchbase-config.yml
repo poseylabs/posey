@@ -175,7 +175,9 @@ workflows:
     when: << pipeline.parameters.run-couchbase-workflow >>
     jobs:
       - build-couchbase:
-          context: posey-production
+          context: 
+            - posey-prod-core
+            - posey-prod-data
           filters:
             branches:
               only:

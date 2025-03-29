@@ -175,7 +175,9 @@ workflows:
     when: << pipeline.parameters.run-vector-db-workflow >>
     jobs:
       - build-vector-db:
-          context: posey-production
+          context: 
+            - posey-prod-core
+            - posey-prod-data
           filters:
             branches:
               only:

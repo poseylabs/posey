@@ -22,7 +22,8 @@
     "ingress:setup": "NODE_ENV=development node scripts/posey-ingress.js --local",
     "ingress:local": "yarn ingress:setup && bash scripts/port-forward-ingress.sh",
     "ingress:prod": "node scripts/posey-ingress.js",
-    "port-forward": "bash scripts/port-forward-all.sh"
+    "port-forward": "bash scripts/port-forward-all.sh",
+    "sync:env": "bash scripts/sync-circleci-env.sh"
   },
   "devDependencies": {
     "@nrwl/nx-cloud": "19.1.0",
