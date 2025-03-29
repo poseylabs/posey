@@ -64,3 +64,5 @@ secrets.yaml
 *-secrets.yaml
 
 delete_me
+
+.yarn/cache
