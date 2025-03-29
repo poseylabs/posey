@@ -7,16 +7,16 @@ orbs:
 # Data services
 import:
   # Data services
-  - data-postgres-config.yml
-  - data-couchbase-config.yml
-  - data-vector-db-config.yml
+  - .circleci/data-postgres-config.yml
+  - .circleci/data-couchbase-config.yml
+  - .circleci/data-vector-db-config.yml
   # Application services
-  - service-auth-config.yml
-  - service-cron-config.yml
-  - service-voyager-config.yml
-  - service-mcp-config.yml
-  - service-supertokens-config.yml
-  - service-agents-config.yml
+  - .circleci/service-auth-config.yml
+  - .circleci/service-cron-config.yml
+  - .circleci/service-voyager-config.yml
+  - .circleci/service-mcp-config.yml
+  - .circleci/service-supertokens-config.yml
+  - .circleci/service-agents-config.yml
 
 parameters:
   run-workflow:
@@ -225,7 +225,9 @@ workflows:
     when: << pipeline.parameters.run-auth-workflow >>
     jobs:
       - build-auth-service:
-          context: posey-production
+          context: 
+            - posey-prod-core
+            - posey-prod-data
           filters:
             branches:
               only:
@@ -239,7 +241,9 @@ workflows:
     when: << pipeline.parameters.run-postgres-workflow >>
     jobs:
       - build-postgres:
-          context: posey-production
+          context: 
+            - posey-prod-core
+            - posey-prod-data
           filters:
             branches:
               only:
@@ -252,7 +256,9 @@ workflows:
     when: << pipeline.parameters.run-couchbase-workflow >>
     jobs:
       - build-couchbase:
-          context: posey-production
+          context: 
+            - posey-prod-core
+            - posey-prod-data
           filters:
             branches:
               only:
@@ -265,7 +271,9 @@ workflows:
     when: << pipeline.parameters.run-vector-db-workflow >>
     jobs:
       - build-vector-db:
-          context: posey-production
+          context: 
+            - posey-prod-core
+            - posey-prod-data
           filters:
             branches:
               only:
