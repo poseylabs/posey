@@ -1,6 +1,6 @@
 {
   "name": "@posey.ai/couchbase",
-  "version": "1.0.0-alpha.2",
+  "version": "1.0.0-alpha.3",
   "type": "module",
   "scripts": {
     "docker:build": "docker build -t registry.digitalocean.com/posey/posey-couchbase:latest .",

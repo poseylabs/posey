@@ -33,7 +33,7 @@ async def get_docs() -> Dict[str, Any]:
     This is a placeholder - you can expand this to return actual API documentation.
     """
     return {
-        "version": "1.0.0",
+        "version": "1.0.0-alpha.3",
         "title": "Posey Agents API",
         "description": "API documentation for the Posey Agents service",
         "endpoints": [
@@ -65,7 +65,7 @@ async def get_openapi_docs() -> Dict[str, Any]:
         "openapi": "3.0.0",
         "info": {
             "title": "Posey Agents API",
-            "version": "1.0.0",
+            "version": "1.0.0-alpha.3",
             "description": "API for managing Posey AI agents and tasks"
         },
         "paths": {
