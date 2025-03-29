@@ -1,10 +1,23 @@
 version: 2.1
 
+# Standard and local orbs
 orbs:
+  # Standard orbs
   docker: circleci/docker@2.5.0
   path-filtering: circleci/path-filtering@1.0.0
+  # Local orbs
+  common: local/common
+  data-postgres: local/data-postgres
+  data-couchbase: local/data-couchbase
+  data-vector-db: local/data-vector-db
+  service-auth: local/service-auth
+  service-cron: local/service-cron
+  service-mcp: local/service-mcp
+  service-supertokens: local/service-supertokens
+  service-voyager: local/service-voyager
+  service-agents: local/service-agents
 
-# Declare local orbs
+# Declare local orbs directory locations
 orbs-dirs:
   local:
     common: .circleci/orbs/common-orb.yml

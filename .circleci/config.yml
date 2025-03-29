@@ -52,6 +52,14 @@ workflows:
   path-filtering:
     jobs:
       - path-filtering/filter:
+          pre-steps:
+            - run:
+                name: Install yq
+                command: |
+                  curl -L https://github.com/mikefarah/yq/releases/download/v4.40.5/yq_linux_amd64 -o /tmp/yq
+                  chmod +x /tmp/yq
+                  sudo mv /tmp/yq /usr/local/bin/yq
+                  yq --version
           name: check-updated-files
           mapping: |
             services/auth/.* run-auth-service-workflow true
