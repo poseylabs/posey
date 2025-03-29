@@ -4,7 +4,7 @@ description: "Orb for building and deploying the Auth service"
 
 # We'll use the common orb for executors and shared commands
 orbs:
-  common: common-orb@local
+  common: common@local
 
 jobs:
   build-auth-service:
