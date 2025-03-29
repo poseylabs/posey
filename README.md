@@ -1,26 +1,7 @@
+[![CircleCI](https://dl.circleci.com/status-badge/img/circleci/9RCMZs5ANpSsRLtbL9Nfkd/7dtVXKL2S6onY3KxYQ7NjX/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/circleci/9RCMZs5ANpSsRLtbL9Nfkd/7dtVXKL2S6onY3KxYQ7NjX/tree/main)
 # Posey Monorepo
 
 This repository contains the source code for Posey – a lifelong personalized AI agent companion system.
-
------
-
-## Posey Status
-
-#### Infrastructure
-[![Posey Build Orchestrator](https://github.com/poseylabs/posey/actions/workflows/infra-orchestrate.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/infra-orchestrate.yml)
-[![Posey Deploy Manager](https://github.com/poseylabs/posey/actions/workflows/infra-deploy.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/infra-deploy.yml)
-
-#### Data Services
-[![Postgres](https://github.com/poseylabs/posey/actions/workflows/data-postgres.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/data-postgres.yml)
-[![Couchbase](https://github.com/poseylabs/posey/actions/workflows/data-couchbase.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/data-couchbase.yml)
-[![Qdrant](https://github.com/poseylabs/posey/actions/workflows/data-vector-db.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/data-vector-db.yml)
-
-#### Core Services
-[![Agents API](https://github.com/poseylabs/posey/actions/workflows/service-agents.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/service-agents.yml)
-[![Authentication Service](https://github.com/poseylabs/posey/actions/workflows/service-auth.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/service-auth.yml)
-[![Cron Server](https://github.com/poseylabs/posey/actions/workflows/service-cron.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/service-cron.yml)
-[![MCP Server](https://github.com/poseylabs/posey/actions/workflows/service-mcp.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/service-mcp.yml)
-[![Posey Voyager](https://github.com/poseylabs/posey/actions/workflows/service-voyager.yml/badge.svg)](https://github.com/poseylabs/posey/actions/workflows/service-voyager.yml)
 
 -----
 
