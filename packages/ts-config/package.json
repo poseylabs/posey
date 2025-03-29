@@ -1,6 +1,6 @@
 {
   "name": "@posey.ai/ts-config",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.2",
   "main": "configs/index.js",
   "author": "Posey Labs <code@posey.ai>",
   "files": [

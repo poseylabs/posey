@@ -1,6 +1,6 @@
 {
   "name": "@posey.ai/posey-image-midjourney",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.2",
   "description": "Midjourney image generation provider for Posey",
   "author": "Posey Labs",
   "website": "https://github.com/poseylabs/posey-image-midjourney",
