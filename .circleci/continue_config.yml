@@ -1,0 +1,198 @@
+version: 2.1
+
+orbs:
+  docker: circleci/docker@2.5.0
+  path-filtering: circleci/path-filtering@1.0.0
+
+# Declare local orbs
+orbs-dirs:
+  local:
+    common: .circleci/orbs/common-orb.yml
+    data-postgres: .circleci/orbs/data-postgres-orb.yml
+    data-couchbase: .circleci/orbs/data-couchbase-orb.yml
+    data-vector-db: .circleci/orbs/data-vector-db-orb.yml
+    service-auth: .circleci/orbs/service-auth-orb.yml
+    service-cron: .circleci/orbs/service-cron-orb.yml
+    service-mcp: .circleci/orbs/service-mcp-orb.yml
+    service-supertokens: .circleci/orbs/service-supertokens-orb.yml
+    service-voyager: .circleci/orbs/service-voyager-orb.yml
+    service-agents: .circleci/orbs/service-agents-orb.yml
+
+# Define the parameters that will be passed from the setup configuration
+parameters:
+  run-workflow:
+    default: true
+    type: boolean
+  run-auth-workflow:
+    type: boolean
+    default: false
+  run-cron-workflow:
+    type: boolean
+    default: false
+  run-voyager-workflow:
+    type: boolean
+    default: false
+  run-mcp-workflow:
+    type: boolean
+    default: false
+  run-supertokens-workflow:
+    type: boolean
+    default: false
+  run-agents-workflow:
+    type: boolean
+    default: false
+  run-vector-db-workflow:
+    type: boolean
+    default: false
+  run-postgres-workflow:
+    type: boolean
+    default: false
+  run-couchbase-workflow:
+    type: boolean
+    default: false
+  run-auth-service-workflow:
+    description: "Run Auth Service workflow"
+    type: boolean
+    default: false
+  run-cron-service-workflow:
+    description: "Run Cron Service workflow"
+    type: boolean
+    default: false
+
+workflows:
+  version: 2
+
+  # Auth Service workflow
+  auth-service:
+    when: << pipeline.parameters.run-auth-service-workflow >>
+    jobs:
+      - service-auth/build-auth-service:
+          context:
+            - org-global
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # Cron Service workflow
+  cron-service:
+    when: << pipeline.parameters.run-cron-service-workflow >>
+    jobs:
+      - service-cron/build-cron-service:
+          context:
+            - org-global
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # MCP Service workflow
+  mcp-service:
+    when: << pipeline.parameters.run-mcp-workflow >>
+    jobs:
+      - service-mcp/build-mcp-service:
+          context:
+            - org-global
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # SuperTokens Service workflow
+  supertokens-service:
+    when: << pipeline.parameters.run-supertokens-workflow >>
+    jobs:
+      - service-supertokens/build-supertokens-service:
+          context:
+            - org-global
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # Voyager Service workflow
+  voyager-service:
+    when: << pipeline.parameters.run-voyager-workflow >>
+    jobs:
+      - service-voyager/build-voyager-service:
+          context:
+            - org-global
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # Agents Service workflow
+  agents-service:
+    when: << pipeline.parameters.run-agents-workflow >>
+    jobs:
+      - service-agents/build-agents-service:
+          context:
+            - org-global
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # Postgres workflow
+  postgres:
+    when: << pipeline.parameters.run-postgres-workflow >>
+    jobs:
+      - data-postgres/build-postgres:
+          context:
+            - org-global
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # Couchbase workflow
+  couchbase:
+    when: << pipeline.parameters.run-couchbase-workflow >>
+    jobs:
+      - data-couchbase/build-couchbase:
+          context:
+            - org-global
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # Vector DB workflow
+  vector-db:
+    when: << pipeline.parameters.run-vector-db-workflow >>
+    jobs:
+      - data-vector-db/build-vector-db:
+          context:
+            - org-global
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/ 
