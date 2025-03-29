@@ -47,6 +47,7 @@ out
 
 # Yarn
 .yarn/*
+!.yarn/cache
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
@@ -61,3 +62,5 @@ dist
 config-map.yaml
 secrets.yaml
 *-secrets.yaml
+
+delete_me

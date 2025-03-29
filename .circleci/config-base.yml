@@ -1,0 +1,38 @@
+version: 2.1
+
+setup: true
+
+orbs:
+  path-filtering: circleci/path-filtering@1.0.0
+
+workflows:
+  decide-workflow:
+    jobs:
+      - path-filtering/filter:
+          name: check-updated-files
+          mapping: |
+            # Service directory
+            services/auth/.* run-auth-workflow true
+            services/cron/.* run-cron-workflow true
+            services/voyager/.* run-voyager-workflow true
+            services/mcp/.* run-mcp-workflow true
+            services/supertokens/.* run-supertokens-workflow true
+            services/agents/.* run-agents-workflow true
+            
+            # Data directory
+            data/vector.db/.* run-vector-db-workflow true
+            data/postgres/.* run-postgres-workflow true
+            data/couchbase/.* run-couchbase-workflow true
+            
+            # CircleCI config
+            .circleci/data-vector-db-config.yml run-vector-db-workflow true
+            .circleci/data-postgres-config.yml run-postgres-workflow true
+            .circleci/data-couchbase-config.yml run-couchbase-workflow true
+            .circleci/service-auth-config.yml run-auth-workflow true
+            .circleci/service-cron-config.yml run-cron-workflow true
+            .circleci/service-voyager-config.yml run-voyager-workflow true
+            .circleci/service-mcp-config.yml run-mcp-workflow true
+            .circleci/service-supertokens-config.yml run-supertokens-workflow true
+            .circleci/service-agents-config.yml run-agents-workflow true
+          base-revision: main
+          config-path: .circleci/config.yml 

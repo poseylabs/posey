@@ -8,8 +8,14 @@ ENV NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
 ENV NPM_CONFIG_STRICT_SSL=false
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
+# Yarn 4 specific environment variables
 ENV YARN_ENABLE_PROGRESS_BARS=true
-ENV DEBUG="yarn*"
+ENV YARN_VERBOSE=true
+ENV YARN_CACHE_FOLDER=/tmp/.yarn-cache
+ENV YARN_RC_FILENAME=.yarnrc.yml
+ENV YARN_INSTALL_STATE_PATH=/tmp/.yarn-state.gz
+ENV YARN_PNP_ENABLE_CACHE=true
+ENV YARN_LOG_LEVEL="info"
 
 # Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -28,27 +34,21 @@ RUN corepack enable
 # Setup working directory
 WORKDIR /app
 
-# Configure Yarn network settings to prevent hanging
-RUN yarn config set networkTimeout 600000 && \
-  yarn config set httpRetry 5 && \
-  yarn config set networkConcurrency 4 && \
-  npm config set registry https://registry.npmjs.org/
+# Copy only the files needed for dependency installation first
+# This improves caching and reduces build time
+COPY package.json .yarnrc.yml yarn.lock ./
+COPY .yarn ./.yarn
+COPY services/auth/package.json ./services/auth/
 
-# Copy the entire monorepo to ensure workspace structure is intact
+# Install dependencies with proper focus on auth service - with verbose logging
+RUN set -x && yarn workspaces focus @posey.ai/auth --production=false --verbose 2>&1 | tee /tmp/yarn-install.log
+
+# Copy remaining files for the build
 COPY . .
-
-# Temporarily set NODE_ENV to development to ensure devDependencies are installed
-ENV NODE_ENV=development
-
-# Install dependencies focused on auth service with development dependencies
-RUN cd services/auth && yarn install
 
 # Build the service
 WORKDIR /app/services/auth
-RUN yarn build
-
-# Set NODE_ENV back to production for the remainder of the build
-ENV NODE_ENV=production
+RUN set -x && yarn build --verbose 2>&1 | tee /tmp/yarn-build.log
 
 # Production stage
 FROM node:20-slim
@@ -64,12 +64,17 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 RUN corepack enable
 
 ENV NODE_ENV=production
+ENV YARN_ENABLE_TELEMETRY=false
+ENV YARN_ENABLE_PROGRESS_BARS=true
+ENV YARN_VERBOSE=true
 
 # Copy necessary files from builder
 COPY --from=builder /app/services/auth/dist ./dist
 COPY --from=builder /app/services/auth/package.json ./
 COPY --from=builder /app/.pnp.cjs /app/.pnp.loader.mjs ./
 COPY --from=builder /app/.yarn ./.yarn
+COPY --from=builder /app/services/auth/scripts ./scripts
+COPY --from=builder /app/.yarnrc.yml ./
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs && \
@@ -83,4 +88,5 @@ EXPOSE 9999
 HEALTHCHECK --interval=30s --timeout=3s \
   CMD curl -f http://localhost:9999/health || exit 1
 
-CMD ["node", "dist/main.js"]
+# Use the start:container script instead of directly running main.js
+CMD ["yarn", "start:container"]

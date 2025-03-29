@@ -1,0 +1,181 @@
+version: 2.1
+
+orbs:
+  docker: circleci/docker@2.5.0
+
+parameters:
+  run-mcp-workflow:
+    type: boolean
+    default: false
+
+executors:
+  docker-builder:
+    docker:
+      - image: cimg/base:2024.03
+    resource_class: large
+    environment:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+
+commands:
+  setup-doctl:
+    description: "Install and configure doctl"
+    steps:
+      - run:
+          name: Install doctl
+          command: |
+            cd /tmp
+            curl -sL --retry 5 --retry-delay 5 https://github.com/digitalocean/doctl/releases/download/v1.92.1/doctl-1.92.1-linux-amd64.tar.gz | tar -xzv
+            sudo mv doctl /usr/local/bin/
+            doctl version
+            doctl auth init -t ${DO_API_TOKEN}
+      - run:
+          name: Log in to DigitalOcean Container Registry
+          command: |
+            doctl registry login --expiry-seconds 7200
+
+  setup-buildx:
+    description: "Set up Docker Buildx"
+    steps:
+      - run:
+          name: Set up Docker Buildx
+          command: |
+            docker buildx create --use --name=multiplatform-builder --driver=docker-container --driver-opt=network=host --buildkitd-flags="--allow-insecure-entitlement network.host" --bootstrap
+            docker buildx inspect --bootstrap
+
+  install-kubectl:
+    description: "Install and configure kubectl"
+    steps:
+      - run:
+          name: Install kubectl
+          command: |
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+            kubectl version --client
+
+  setup-kubeconfig:
+    description: "Set up kubeconfig for Digital Ocean"
+    steps:
+      - run:
+          name: Set up kubeconfig
+          command: |
+            doctl kubernetes cluster kubeconfig save ${DO_K8S_CLUSTER_ID}
+            kubectl config use-context do-sfo3-posey-cluster
+
+jobs:
+  build-mcp-service:
+    executor: docker-builder
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.24
+          docker_layer_caching: true
+      - run:
+          name: Configure git
+          command: |
+            git config --global url."https://github.com/".insteadOf git@github.com:
+            git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+      - run:
+          name: Configure network
+          command: |
+            echo "Setting up network optimizations..."
+            echo "options single-request-reopen" | sudo tee -a /etc/resolv.conf
+            echo "options timeout:10" | sudo tee -a /etc/resolv.conf
+            echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+            echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf
+            # Increase TCP performance
+            sudo sysctl -w net.ipv4.tcp_slow_start_after_idle=0
+            sudo sysctl -w net.ipv4.tcp_fastopen=3
+      - setup-doctl
+      - setup-buildx
+      - run:
+          name: Pull existing images for cache
+          command: |
+            echo "Pulling existing images for caching..."
+            docker pull registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-mcp:latest || echo "No latest image found"
+            docker pull registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-mcp:buildcache || echo "No buildcache image found" 
+            docker pull registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-mcp:PRODUCTION || echo "No PRODUCTION image found"
+      - run:
+          name: Build MCP Service
+          no_output_timeout: 30m
+          command: |
+            echo "Building MCP service..."
+            
+            # Create build logs directory
+            mkdir -p build-logs
+            
+            # Try the build up to 3 times to handle network failures
+            max_attempts=3
+            attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "Build attempt $attempt of $max_attempts"
+              
+              # Only build for amd64 to speed up build time
+              set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
+                --platform linux/amd64 \
+                --build-arg BUILDKIT_INLINE_CACHE=1 \
+                --progress=plain \
+                --memory=4g \
+                --cache-from type=registry,ref=registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-mcp:buildcache \
+                --cache-from registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-mcp:latest \
+                --cache-from registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-mcp:PRODUCTION \
+                --cache-to type=registry,ref=registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-mcp:buildcache,mode=max \
+                -t registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-mcp:latest \
+                -t registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-mcp:PRODUCTION \
+                -t registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-mcp:$(echo $CIRCLE_SHA1 | cut -c1-7) \
+                -f services/mcp/Dockerfile \
+                --push \
+                ./services/mcp 2>&1 | tee build-logs/build-attempt-$attempt.log
+                
+              if [ ${PIPESTATUS[0]} -eq 0 ]; then
+                echo "Build succeeded on attempt $attempt"
+                cp build-logs/build-attempt-$attempt.log build-logs/build.log
+                break
+              else
+                echo "Build failed on attempt $attempt"
+                if [ $attempt -eq $max_attempts ]; then
+                  echo "All build attempts failed"
+                  cp build-logs/build-attempt-$attempt.log build-logs/build.log
+                  exit 1
+                fi
+                attempt=$((attempt+1))
+                echo "Waiting 60 seconds before next attempt..."
+                sleep 60
+              fi
+            done
+      - install-kubectl
+      - setup-kubeconfig
+      - run:
+          name: Trigger ArgoCD sync for MCP Service
+          command: |
+            # Install argocd CLI if needed
+            curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+            chmod +x argocd
+            sudo mv argocd /usr/local/bin/
+            
+            # Log in to ArgoCD (using token auth)
+            argocd login ${ARGOCD_SERVER} --auth-token ${ARGOCD_TOKEN} --grpc-web
+            
+            # Trigger sync for the mcp application
+            argocd app sync posey-mcp --force
+            
+            # Wait for sync to complete
+            argocd app wait posey-mcp --health --timeout 300
+      - store_artifacts:
+          path: build-logs
+          destination: build-logs
+
+workflows:
+  mcp-service-pipeline:
+    when: << pipeline.parameters.run-mcp-workflow >>
+    jobs:
+      - build-mcp-service:
+          context: posey-production
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/ 

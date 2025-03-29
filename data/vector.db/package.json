@@ -13,9 +13,6 @@
     "docker:start": "docker run -d --name qdrant -p 1111:1111 -p 6334:6334 -v $(pwd)/storage:/qdrant/storage registry.digitalocean.com/posey/vector.db:latest",
     "docker:stop": "docker stop qdrant && docker rm qdrant",
     "docker:logs": "docker logs qdrant",
-    "clean": "node scripts/clean.js",
-    "clean:force": "node scripts/clean.js --force",
-    "healthcheck": "node scripts/healthcheck.js",
     "build:local": "echo '🔨 Building Docker image posey-qdrant:latest...' && docker build -t posey-qdrant:latest .",
     "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
     "connect": "echo 'Qdrant is available at: http://localhost:1111'"
