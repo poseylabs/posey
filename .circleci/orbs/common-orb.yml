@@ -1,0 +1,86 @@
+version: 2.1
+
+description: "Common orb with shared executors and commands for Posey services"
+
+executors:
+  docker-builder:
+    docker:
+      - image: cimg/base:2024.03
+    resource_class: large
+    environment:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+      YARN_VERBOSE: true
+      YARN_ENABLE_PROGRESS_BARS: true
+      YARN_LOG_LEVEL: info
+
+commands:
+  setup-doctl:
+    description: "Install and configure doctl"
+    steps:
+      - run:
+          name: Install doctl
+          command: |
+            cd /tmp
+            curl -sL --retry 5 --retry-delay 5 https://github.com/digitalocean/doctl/releases/download/v1.92.1/doctl-1.92.1-linux-amd64.tar.gz | tar -xzv
+            sudo mv doctl /usr/local/bin/
+            doctl version
+            doctl auth init -t ${DO_API_TOKEN}
+      - run:
+          name: Log in to DigitalOcean Container Registry
+          command: |
+            doctl registry login --expiry-seconds 7200
+
+  setup-buildx:
+    description: "Set up Docker Buildx"
+    steps:
+      - run:
+          name: Set up Docker Buildx
+          command: |
+            docker buildx create --use --name=multiplatform-builder --driver=docker-container --driver-opt=network=host --buildkitd-flags="--allow-insecure-entitlement network.host" --bootstrap
+            docker buildx inspect --bootstrap
+
+  install-kubectl:
+    description: "Install and configure kubectl"
+    steps:
+      - run:
+          name: Install kubectl
+          command: |
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+            kubectl version --client
+
+  setup-kubeconfig:
+    description: "Set up kubeconfig for Digital Ocean"
+    steps:
+      - run:
+          name: Set up kubeconfig
+          command: |
+            doctl kubernetes cluster kubeconfig save ${DO_K8S_CLUSTER_ID}
+            kubectl config use-context do-sfo3-posey-cluster
+            
+  setup-common:
+    description: "Setup common environment"
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.24
+          docker_layer_caching: true
+      - run:
+          name: Configure git
+          command: |
+            git config --global url."https://github.com/".insteadOf git@github.com:
+            git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+      - run:
+          name: Configure network
+          command: |
+            echo "Setting up network optimizations..."
+            echo "options single-request-reopen" | sudo tee -a /etc/resolv.conf
+            echo "options timeout:10" | sudo tee -a /etc/resolv.conf
+            echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+            echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf
+            # Increase TCP performance
+            sudo sysctl -w net.ipv4.tcp_slow_start_after_idle=0
+            sudo sysctl -w net.ipv4.tcp_fastopen=3
+      - setup-doctl
+      - setup-buildx 

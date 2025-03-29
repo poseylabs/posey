@@ -1,0 +1,91 @@
+version: 2.1
+
+description: "Orb for building and deploying the Cron service"
+
+# Use the common orb for shared executors and commands
+orbs:
+  common: common-orb@local
+
+jobs:
+  build-cron-service:
+    executor: common/docker-builder
+    steps:
+      - common/setup-common
+      - run:
+          name: Pull existing images for cache
+          command: |
+            echo "Pulling existing images for caching..."
+            docker pull registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-cron:latest || echo "No latest image found"
+            docker pull registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-cron:buildcache || echo "No buildcache image found" 
+            docker pull registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-cron:PRODUCTION || echo "No PRODUCTION image found"
+      - run:
+          name: Build Cron Service
+          no_output_timeout: 30m
+          command: |
+            echo "Building cron service..."
+            
+            # Create logs directory
+            mkdir -p yarn-logs
+            
+            # Try the build up to 3 times to handle network failures
+            max_attempts=3
+            attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "Build attempt $attempt of $max_attempts"
+              
+              # Only build for amd64 to speed up build time
+              set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
+                --platform linux/amd64 \
+                --build-arg BUILDKIT_INLINE_CACHE=1 \
+                --build-arg NODE_ENV=production \
+                --progress=plain \
+                --memory=8g \
+                --cache-from type=registry,ref=registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-cron:buildcache \
+                --cache-from registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-cron:latest \
+                --cache-from registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-cron:PRODUCTION \
+                --cache-to type=registry,ref=registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-cron:buildcache,mode=max \
+                -t registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-cron:latest \
+                -t registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-cron:PRODUCTION \
+                -t registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-cron:$(echo $CIRCLE_SHA1 | cut -c1-7) \
+                -f apps/cron/Dockerfile \
+                --push \
+                . 2>&1 | tee yarn-logs/build-attempt-$attempt.log
+                
+              if [ ${PIPESTATUS[0]} -eq 0 ]; then
+                echo "Build succeeded on attempt $attempt"
+                cp yarn-logs/build-attempt-$attempt.log yarn-logs/build.log
+                break
+              else
+                echo "Build failed on attempt $attempt"
+                if [ $attempt -eq $max_attempts ]; then
+                  echo "All build attempts failed"
+                  cp yarn-logs/build-attempt-$attempt.log yarn-logs/build.log
+                  exit 1
+                fi
+                attempt=$((attempt+1))
+                echo "Waiting 60 seconds before next attempt..."
+                sleep 60
+              fi
+            done
+      - common/install-kubectl
+      - common/setup-kubeconfig
+      - run:
+          name: Trigger ArgoCD sync for Cron
+          command: |
+            # Install argocd CLI if needed
+            curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+            chmod +x argocd
+            sudo mv argocd /usr/local/bin/
+            
+            # Log in to ArgoCD (using token auth)
+            argocd login ${ARGOCD_SERVER} --auth-token ${ARGOCD_TOKEN} --grpc-web
+            
+            # Trigger sync for the cron application
+            argocd app sync posey-cron --force
+            
+            # Wait for sync to complete
+            argocd app wait posey-cron --health --timeout 300
+      - store_artifacts:
+          path: yarn-logs
+          destination: yarn-logs 
