@@ -12,17 +12,17 @@ workflows:
           name: check-updated-files
           mapping: |
             # Service directory
-            services/auth/** run-auth-workflow true
-            services/cron/** run-cron-workflow true
-            services/voyager/** run-voyager-workflow true
-            services/mcp/** run-mcp-workflow true
-            services/supertokens/** run-supertokens-workflow true
-            services/agents/** run-agents-workflow true
+            services/auth/.* run-auth-workflow true
+            services/cron/.* run-cron-workflow true
+            services/voyager/.* run-voyager-workflow true
+            services/mcp/.* run-mcp-workflow true
+            services/supertokens/.* run-supertokens-workflow true
+            services/agents/.* run-agents-workflow true
             
             # Data directory
-            data/vector.db/** run-vector-db-workflow true
-            data/postgres/** run-postgres-workflow true
-            data/couchbase/** run-couchbase-workflow true
+            data/vector.db/.* run-vector-db-workflow true
+            data/postgres/.* run-postgres-workflow true
+            data/couchbase/.* run-couchbase-workflow true
             
             # Package.json files
             package.json run-auth-workflow true
