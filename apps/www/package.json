@@ -22,7 +22,7 @@
     "framer-motion": "^11.18.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.439.0",
-    "next": "15.2.3",
+    "next": "15.2.4",
     "ollama": "^0.5.13",
     "pg": "^8.13.1",
     "react": "^19.0.0",
