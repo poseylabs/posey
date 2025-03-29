@@ -49,7 +49,7 @@ DEFAULT_SERVICE_CONFIG = {
     "type": ServiceType.AGENT,
     "name": "default",
     "description": "Default service configuration",
-    "version": "1.0.0-beta.1",
+    "version": "1.0.0-alpha.1",
     "enabled": True,
     "config": {},
     "dependencies": [],
