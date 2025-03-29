@@ -12,19 +12,51 @@ workflows:
           name: check-updated-files
           mapping: |
             # Service directory
-            services/auth/.* run-auth-workflow true
-            services/cron/.* run-cron-workflow true
-            services/voyager/.* run-voyager-workflow true
-            services/mcp/.* run-mcp-workflow true
-            services/supertokens/.* run-supertokens-workflow true
-            services/agents/.* run-agents-workflow true
+            services/auth/** run-auth-workflow true
+            services/cron/** run-cron-workflow true
+            services/voyager/** run-voyager-workflow true
+            services/mcp/** run-mcp-workflow true
+            services/supertokens/** run-supertokens-workflow true
+            services/agents/** run-agents-workflow true
             
             # Data directory
-            data/vector.db/.* run-vector-db-workflow true
-            data/postgres/.* run-postgres-workflow true
-            data/couchbase/.* run-couchbase-workflow true
+            data/vector.db/** run-vector-db-workflow true
+            data/postgres/** run-postgres-workflow true
+            data/couchbase/** run-couchbase-workflow true
             
-            # CircleCI config
+            # Package.json files
+            package.json run-auth-workflow true
+            package.json run-cron-workflow true
+            package.json run-voyager-workflow true
+            package.json run-mcp-workflow true
+            package.json run-supertokens-workflow true
+            package.json run-agents-workflow true
+            package.json run-vector-db-workflow true
+            package.json run-postgres-workflow true
+            package.json run-couchbase-workflow true
+            
+            # Main CircleCI config (trigger all builds)
+            .circleci/config.yml run-auth-workflow true
+            .circleci/config.yml run-cron-workflow true
+            .circleci/config.yml run-voyager-workflow true
+            .circleci/config.yml run-mcp-workflow true
+            .circleci/config.yml run-supertokens-workflow true
+            .circleci/config.yml run-agents-workflow true
+            .circleci/config.yml run-vector-db-workflow true
+            .circleci/config.yml run-postgres-workflow true
+            .circleci/config.yml run-couchbase-workflow true
+            
+            .circleci/config-base.yml run-auth-workflow true
+            .circleci/config-base.yml run-cron-workflow true
+            .circleci/config-base.yml run-voyager-workflow true
+            .circleci/config-base.yml run-mcp-workflow true
+            .circleci/config-base.yml run-supertokens-workflow true
+            .circleci/config-base.yml run-agents-workflow true
+            .circleci/config-base.yml run-vector-db-workflow true
+            .circleci/config-base.yml run-postgres-workflow true
+            .circleci/config-base.yml run-couchbase-workflow true
+            
+            # Individual service/data configs
             .circleci/data-vector-db-config.yml run-vector-db-workflow true
             .circleci/data-postgres-config.yml run-postgres-workflow true
             .circleci/data-couchbase-config.yml run-couchbase-workflow true
