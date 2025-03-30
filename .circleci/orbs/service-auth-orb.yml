@@ -4,7 +4,8 @@ description: "Orb for building and deploying the Auth service"
 
 # We'll use the common orb for executors and shared commands
 orbs:
-  common: local/common
+  common: 
+    path: .circleci/orbs/common-orb.yml
 
 jobs:
   build-auth-service:
