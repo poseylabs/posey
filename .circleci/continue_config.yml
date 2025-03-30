@@ -5,7 +5,7 @@ orbs:
   # Standard orbs from the registry
   docker: circleci/docker@2.5.0
   path-filtering: circleci/path-filtering@1.0.0
-  cli: circleci/circleci-cli@2.0.0
+  cli: circleci/circleci-cli@0.1.9
   
   # Use inline orbs temporarily until they're published
   common:

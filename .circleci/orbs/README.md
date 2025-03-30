@@ -10,6 +10,16 @@ We use a two-stage approach for orbs:
 
 2. **Production**: Once the orbs are stable, they are published to the CircleCI registry in the `posey` namespace.
 
+## Important Version Notes
+
+When referencing standard CircleCI orbs, use these specific versions:
+
+- `circleci/circleci-cli@0.1.9` - The CircleCI CLI orb (not 2.0.0)
+- `circleci/path-filtering@1.0.0`
+- `circleci/docker@2.5.0`
+
+Using incorrect versions will result in "Cannot find orb" errors during pipeline execution.
+
 ## Automatic Orb Publishing
 
 The orbs in this directory are automatically published to the CircleCI registry whenever changes are pushed to the repository. This is handled by the `.circleci/publish-orbs.yml` workflow, which is triggered when any files in the `.circleci/orbs` directory change.

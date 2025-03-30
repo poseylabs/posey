@@ -8,7 +8,7 @@ parameters:
 
 orbs:
   # Use CircleCI's CLI orb for orb-specific commands
-  cli: circleci/circleci-cli@2.0.0
+  cli: circleci/circleci-cli@0.1.9
   path-filtering: circleci/path-filtering@1.0.0
 
 # Commands that will be reused across jobs
