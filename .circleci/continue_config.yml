@@ -17,20 +17,6 @@ orbs:
   service-voyager: local/service-voyager
   service-agents: local/service-agents
 
-# Declare local orbs directory locations
-orbs-dirs:
-  local:
-    common: .circleci/orbs/common-orb.yml
-    data-postgres: .circleci/orbs/data-postgres-orb.yml
-    data-couchbase: .circleci/orbs/data-couchbase-orb.yml
-    data-vector-db: .circleci/orbs/data-vector-db-orb.yml
-    service-auth: .circleci/orbs/service-auth-orb.yml
-    service-cron: .circleci/orbs/service-cron-orb.yml
-    service-mcp: .circleci/orbs/service-mcp-orb.yml
-    service-supertokens: .circleci/orbs/service-supertokens-orb.yml
-    service-voyager: .circleci/orbs/service-voyager-orb.yml
-    service-agents: .circleci/orbs/service-agents-orb.yml
-
 # Define the parameters that will be passed from the setup configuration
 parameters:
   run-workflow:
