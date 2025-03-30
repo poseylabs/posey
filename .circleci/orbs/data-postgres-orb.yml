@@ -73,18 +73,70 @@ jobs:
       - run:
           name: Trigger ArgoCD sync for Postgres
           command: |
-            # Install argocd CLI if needed
-            curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-            chmod +x argocd
-            sudo mv argocd /usr/local/bin/
+            # Debug environment
+            echo "Current directory: $(pwd)"
+            echo "Available disk space:"
+            df -h
+            
+            # Check if ArgoCD variables are set (safely)
+            if [ -z "${ARGOCD_SERVER}" ]; then
+              echo "ERROR: ARGOCD_SERVER environment variable is not set"
+              exit 1
+            else
+              echo "ARGOCD_SERVER is set to: ${ARGOCD_SERVER}"
+            fi
+            
+            if [ -z "${ARGOCD_TOKEN}" ]; then
+              echo "ERROR: ARGOCD_TOKEN environment variable is not set"
+              exit 1
+            else
+              echo "ARGOCD_TOKEN is set (token length: ${#ARGOCD_TOKEN})"
+            fi
+            
+            # Create temp directory for downloads
+            TEMP_DIR=$(mktemp -d)
+            echo "Using temporary directory: ${TEMP_DIR}"
+            cd ${TEMP_DIR}
+            
+            # Install argocd CLI with verbose output and retry
+            echo "Downloading ArgoCD CLI..."
+            curl -v --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+            
+            # Check if download was successful
+            if [ $? -ne 0 ]; then
+              echo "ERROR: Failed to download ArgoCD CLI"
+              # Try specific version as fallback
+              echo "Trying specific version instead..."
+              curl -v --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/download/v2.8.4/argocd-linux-amd64
+              
+              if [ $? -ne 0 ]; then
+                echo "ERROR: Failed to download ArgoCD CLI (specific version)"
+                exit 1
+              fi
+            fi
+            
+            echo "ArgoCD CLI downloaded successfully. Size: $(ls -lh argocd.download | awk '{print $5}')"
+            chmod +x argocd.download
+            sudo mv argocd.download /usr/local/bin/argocd
+            cd -
+            
+            echo "ArgoCD CLI version:"
+            argocd version --client
+            
+            # Test the server connection
+            echo "Testing connection to ArgoCD server..."
+            curl -k -s ${ARGOCD_SERVER}/api/version | grep -q "version" && echo "Server connection successful" || echo "Server connection failed"
             
             # Log in to ArgoCD (using token auth)
-            argocd login ${ARGOCD_SERVER} --auth-token ${ARGOCD_TOKEN} --grpc-web
+            echo "Logging in to ArgoCD server..."
+            argocd login ${ARGOCD_SERVER} --auth-token ${ARGOCD_TOKEN} --grpc-web --insecure
             
             # Trigger sync for the postgres application
+            echo "Triggering sync for posey-postgres..."
             argocd app sync posey-postgres --force
             
             # Wait for sync to complete
+            echo "Waiting for sync to complete..."
             argocd app wait posey-postgres --health --timeout 300
       - store_artifacts:
           path: build-logs
