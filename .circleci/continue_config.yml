@@ -19,15 +19,6 @@ orbs:
 
 # Define the parameters that will be passed from the setup configuration
 parameters:
-  run-workflow:
-    default: true
-    type: boolean
-  run-auth-workflow:
-    type: boolean
-    default: false
-  run-cron-workflow:
-    type: boolean
-    default: false
   run-voyager-workflow:
     type: boolean
     default: false

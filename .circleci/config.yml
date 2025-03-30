@@ -11,12 +11,6 @@ parameters:
   run-workflow:
     default: true
     type: boolean
-  run-auth-workflow:
-    type: boolean
-    default: false
-  run-cron-workflow:
-    type: boolean
-    default: false
   run-voyager-workflow:
     type: boolean
     default: false
@@ -63,9 +57,7 @@ workflows:
           name: check-updated-files
           mapping: |
             services/auth/.* run-auth-service-workflow true
-            services/auth/.* run-auth-workflow true
             apps/cron/.* run-cron-service-workflow true
-            apps/cron/.* run-cron-workflow true
             data/postgres/.* run-postgres-workflow true
             data/couchbase/.* run-couchbase-workflow true
             data/vector-db/.* run-vector-db-workflow true
