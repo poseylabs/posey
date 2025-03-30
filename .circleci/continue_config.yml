@@ -5,17 +5,27 @@ orbs:
   # Standard orbs
   docker: circleci/docker@2.5.0
   path-filtering: circleci/path-filtering@1.0.0
-  # Local orbs
-  common: local/common
-  data-postgres: local/data-postgres
-  data-couchbase: local/data-couchbase
-  data-vector-db: local/data-vector-db
-  service-auth: local/service-auth
-  service-cron: local/service-cron
-  service-mcp: local/service-mcp
-  service-supertokens: local/service-supertokens
-  service-voyager: local/service-voyager
-  service-agents: local/service-agents
+  # Local orbs - reference them properly with file paths
+  common: 
+    path: .circleci/orbs/common-orb.yml
+  data-postgres: 
+    path: .circleci/orbs/data-postgres-orb.yml
+  data-couchbase: 
+    path: .circleci/orbs/data-couchbase-orb.yml
+  data-vector-db: 
+    path: .circleci/orbs/data-vector-db-orb.yml
+  service-auth: 
+    path: .circleci/orbs/service-auth-orb.yml
+  service-cron: 
+    path: .circleci/orbs/service-cron-orb.yml
+  service-mcp: 
+    path: .circleci/orbs/service-mcp-orb.yml
+  service-supertokens: 
+    path: .circleci/orbs/service-supertokens-orb.yml
+  service-voyager: 
+    path: .circleci/orbs/service-voyager-orb.yml
+  service-agents: 
+    path: .circleci/orbs/service-agents-orb.yml
 
 # Define the parameters that will be passed from the setup configuration
 parameters:
