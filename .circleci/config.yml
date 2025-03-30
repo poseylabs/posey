@@ -10,7 +10,6 @@ orbs:
 orbs-dir: .circleci/orbs
 orbs-settings:
   namespace: posey
-  registry: local-registry
 
 # Define pipeline parameters that will be passed to the continuation configuration
 parameters:

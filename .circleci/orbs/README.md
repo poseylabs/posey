@@ -2,6 +2,14 @@
 
 This directory contains CircleCI orbs used in the Posey project. Orbs are reusable packages of CircleCI configuration that can be shared across projects.
 
+## Publishing Strategy
+
+We use a two-stage approach for orbs:
+
+1. **Initial Development**: We use inline orbs defined directly in our configuration files, allowing us to develop and test the orbs without requiring them to be published first.
+
+2. **Production**: Once the orbs are stable, they are published to the CircleCI registry in the `posey` namespace.
+
 ## Automatic Orb Publishing
 
 The orbs in this directory are automatically published to the CircleCI registry whenever changes are pushed to the repository. This is handled by the `.circleci/publish-orbs.yml` workflow, which is triggered when any files in the `.circleci/orbs` directory change.
@@ -26,9 +34,18 @@ To add a new orb:
    .circleci/scripts/update-and-commit-orb-config.sh
    ```
 
-3. The orb will be automatically detected and published the next time you push to the repository.
+3. Add an inline version of the orb to `.circleci/continue_config.yml` until the orb is published:
+   ```yaml
+   orbs:
+     # Existing orbs...
+     your-new-orb:
+       description: "Your new orb description"
+       jobs:
+         your-job:
+           # Job definition here
+   ```
 
-4. Update the `.circleci/continue_config.yml` file to include the new orb in the list:
+4. After the orb is published, update the reference to use the published version:
    ```yaml
    orbs:
      # Existing orbs...
@@ -43,7 +60,7 @@ To ensure everything stays in sync, we recommend setting up git hooks:
 .circleci/scripts/setup-hooks.sh
 ```
 
-This will install a pre-push hook that automatically updates the orb configuration when you push changes.
+This will install a pre-push hook that automatically updates the orb publishing configuration when you push changes.
 
 ## Manual Updates
 

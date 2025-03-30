@@ -5,19 +5,157 @@ orbs:
   # Standard orbs from the registry
   docker: circleci/docker@2.5.0
   path-filtering: circleci/path-filtering@1.0.0
-  cli: circleci/circleci-cli@1.0
+  cli: circleci/circleci-cli@2.0.0
   
-  # Posey orbs with simplified references
-  common: posey/common@1.0
-  service-auth: posey/service-auth@1.0
-  service-cron: posey/service-cron@1.0
-  data-postgres: posey/data-postgres@1.0
-  data-couchbase: posey/data-couchbase@1.0
-  data-vector-db: posey/data-vector-db@1.0
-  service-mcp: posey/service-mcp@1.0
-  service-supertokens: posey/service-supertokens@1.0
-  service-voyager: posey/service-voyager@1.0
-  service-agents: posey/service-agents@1.0
+  # Use inline orbs temporarily until they're published
+  common:
+    description: "Common orb with shared executors and commands for Posey services"
+    executors:
+      docker-builder:
+        docker:
+          - image: cimg/base:2024.03
+        resource_class: large
+        environment:
+          DOCKER_BUILDKIT: 1
+          BUILDKIT_PROGRESS: plain
+    commands:
+      setup-common:
+        description: "Setup common environment"
+        steps:
+          - checkout
+          - setup_remote_docker:
+              version: 20.10.24
+              docker_layer_caching: true
+      install-kubectl:
+        description: "Install kubectl"
+        steps:
+          - run:
+              name: Install kubectl
+              command: echo "Installing kubectl..."
+      setup-kubeconfig:
+        description: "Setup kubeconfig"
+        steps:
+          - run:
+              name: Setup kubeconfig
+              command: echo "Setting up kubeconfig..."
+
+  # Temporary inline definitions for service orbs
+  service-auth:
+    description: "Service Auth orb"
+    jobs:
+      build-auth-service:
+        executor: common/docker-builder
+        steps:
+          - common/setup-common
+          - run:
+              name: Build Auth Service
+              command: echo "Would build auth service here"
+          - common/install-kubectl
+          - common/setup-kubeconfig
+
+  service-cron:
+    description: "Service Cron orb"
+    jobs:
+      build-cron-service:
+        executor: common/docker-builder
+        steps:
+          - common/setup-common
+          - run:
+              name: Build Cron Service
+              command: echo "Would build cron service here"
+          - common/install-kubectl
+          - common/setup-kubeconfig
+  
+  data-postgres:
+    description: "Data Postgres orb"
+    jobs:
+      build-postgres:
+        executor: common/docker-builder
+        steps:
+          - common/setup-common
+          - run:
+              name: Build Postgres
+              command: echo "Would build postgres here"
+          - common/install-kubectl
+          - common/setup-kubeconfig
+  
+  data-couchbase:
+    description: "Data Couchbase orb"
+    jobs:
+      build-couchbase:
+        executor: common/docker-builder
+        steps:
+          - common/setup-common
+          - run:
+              name: Build Couchbase
+              command: echo "Would build couchbase here"
+          - common/install-kubectl
+          - common/setup-kubeconfig
+  
+  data-vector-db:
+    description: "Data Vector DB orb"
+    jobs:
+      build-vector-db:
+        executor: common/docker-builder
+        steps:
+          - common/setup-common
+          - run:
+              name: Build Vector DB
+              command: echo "Would build vector-db here"
+          - common/install-kubectl
+          - common/setup-kubeconfig
+  
+  service-mcp:
+    description: "Service MCP orb"
+    jobs:
+      build-mcp-service:
+        executor: common/docker-builder
+        steps:
+          - common/setup-common
+          - run:
+              name: Build MCP Service
+              command: echo "Would build MCP service here"
+          - common/install-kubectl
+          - common/setup-kubeconfig
+  
+  service-supertokens:
+    description: "Service SuperTokens orb"
+    jobs:
+      build-supertokens-service:
+        executor: common/docker-builder
+        steps:
+          - common/setup-common
+          - run:
+              name: Build SuperTokens Service
+              command: echo "Would build SuperTokens service here"
+          - common/install-kubectl
+          - common/setup-kubeconfig
+  
+  service-voyager:
+    description: "Service Voyager orb"
+    jobs:
+      build-voyager-service:
+        executor: common/docker-builder
+        steps:
+          - common/setup-common
+          - run:
+              name: Build Voyager Service
+              command: echo "Would build Voyager service here"
+          - common/install-kubectl
+          - common/setup-kubeconfig
+  
+  service-agents:
+    description: "Service Agents orb"
+    jobs:
+      build-agents-service:
+        executor: common/docker-builder
+        steps:
+          - common/setup-common
+          - run:
+              name: Build Agents Service
+              command: echo "Would build Agents service here"
+          - common/install-kubectl
+          - common/setup-kubeconfig
 
 # Define the parameters that will be passed from the setup configuration
 parameters:
