@@ -87,7 +87,8 @@ workflows:
                   fi
                   
                   echo "Using version type: $VERSION_TYPE"
-                  echo "export ORB_VERSION_TYPE=$VERSION_TYPE" >> $BASH_ENV
+                  # Pass to the CircleCI configuration
+                  echo "export PARAM_ORB_VERSION_TYPE=$VERSION_TYPE" >> $BASH_ENV
           name: check-updated-files
           mapping: |
             services/auth/.* run-auth-service-workflow true
@@ -100,13 +101,20 @@ workflows:
             services/voyager/.* run-voyager-workflow true
             services/agents/.* run-agents-workflow true
             .circleci/orbs/.* run-orb-publishing-workflow true
-          parameters: |
-            {
-              "orb-version-type": "${ORB_VERSION_TYPE}"
-            }
           base-revision: main
           # This is the path to the configuration file that will be used for the continuation
           config-path: .circleci/continue_config.yml
+          post-steps:
+            - checkout
+            - run:
+                name: Update continue_config.yml with version type
+                command: |
+                  VERSION_TYPE="${PARAM_ORB_VERSION_TYPE:-patch}"
+                  echo "Using version type: $VERSION_TYPE for orb publishing"
+                  
+                  # Create a temp file and update the orb-version-type parameter
+                  sed "s/orb-version-type:.*/orb-version-type: \"$VERSION_TYPE\"/" .circleci/continue_config.yml > /tmp/new_config.yml
+                  mv /tmp/new_config.yml .circleci/continue_config.yml
           filters:
             branches:
               only:
