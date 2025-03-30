@@ -56,7 +56,7 @@ commands:
       - run:
           name: Set up kubeconfig
           command: |
-            doctl kubernetes cluster kubeconfig save ${DO_K8S_CLUSTER_ID}
+            doctl kubernetes cluster kubeconfig save ${DO_KUBERNETES_CLUSTER_ID}
             kubectl config use-context do-sfo3-posey-cluster
             
   setup-common:
