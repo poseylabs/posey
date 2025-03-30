@@ -8,7 +8,23 @@ We use a two-stage approach for orbs:
 
 1. **Initial Development**: We use inline orbs defined directly in our configuration files, allowing us to develop and test the orbs without requiring them to be published first.
 
-2. **Production**: Once the orbs are stable, they are published to the CircleCI registry in the `posey` namespace.
+2. **Production**: Once the orbs are stable, they are published to the CircleCI registry in the `posey` namespace and all inline definitions are removed from the config.
+
+## Current Versions
+
+We currently use a mixed versioning approach:
+
+- **Common orb**: `posey/common@0.0.2` (production version)
+- **All other orbs**: `posey/orb-name@dev:alpha1` (development versions)
+
+This is because production versions (like 0.0.2) are immutable in CircleCI once published. Our common orb was already published as a production version, so we need to reference it that way.
+
+CircleCI orbs follow these versioning rules:
+
+- Development versions: `dev:name` format (like `dev:alpha1`) - these are mutable and can be updated
+- Production versions: `x.y.z` format (like `0.0.2`) - these are immutable once published
+
+Note that CircleCI does **not** support standard SemVer pre-release identifiers with hyphens (e.g., `1.0.0-alpha.1`).
 
 ## Important Version Notes
 
@@ -19,6 +35,61 @@ When referencing standard CircleCI orbs, use these specific versions:
 - `circleci/docker@2.5.0`
 
 Using incorrect versions will result in "Cannot find orb" errors during pipeline execution.
+
+## Publishing Orbs Locally (Required First-Time Setup)
+
+Before pushing to CircleCI, you must first publish the orbs locally to set up the namespace and initial orb versions. This is a one-time setup to resolve the chicken-and-egg problem where jobs reference orbs that don't exist yet.
+
+1. Ensure you have the CircleCI CLI installed and configured with an API token:
+   ```bash
+   # Install CircleCI CLI
+   brew install circleci
+   
+   # Set up API Token (get from CircleCI web UI)
+   export CIRCLE_TOKEN='your-circleci-token'
+   ```
+
+2. Run the publish script from the repository root:
+   ```bash
+   .circleci/scripts/publish-orbs-local.sh
+   ```
+
+3. The script will:
+   - Create the `posey` namespace if it doesn't exist
+   - Create and publish the `common` orb first (version 0.1.0)
+   - Create and publish all service orbs (version 0.1.0)
+   - Create and publish all data orbs (version 0.1.0)
+
+4. After the orbs are published, switch to using the published versions:
+   ```bash
+   .circleci/scripts/switch-to-published-orbs.sh
+   ```
+
+   This will:
+   - Make a backup of your current config with inline orbs
+   - Replace it with a version that only references published orbs
+   - Remove all inline orb definitions
+
+5. The updated config will look like this:
+   ```yaml
+   orbs:
+     # Standard orbs from the registry
+     docker: circleci/docker@2.5.0
+     path-filtering: circleci/path-filtering@1.0.0
+     cli: circleci/circleci-cli@0.1.9
+     
+     # Published orbs
+     common: posey/common@0.0.2
+     service-auth: posey/service-auth@0.1.0
+     service-cron: posey/service-cron@0.1.0
+     data-postgres: posey/data-postgres@0.1.0
+     data-couchbase: posey/data-couchbase@0.1.0
+     data-vector-db: posey/data-vector-db@0.1.0
+     service-mcp: posey/service-mcp@0.1.0
+     service-supertokens: posey/service-supertokens@0.1.0
+     service-voyager: posey/service-voyager@0.1.0
+     service-agents: posey/service-agents@0.1.0
+   ```
 
 ## Automatic Orb Publishing
 
@@ -39,27 +110,21 @@ To add a new orb:
    - For a service: `service-[name]-orb.yml`
    - For a data service: `data-[name]-orb.yml`
 
-2. Run the update script to automatically adjust the orb publishing configuration:
+2. Run the local publish script to publish the new orb:
    ```bash
-   .circleci/scripts/update-and-commit-orb-config.sh
+   .circleci/scripts/publish-orbs-local.sh
    ```
 
-3. Add an inline version of the orb to `.circleci/continue_config.yml` until the orb is published:
+3. Update `.circleci/continue_config.published.yml` to include the new orb:
    ```yaml
    orbs:
      # Existing orbs...
-     your-new-orb:
-       description: "Your new orb description"
-       jobs:
-         your-job:
-           # Job definition here
+     your-new-orb: posey/your-new-orb@0.1.0
    ```
 
-4. After the orb is published, update the reference to use the published version:
-   ```yaml
-   orbs:
-     # Existing orbs...
-     your-new-orb: posey/your-new-orb@1.0
+4. Switch to the published configuration:
+   ```bash
+   .circleci/scripts/switch-to-published-orbs.sh
    ```
 
 ## Setting Up Git Hooks (for developers)
@@ -81,6 +146,26 @@ If you need to manually update the orb configuration:
 ```
 
 This script will run the update process and commit any changes to the repository.
+
+## Troubleshooting
+
+### Cannot find orb 'common' looking for command named 'common/setup-common'
+
+This error occurs when your jobs are trying to use the common orb that hasn't been published yet. First, run the local publish script:
+
+```bash
+.circleci/scripts/publish-orbs-local.sh
+```
+
+Then switch to the published orbs configuration:
+
+```bash
+.circleci/scripts/switch-to-published-orbs.sh
+```
+
+### Cannot find circleci/circleci-cli@2.0.0 in the orb registry
+
+Make sure you're using the correct version: `circleci/circleci-cli@0.1.9`
 
 ## How It Works
 
