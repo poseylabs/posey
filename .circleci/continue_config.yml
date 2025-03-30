@@ -8,7 +8,7 @@ orbs:
   cli: circleci/circleci-cli@0.1.9
   
   # Published orbs - all using production versioning
-  common: posey/common@0.0.7           # Production version
+  common: posey/common@0.0.8           # Production version
   service-auth: posey/service-auth@0.0.1    # Production version
   service-cron: posey/service-cron@0.0.1    # Production version
   data-postgres: posey/data-postgres@0.0.1  # Production version
