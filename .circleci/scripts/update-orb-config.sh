@@ -51,7 +51,9 @@ if [ "$CURRENT_MAPPING" != "$NEW_MAPPING" ]; then
     { print }
   ' "$PUBLISH_CONFIG" > "$TEMP_FILE"
   
-  mv "$TEMP_FILE" "$PUBLISH_CONFIG"
+  # Use cat instead of mv to avoid permission issues
+  cat "$TEMP_FILE" > "$PUBLISH_CONFIG"
+  rm "$TEMP_FILE"
   
   echo "Updated mapping section in $PUBLISH_CONFIG"
 fi
@@ -131,7 +133,9 @@ for ORB_FILE in $ORB_FILES; do
       { print }
     ' "$PUBLISH_CONFIG" > "$TEMP_FILE"
     
-    mv "$TEMP_FILE" "$PUBLISH_CONFIG"
+    # Use cat instead of mv to avoid permission issues
+    cat "$TEMP_FILE" > "$PUBLISH_CONFIG"
+    rm "$TEMP_FILE"
     
     echo "Added job and workflow definitions for $ORB_NAME to $PUBLISH_CONFIG"
     
@@ -158,7 +162,9 @@ for ORB_FILE in $ORB_FILES; do
       { print }
     ' "$PUBLISH_CONFIG" > "$TEMP_FILE"
     
-    mv "$TEMP_FILE" "$PUBLISH_CONFIG"
+    # Use cat instead of mv to avoid permission issues
+    cat "$TEMP_FILE" > "$PUBLISH_CONFIG"
+    rm "$TEMP_FILE"
   fi
 done
 

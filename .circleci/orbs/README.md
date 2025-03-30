@@ -21,9 +21,14 @@ To add a new orb:
    - For a service: `service-[name]-orb.yml`
    - For a data service: `data-[name]-orb.yml`
 
-2. The orb will be automatically detected and published the next time you push to the repository.
+2. Run the update script to automatically adjust the orb publishing configuration:
+   ```bash
+   .circleci/scripts/update-and-commit-orb-config.sh
+   ```
 
-3. Update the `.circleci/continue_config.yml` file to include the new orb in the list:
+3. The orb will be automatically detected and published the next time you push to the repository.
+
+4. Update the `.circleci/continue_config.yml` file to include the new orb in the list:
    ```yaml
    orbs:
      # Existing orbs...
@@ -38,7 +43,17 @@ To ensure everything stays in sync, we recommend setting up git hooks:
 .circleci/scripts/setup-hooks.sh
 ```
 
-This will install a pre-push hook that ensures the orb configuration is always up-to-date.
+This will install a pre-push hook that automatically updates the orb configuration when you push changes.
+
+## Manual Updates
+
+If you need to manually update the orb configuration:
+
+```bash
+.circleci/scripts/update-and-commit-orb-config.sh
+```
+
+This script will run the update process and commit any changes to the repository.
 
 ## How It Works
 

@@ -89,16 +89,17 @@ jobs:
       - cli/install
       - path-filtering/filter:
           mapping: |
-            .circleci/orbs/common-orb.yml run-common-orb-workflow true
-            .circleci/orbs/service-auth-orb.yml run-service-auth-orb-workflow true
-            .circleci/orbs/service-cron-orb.yml run-service-cron-orb-workflow true
-            .circleci/orbs/data-postgres-orb.yml run-data-postgres-orb-workflow true
-            .circleci/orbs/data-couchbase-orb.yml run-data-couchbase-orb-workflow true
-            .circleci/orbs/data-vector-db-orb.yml run-data-vector-db-orb-workflow true
-            .circleci/orbs/service-mcp-orb.yml run-service-mcp-orb-workflow true
             .circleci/orbs/service-supertokens-orb.yml run-service-supertokens-orb-workflow true
-            .circleci/orbs/service-voyager-orb.yml run-service-voyager-orb-workflow true
+            .circleci/orbs/service-mcp-orb.yml run-service-mcp-orb-workflow true
             .circleci/orbs/service-agents-orb.yml run-service-agents-orb-workflow true
+            .circleci/orbs/service-cron-orb.yml run-service-cron-orb-workflow true
+            .circleci/orbs/common-orb.yml run-common-orb-workflow true
+            .circleci/orbs/data-postgres-orb.yml run-data-postgres-orb-workflow true
+            .circleci/orbs/service-voyager-orb.yml run-service-voyager-orb-workflow true
+            .circleci/orbs/data-vector-db-orb.yml run-data-vector-db-orb-workflow true
+            .circleci/orbs/data-couchbase-orb.yml run-data-couchbase-orb-workflow true
+            .circleci/orbs/service-auth-orb.yml run-service-auth-orb-workflow true
+
           base-revision: main
           config-path: .circleci/publish-orbs.yml
 
