@@ -16,10 +16,6 @@ parameters:
   run-workflow:
     default: true
     type: boolean
-  run-orb-publishing-workflow:
-    description: "Run the workflow to publish orbs"
-    type: boolean
-    default: false
   orb-version-type:
     description: "Version type for orb publishing (patch, minor, major)"
     type: enum
@@ -101,7 +97,6 @@ workflows:
             services/supertokens/.* run-supertokens-workflow true
             services/voyager/.* run-voyager-workflow true
             services/agents/.* run-agents-workflow true
-            .circleci/orbs/.* run-orb-publishing-workflow true
           base-revision: main
           # This is the path to the configuration file that will be used for the continuation
           config-path: .circleci/continue_config.yml
