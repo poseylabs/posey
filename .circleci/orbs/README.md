@@ -79,16 +79,16 @@ Before pushing to CircleCI, you must first publish the orbs locally to set up th
      cli: circleci/circleci-cli@0.1.9
      
      # Published orbs
-     common: posey/common@0.0.10
-     service-auth: posey/service-auth@0.1.0
-     service-cron: posey/service-cron@0.1.0
-     data-postgres: posey/data-postgres@0.1.0
-     data-couchbase: posey/data-couchbase@0.1.0
-     data-vector-db: posey/data-vector-db@0.1.0
-     service-mcp: posey/service-mcp@0.1.0
-     service-supertokens: posey/service-supertokens@0.1.0
-     service-voyager: posey/service-voyager@0.1.0
-     service-agents: posey/service-agents@0.1.0
+     common: posey/common@1.0.0
+     service-auth: posey/service-auth@1.0.0
+     service-cron: posey/service-cron@1.0.0
+     data-postgres: posey/data-postgres@1.0.0
+     data-couchbase: posey/data-couchbase@1.0.0
+     data-vector-db: posey/data-vector-db@1.0.0
+     service-mcp: posey/service-mcp@1.0.0
+     service-supertokens: posey/service-supertokens@1.0.0
+     service-voyager: posey/service-voyager@1.0.0
+     service-agents: posey/service-agents@1.0.0
    ```
 
 ## Automatic Orb Publishing
