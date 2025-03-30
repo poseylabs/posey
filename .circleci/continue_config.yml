@@ -254,17 +254,20 @@ workflows:
     when: << pipeline.parameters.run-orb-publishing-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context:
+            - posey-prod-core
           version-type: << pipeline.parameters.orb-version-type >>
       - publish-service-orbs:
           requires:
             - publish-common-orb
-          context: org-global
+          context:
+            - posey-prod-core
           version-type: << pipeline.parameters.orb-version-type >>
       - publish-data-orbs:
           requires:
             - publish-common-orb
-          context: org-global
+          context:
+            - posey-prod-core
           version-type: << pipeline.parameters.orb-version-type >>
 
   # Auth Service workflow
@@ -273,7 +276,8 @@ workflows:
     jobs:
       - service-auth/build-auth-service:
           context:
-            - org-global
+            - posey-prod-core
+            - posey-prod-services
           filters:
             branches:
               only:
@@ -288,7 +292,8 @@ workflows:
     jobs:
       - service-cron/build-cron-service:
           context:
-            - org-global
+            - posey-prod-core
+            - posey-prod-services
           filters:
             branches:
               only:
@@ -303,7 +308,8 @@ workflows:
     jobs:
       - service-mcp/build-mcp-service:
           context:
-            - org-global
+            - posey-prod-core
+            - posey-prod-services
           filters:
             branches:
               only:
@@ -318,7 +324,8 @@ workflows:
     jobs:
       - service-supertokens/build-supertokens-service:
           context:
-            - org-global
+            - posey-prod-core
+            - posey-prod-services
           filters:
             branches:
               only:
@@ -333,7 +340,8 @@ workflows:
     jobs:
       - service-voyager/build-voyager-service:
           context:
-            - org-global
+            - posey-prod-core
+            - posey-prod-services
           filters:
             branches:
               only:
@@ -348,7 +356,8 @@ workflows:
     jobs:
       - service-agents/build-agents-service:
           context:
-            - org-global
+            - posey-prod-core
+            - posey-prod-services
           filters:
             branches:
               only:
@@ -363,7 +372,8 @@ workflows:
     jobs:
       - data-postgres/build-postgres:
           context:
-            - org-global
+            - posey-prod-core
+            - posey-prod-data
           filters:
             branches:
               only:
@@ -378,7 +388,8 @@ workflows:
     jobs:
       - data-couchbase/build-couchbase:
           context:
-            - org-global
+            - posey-prod-core
+            - posey-prod-data
           filters:
             branches:
               only:
@@ -393,7 +404,8 @@ workflows:
     jobs:
       - data-vector-db/build-vector-db:
           context:
-            - org-global
+            - posey-prod-core
+            - posey-prod-data
           filters:
             branches:
               only:
@@ -409,6 +421,7 @@ workflows:
       - build-and-test:
           context: 
             - posey-cicd
+            - posey-prod-core
           matrix:
             parameters:
               package: [
@@ -425,6 +438,7 @@ workflows:
       - publish-common-orb:
           context: 
             - posey-cicd
+            - posey-prod-core
           requires:
             - build-and-test
           filters:
@@ -436,6 +450,7 @@ workflows:
       - publish-service-orbs:
           context: 
             - posey-cicd
+            - posey-prod-core
           requires:
             - publish-common-orb
           filters:
@@ -447,6 +462,7 @@ workflows:
       - publish-data-orbs:
           context: 
             - posey-cicd
+            - posey-prod-core
           requires:
             - publish-service-orbs
           filters:

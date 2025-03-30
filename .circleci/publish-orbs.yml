@@ -242,13 +242,13 @@ workflows:
     when: << pipeline.parameters.run-workflow >>
     jobs:
       - detect-orb-changes:
-          context: org-global
+          context: posey-prod-core
 
       # Publish common orb first (since other orbs depend on it)
       - publish-common-orb:
           requires:
             - detect-orb-changes
-          context: org-global
+          context: posey-prod-core
           filters:
             branches:
               only: main
@@ -257,7 +257,7 @@ workflows:
       - publish-service-auth-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
           filters:
             branches:
               only: main
@@ -265,7 +265,7 @@ workflows:
       - publish-service-cron-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
           filters:
             branches:
               only: main
@@ -273,7 +273,7 @@ workflows:
       - publish-data-postgres-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
           filters:
             branches:
               only: main
@@ -281,7 +281,7 @@ workflows:
       - publish-data-couchbase-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
           filters:
             branches:
               only: main
@@ -289,7 +289,7 @@ workflows:
       - publish-data-vector-db-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
           filters:
             branches:
               only: main
@@ -297,7 +297,7 @@ workflows:
       - publish-service-mcp-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
           filters:
             branches:
               only: main
@@ -305,7 +305,7 @@ workflows:
       - publish-service-supertokens-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
           filters:
             branches:
               only: main
@@ -313,7 +313,7 @@ workflows:
       - publish-service-voyager-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
           filters:
             branches:
               only: main
@@ -321,101 +321,101 @@ workflows:
       - publish-service-agents-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
 
   # Conditional workflows based on what changed
   run-common-orb-workflow:
     when: << pipeline.parameters.run-common-orb-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context: posey-prod-core
 
   run-service-auth-orb-workflow:
     when: << pipeline.parameters.run-service-auth-orb-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context: posey-prod-core
       - publish-service-auth-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
 
   run-service-cron-orb-workflow:
     when: << pipeline.parameters.run-service-cron-orb-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context: posey-prod-core
       - publish-service-cron-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
 
   run-data-postgres-orb-workflow:
     when: << pipeline.parameters.run-data-postgres-orb-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context: posey-prod-core
       - publish-data-postgres-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
 
   run-data-couchbase-orb-workflow:
     when: << pipeline.parameters.run-data-couchbase-orb-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context: posey-prod-core
       - publish-data-couchbase-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
 
   run-data-vector-db-orb-workflow:
     when: << pipeline.parameters.run-data-vector-db-orb-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context: posey-prod-core
       - publish-data-vector-db-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
 
   run-service-mcp-orb-workflow:
     when: << pipeline.parameters.run-service-mcp-orb-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context: posey-prod-core
       - publish-service-mcp-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
 
   run-service-supertokens-orb-workflow:
     when: << pipeline.parameters.run-service-supertokens-orb-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context: posey-prod-core
       - publish-service-supertokens-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
 
   run-service-voyager-orb-workflow:
     when: << pipeline.parameters.run-service-voyager-orb-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context: posey-prod-core
       - publish-service-voyager-orb:
           requires:
             - publish-common-orb
-          context: org-global
+          context: posey-prod-core
 
   run-service-agents-orb-workflow:
     when: << pipeline.parameters.run-service-agents-orb-workflow >>
     jobs:
       - publish-common-orb:
-          context: org-global
+          context: posey-prod-core
       - publish-service-agents-orb:
           requires:
             - publish-common-orb
-          context: org-global 
+          context: posey-prod-core 
