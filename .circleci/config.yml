@@ -68,6 +68,7 @@ workflows:
                   chmod +x /tmp/yq
                   sudo mv /tmp/yq /usr/local/bin/yq
                   yq --version
+            - checkout
             - run:
                 name: Detect version bump type from commit message
                 command: |
