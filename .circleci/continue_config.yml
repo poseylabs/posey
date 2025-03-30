@@ -418,29 +418,10 @@ workflows:
   orb-publishing:
     when: << pipeline.parameters.run-orb-publishing-workflow >>
     jobs:
-      - build-and-test:
-          context: 
-            - posey-cicd
-            - posey-prod-core
-          matrix:
-            parameters:
-              package: [
-                auth,
-                cron, 
-                postgres,
-                couchbase,
-                vector-db,
-                mcp,
-                supertokens,
-                voyager,
-                agents
-              ]
       - publish-common-orb:
           context: 
             - posey-cicd
             - posey-prod-core
-          requires:
-            - build-and-test
           filters:
             tags:
               only: /.*/ # this ensures that the job runs for all tags
