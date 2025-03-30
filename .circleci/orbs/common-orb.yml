@@ -5,7 +5,7 @@ description: "Common orb with shared executors and commands for Posey services"
 executors:
   docker-builder:
     docker:
-      - image: cimg/base:2024.03
+      - image: cimg/base:current
     resource_class: large
     environment:
       DOCKER_BUILDKIT: 1

@@ -8,7 +8,7 @@ orbs:
   cli: circleci/circleci-cli@0.1.9
   
   # Published orbs - mixed versions
-  common: posey/common@0.0.2           # Production version (already published)
+  common: posey/common@dev:alpha3           # Production version (already published)
   service-auth: posey/service-auth@dev:alpha1
   service-cron: posey/service-cron@dev:alpha1
   data-postgres: posey/data-postgres@dev:alpha1
