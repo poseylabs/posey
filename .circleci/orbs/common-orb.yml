@@ -56,6 +56,10 @@ commands:
       - run:
           name: Set up kubeconfig
           command: |
+            if [ -z "${DO_KUBERNETES_CLUSTER_ID}" ]; then
+              echo "Error: DO_KUBERNETES_CLUSTER_ID environment variable is not set"
+              exit 1
+            fi
             doctl kubernetes cluster kubeconfig save ${DO_KUBERNETES_CLUSTER_ID}
             kubectl config use-context do-sfo3-posey-cluster
             

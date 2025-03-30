@@ -77,13 +77,17 @@ commands:
             fi
             
             # Export the token for CircleCI CLI
-            export CIRCLE_TOKEN="${CIRCLECI_API_TOKEN}"
+            export CIRCLECI_CLI_TOKEN="${CIRCLECI_API_TOKEN}"
             
-            if ! circleci namespace list | grep -q "^<< parameters.namespace >> "; then
-              echo "Creating namespace: << parameters.namespace >>"
-              circleci namespace create << parameters.namespace >> --org-id "${CIRCLE_ORGANIZATION_ID}"
+            # Set the organization ID
+            export CIRCLE_ORGANIZATION_ID="${CIRCLECI_ORG_ID}"
+            
+            # Check if namespace exists
+            echo "Checking if namespace << parameters.namespace >> exists..."
+            if ! circleci namespace create << parameters.namespace >> --org-id "${CIRCLE_ORGANIZATION_ID}" 2>/dev/null; then
+              echo "Namespace << parameters.namespace >> already exists or there was an error"
             else
-              echo "Namespace << parameters.namespace >> already exists"
+              echo "Successfully created namespace: << parameters.namespace >>"
             fi
 
   create-orb-if-needed:
