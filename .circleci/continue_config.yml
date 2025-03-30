@@ -65,7 +65,7 @@ workflows:
   auth-service:
     when: << pipeline.parameters.run-auth-service-workflow >>
     jobs:
-      - local/service-auth/build-auth-service:
+      - service-auth/build-auth-service:
           context:
             - org-global
           filters:
@@ -80,7 +80,7 @@ workflows:
   cron-service:
     when: << pipeline.parameters.run-cron-service-workflow >>
     jobs:
-      - local/service-cron/build-cron-service:
+      - service-cron/build-cron-service:
           context:
             - org-global
           filters:
@@ -95,7 +95,7 @@ workflows:
   mcp-service:
     when: << pipeline.parameters.run-mcp-workflow >>
     jobs:
-      - local/service-mcp/build-mcp-service:
+      - service-mcp/build-mcp-service:
           context:
             - org-global
           filters:
@@ -110,7 +110,7 @@ workflows:
   supertokens-service:
     when: << pipeline.parameters.run-supertokens-workflow >>
     jobs:
-      - local/service-supertokens/build-supertokens-service:
+      - service-supertokens/build-supertokens-service:
           context:
             - org-global
           filters:
@@ -125,7 +125,7 @@ workflows:
   voyager-service:
     when: << pipeline.parameters.run-voyager-workflow >>
     jobs:
-      - local/service-voyager/build-voyager-service:
+      - service-voyager/build-voyager-service:
           context:
             - org-global
           filters:
@@ -140,7 +140,7 @@ workflows:
   agents-service:
     when: << pipeline.parameters.run-agents-workflow >>
     jobs:
-      - local/service-agents/build-agents-service:
+      - service-agents/build-agents-service:
           context:
             - org-global
           filters:
@@ -155,7 +155,7 @@ workflows:
   postgres:
     when: << pipeline.parameters.run-postgres-workflow >>
     jobs:
-      - local/data-postgres/build-postgres:
+      - data-postgres/build-postgres:
           context:
             - org-global
           filters:
@@ -170,7 +170,7 @@ workflows:
   couchbase:
     when: << pipeline.parameters.run-couchbase-workflow >>
     jobs:
-      - local/data-couchbase/build-couchbase:
+      - data-couchbase/build-couchbase:
           context:
             - org-global
           filters:
@@ -185,7 +185,7 @@ workflows:
   vector-db:
     when: << pipeline.parameters.run-vector-db-workflow >>
     jobs:
-      - local/data-vector-db/build-vector-db:
+      - data-vector-db/build-vector-db:
           context:
             - org-global
           filters:
