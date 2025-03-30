@@ -14,9 +14,32 @@
 import { execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
+
+// Ensure CIRCLE_TOKEN is set if available in .env
+function ensureCircleToken() {
+  // Skip if CIRCLE_TOKEN is already set
+  if (process.env.CIRCLE_TOKEN) {
+    return;
+  }
+
+  const envPath = path.join(rootDir, '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      const match = envContent.match(/CIRCLECI_API_TOKEN=(.*)/);
+      if (match && match[1]) {
+        process.env.CIRCLE_TOKEN = match[1].trim();
+        console.log('Using CircleCI token from .env file');
+      }
+    } catch (error) {
+      console.warn('Warning: Could not read .env file');
+    }
+  }
+}
 
 // Get command line arguments
 const args = process.argv.slice(2);
@@ -24,7 +47,12 @@ const command = args[0] || 'help';
 
 function executeCommand(cmd) {
   try {
-    return execSync(cmd, { stdio: 'inherit', cwd: rootDir });
+    ensureCircleToken(); // Make sure CIRCLE_TOKEN is set
+    return execSync(cmd, {
+      stdio: 'inherit',
+      cwd: rootDir,
+      env: { ...process.env }  // Pass all env vars including our CIRCLE_TOKEN
+    });
   } catch (error) {
     console.error(`Error executing command: ${cmd}`);
     process.exit(1);

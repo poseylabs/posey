@@ -7,17 +7,17 @@ orbs:
   path-filtering: circleci/path-filtering@1.0.0
   cli: circleci/circleci-cli@0.1.9
   
-  # Published orbs - mixed versions
-  common: posey/common@0.0.2
-  service-auth: posey/service-auth@dev:alpha1
-  service-cron: posey/service-cron@dev:alpha1
-  data-postgres: posey/data-postgres@dev:alpha1
-  data-couchbase: posey/data-couchbase@dev:alpha1
-  data-vector-db: posey/data-vector-db@dev:alpha1
-  service-mcp: posey/service-mcp@dev:alpha1
-  service-supertokens: posey/service-supertokens@dev:alpha1
-  service-voyager: posey/service-voyager@dev:alpha1
-  service-agents: posey/service-agents@dev:alpha1
+  # Published orbs - all using production versioning
+  common: posey/common@0.0.7           # Production version
+  service-auth: posey/service-auth@0.0.1    # Production version
+  service-cron: posey/service-cron@0.0.1    # Production version
+  data-postgres: posey/data-postgres@0.0.1  # Production version
+  data-couchbase: posey/data-couchbase@0.0.1 # Production version
+  data-vector-db: posey/data-vector-db@0.0.1 # Production version
+  service-mcp: posey/service-mcp@0.0.1      # Production version
+  service-supertokens: posey/service-supertokens@0.0.1 # Production version
+  service-voyager: posey/service-voyager@0.0.1 # Production version
+  service-agents: posey/service-agents@0.0.1 # Production version
 
 # Define the parameters that will be passed from the setup configuration
 parameters:

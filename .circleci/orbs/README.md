@@ -12,19 +12,19 @@ We use a two-stage approach for orbs:
 
 ## Current Versions
 
-We currently use a mixed versioning approach:
+We now use consistent semantic versioning for all orbs:
 
-- **Common orb**: `posey/common@0.0.2` (production version)
-- **All other orbs**: `posey/orb-name@dev:alpha1` (development versions)
+- **Common orb**: `posey/common@0.0.7` (production version)
+- **All other orbs**: Published as production versions (`0.0.1`) to match the common orb
 
-This is because production versions (like 0.0.2) are immutable in CircleCI once published. Our common orb was already published as a production version, so we need to reference it that way.
+This approach ensures all orbs follow the same versioning scheme, making it easier to track updates and versions.
 
 CircleCI orbs follow these versioning rules:
 
 - Development versions: `dev:name` format (like `dev:alpha1`) - these are mutable and can be updated
-- Production versions: `x.y.z` format (like `0.0.2`) - these are immutable once published
+- Production versions: `x.y.z` format (like `0.0.5`) - these are immutable once published
 
-Note that CircleCI does **not** support standard SemVer pre-release identifiers with hyphens (e.g., `1.0.0-alpha.1`).
+All of our orbs use the production versioning format for consistency.
 
 ## Important Version Notes
 
@@ -79,7 +79,7 @@ Before pushing to CircleCI, you must first publish the orbs locally to set up th
      cli: circleci/circleci-cli@0.1.9
      
      # Published orbs
-     common: posey/common@0.0.2
+     common: posey/common@0.0.5
      service-auth: posey/service-auth@0.1.0
      service-cron: posey/service-cron@0.1.0
      data-postgres: posey/data-postgres@0.1.0
