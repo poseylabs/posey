@@ -178,4 +178,38 @@ The automatic publishing process works as follows:
    - Creates each orb if it doesn't exist
    - Publishes all orbs to the registry
 
-This ensures that the orbs in the registry are always in sync with the orbs in the repository. 
+This ensures that the orbs in the registry are always in sync with the orbs in the repository.
+
+## Version Bumping
+
+You can bump the version of orbs in one of two ways:
+
+1. **Using the CLI command**: 
+   ```bash
+   yarn orbs publish --patch  # For patch version
+   yarn orbs publish --minor  # For minor version
+   yarn orbs publish --major  # For major version
+   ```
+
+2. **Using commit messages**:
+   Add one of the following tags to your commit message to automatically bump the version appropriately when pushing to main:
+   - `[patch]` - Bumps the patch version (e.g., 0.0.1 → 0.0.2)
+   - `[minor]` - Bumps the minor version (e.g., 0.0.1 → 0.1.0)
+   - `[major]` - Bumps the major version (e.g., 0.0.1 → 1.0.0)
+
+   Example: `git commit -m "Update auth orb configuration [minor]"`
+
+If no tag is specified, the default is to use a patch version bump.
+
+## Versioning Rules
+
+CircleCI orbs follow semantic versioning, with a few additional rules:
+
+1. **Production versions** (e.g., `0.1.0`): Immutable once published
+2. **Development versions** (e.g., `dev:alpha1`): Mutable and can be updated
+
+## Directory Structure
+
+- `common-orb.yml`: Common components shared across other orbs
+- `service-*-orb.yml`: Orbs for specific services
+- `data-*-orb.yml`: Orbs for data management services 

@@ -20,6 +20,11 @@ parameters:
     description: "Run the workflow to publish orbs"
     type: boolean
     default: false
+  orb-version-type:
+    description: "Version type for orb publishing (patch, minor, major)"
+    type: enum
+    enum: ["patch", "minor", "major"]
+    default: "patch"
   run-voyager-workflow:
     type: boolean
     default: false
@@ -63,6 +68,26 @@ workflows:
                   chmod +x /tmp/yq
                   sudo mv /tmp/yq /usr/local/bin/yq
                   yq --version
+            - run:
+                name: Detect version bump type from commit message
+                command: |
+                  # Default is patch
+                  VERSION_TYPE="patch"
+                  
+                  # Get the commit message
+                  COMMIT_MSG=$(git log -1 --pretty=%B)
+                  
+                  # Check for version bump flags in commit message
+                  if echo "$COMMIT_MSG" | grep -q "\[major\]"; then
+                    VERSION_TYPE="major"
+                  elif echo "$COMMIT_MSG" | grep -q "\[minor\]"; then
+                    VERSION_TYPE="minor"
+                  elif echo "$COMMIT_MSG" | grep -q "\[patch\]"; then
+                    VERSION_TYPE="patch"
+                  fi
+                  
+                  echo "Using version type: $VERSION_TYPE"
+                  echo "export ORB_VERSION_TYPE=$VERSION_TYPE" >> $BASH_ENV
           name: check-updated-files
           mapping: |
             services/auth/.* run-auth-service-workflow true
@@ -75,15 +100,10 @@ workflows:
             services/voyager/.* run-voyager-workflow true
             services/agents/.* run-agents-workflow true
             .circleci/orbs/.* run-orb-publishing-workflow true
-            .circleci/.* run-auth-service-workflow true
-            .circleci/.* run-cron-service-workflow true
-            .circleci/.* run-postgres-workflow true
-            .circleci/.* run-couchbase-workflow true
-            .circleci/.* run-vector-db-workflow true
-            .circleci/.* run-mcp-workflow true
-            .circleci/.* run-supertokens-workflow true
-            .circleci/.* run-voyager-workflow true
-            .circleci/.* run-agents-workflow true
+          parameters: |
+            {
+              "orb-version-type": "${ORB_VERSION_TYPE}"
+            }
           base-revision: main
           # This is the path to the configuration file that will be used for the continuation
           config-path: .circleci/continue_config.yml

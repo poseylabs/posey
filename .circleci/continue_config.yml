@@ -54,6 +54,10 @@ parameters:
     description: "Run the workflow to publish orbs"
     type: boolean
     default: false
+  orb-version-type:
+    description: "Version type for orb publishing (patch, minor, major)"
+    type: string
+    default: "patch"
 
 # Commands for orb publishing
 commands:
@@ -67,6 +71,14 @@ commands:
       - run:
           name: Check if namespace exists and create if needed
           command: |
+            if [ -z "${CIRCLECI_API_TOKEN}" ]; then
+              echo "Error: CIRCLECI_API_TOKEN environment variable is not set"
+              exit 1
+            fi
+            
+            # Export the token for CircleCI CLI
+            export CIRCLE_TOKEN="${CIRCLECI_API_TOKEN}"
+            
             if ! circleci namespace list | grep -q "^<< parameters.namespace >> "; then
               echo "Creating namespace: << parameters.namespace >>"
               circleci namespace create << parameters.namespace >> --org-id "${CIRCLE_ORGANIZATION_ID}"
@@ -86,6 +98,9 @@ commands:
       - run:
           name: Check if orb exists and create if needed
           command: |
+            # Export the token for CircleCI CLI
+            export CIRCLE_TOKEN="${CIRCLECI_API_TOKEN}"
+            
             if ! circleci orb list << parameters.namespace >> | grep -q "^<< parameters.namespace >>/<< parameters.orb-name >> "; then
               echo "Creating orb: << parameters.namespace >>/<< parameters.orb-name >>"
               circleci orb create << parameters.namespace >>/<< parameters.orb-name >>
@@ -106,10 +121,15 @@ commands:
       is-private:
         type: boolean
         default: false
+      version-type:
+        type: string
     steps:
       - run:
           name: Publish orb
           command: |
+            # Export the token for CircleCI CLI
+            export CIRCLE_TOKEN="${CIRCLECI_API_TOKEN}"
+            
             # First publish as a dev version
             echo "Publishing dev version of << parameters.namespace >>/<< parameters.orb-name >>"
             PRIVATE_FLAG=""
@@ -120,15 +140,19 @@ commands:
             DEV_VERSION="dev:$(date +%s)"
             circleci orb publish << parameters.orb-file >> << parameters.namespace >>/<< parameters.orb-name >>@$DEV_VERSION $PRIVATE_FLAG
             
-            # Then promote to 'patch' (or 'minor' or 'major' depending on your versioning needs)
-            echo "Promoting << parameters.namespace >>/<< parameters.orb-name >> to production version"
-            circleci orb publish promote << parameters.namespace >>/<< parameters.orb-name >>@$DEV_VERSION patch $PRIVATE_FLAG
+            # Then promote to specified version type
+            echo "Promoting << parameters.namespace >>/<< parameters.orb-name >> to << parameters.version-type >> version"
+            circleci orb publish promote << parameters.namespace >>/<< parameters.orb-name >>@$DEV_VERSION << parameters.version-type >> $PRIVATE_FLAG
 
 # Jobs for orb publishing
 jobs:
   publish-common-orb:
     docker:
-      - image: cimg/base:2023.10
+      - image: cimg/base:current
+    parameters:
+      version-type:
+        type: string
+        default: "patch"
     steps:
       - checkout
       - cli/install
@@ -138,10 +162,15 @@ jobs:
       - publish-orb:
           orb-name: common
           orb-file: .circleci/orbs/common-orb.yml
+          version-type: << parameters.version-type >>
 
   publish-service-orbs:
     docker:
-      - image: cimg/base:2023.10
+      - image: cimg/base:current
+    parameters:
+      version-type:
+        type: string
+        default: "patch"
     steps:
       - checkout
       - cli/install
@@ -149,6 +178,9 @@ jobs:
       - run:
           name: Publish all service orbs
           command: |
+            # Export the token for CircleCI CLI
+            export CIRCLE_TOKEN="${CIRCLECI_API_TOKEN}"
+            
             # Create and publish each service orb
             for ORB_FILE in .circleci/orbs/service-*-orb.yml; do
               ORB_BASENAME=$(basename "$ORB_FILE" .yml)
@@ -168,13 +200,18 @@ jobs:
               DEV_VERSION="dev:$(date +%s)"
               circleci orb publish "$ORB_FILE" posey/$ORB_NAME@$DEV_VERSION
               
-              # Promote to patch
-              circleci orb publish promote posey/$ORB_NAME@$DEV_VERSION patch
+              # Promote to specified version type
+              echo "Promoting $ORB_NAME orb to << parameters.version-type >> version"
+              circleci orb publish promote posey/$ORB_NAME@$DEV_VERSION << parameters.version-type >>
             done
 
   publish-data-orbs:
     docker:
-      - image: cimg/base:2023.10
+      - image: cimg/base:current
+    parameters:
+      version-type:
+        type: string
+        default: "patch"
     steps:
       - checkout
       - cli/install
@@ -182,6 +219,9 @@ jobs:
       - run:
           name: Publish all data orbs
           command: |
+            # Export the token for CircleCI CLI
+            export CIRCLE_TOKEN="${CIRCLECI_API_TOKEN}"
+            
             # Create and publish each data orb
             for ORB_FILE in .circleci/orbs/data-*-orb.yml; do
               ORB_BASENAME=$(basename "$ORB_FILE" .yml)
@@ -201,8 +241,9 @@ jobs:
               DEV_VERSION="dev:$(date +%s)"
               circleci orb publish "$ORB_FILE" posey/$ORB_NAME@$DEV_VERSION
               
-              # Promote to patch
-              circleci orb publish promote posey/$ORB_NAME@$DEV_VERSION patch
+              # Promote to specified version type
+              echo "Promoting $ORB_NAME orb to << parameters.version-type >> version"
+              circleci orb publish promote posey/$ORB_NAME@$DEV_VERSION << parameters.version-type >>
             done
 
 workflows:
@@ -214,14 +255,17 @@ workflows:
     jobs:
       - publish-common-orb:
           context: org-global
+          version-type: << pipeline.parameters.orb-version-type >>
       - publish-service-orbs:
           requires:
             - publish-common-orb
           context: org-global
+          version-type: << pipeline.parameters.orb-version-type >>
       - publish-data-orbs:
           requires:
             - publish-common-orb
           context: org-global
+          version-type: << pipeline.parameters.orb-version-type >>
 
   # Auth Service workflow
   auth-service:
@@ -356,4 +400,58 @@ workflows:
                 - main
                 - develop
             tags:
-              only: /^v.*/ 
+              only: /^v.*/
+
+  # Orb Publishing workflow
+  orb-publishing:
+    when: << pipeline.parameters.run-orb-publishing-workflow >>
+    jobs:
+      - build-and-test:
+          context: 
+            - posey-cicd
+          matrix:
+            parameters:
+              package: [
+                auth,
+                cron, 
+                postgres,
+                couchbase,
+                vector-db,
+                mcp,
+                supertokens,
+                voyager,
+                agents
+              ]
+      - publish-common-orb:
+          context: 
+            - posey-cicd
+          requires:
+            - build-and-test
+          filters:
+            tags:
+              only: /.*/ # this ensures that the job runs for all tags
+            branches:
+              only: main
+          version-type: << pipeline.parameters.orb-version-type >>
+      - publish-service-orbs:
+          context: 
+            - posey-cicd
+          requires:
+            - publish-common-orb
+          filters:
+            tags:
+              only: /.*/ # this ensures that the job runs for all tags
+            branches:
+              only: main
+          version-type: << pipeline.parameters.orb-version-type >>
+      - publish-data-orbs:
+          context: 
+            - posey-cicd
+          requires:
+            - publish-service-orbs
+          filters:
+            tags:
+              only: /.*/ # this ensures that the job runs for all tags
+            branches:
+              only: main
+          version-type: << pipeline.parameters.orb-version-type >> 

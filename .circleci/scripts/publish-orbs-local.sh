@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Script to publish orbs with dynamic versioning
-# Usage: ./publish-orbs-local.sh [patch|minor|major]
-# Default: patch if not specified
+# Usage: ./publish-orbs-local.sh [version-type]
+# version-type can be: patch, minor, major
+# Default: patch
 
 # Get the directory of the script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -45,13 +46,13 @@ if [ -z "${CIRCLE_TOKEN:-}" ]; then
   exit 1
 fi
 
-# Default to patch if not specified
-VERSION_TYPE="${1:-patch}"
+# Get the version type from the command line argument or use patch as default
+VERSION_TYPE=${1:-patch}
+echo "Using version type: $VERSION_TYPE"
 
-# Validate version type
-if [[ ! "$VERSION_TYPE" =~ ^(patch|minor|major)$ ]]; then
-  echo "Error: Invalid version type. Must be one of: patch, minor, major"
-  echo "Usage: $0 [patch|minor|major]"
+# Validate the version type
+if [[ "$VERSION_TYPE" != "patch" && "$VERSION_TYPE" != "minor" && "$VERSION_TYPE" != "major" ]]; then
+  echo "Error: Invalid version type '$VERSION_TYPE'. Must be one of: patch, minor, major"
   exit 1
 fi
 
