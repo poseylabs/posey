@@ -4,7 +4,7 @@ version: 2.1
 parameters:
   run-workflow:
     type: boolean
-    default: true
+    default: false
 
 orbs:
   # Use CircleCI's CLI orb for orb-specific commands
