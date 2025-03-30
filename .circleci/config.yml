@@ -1,14 +1,16 @@
 version: 2.1
 
-# Define orbs directory
-orbs-dirs:
-  - .circleci/orbs
-
 # Define this as a setup configuration
 setup: true
 
 orbs:
   path-filtering: circleci/path-filtering@1.0.0
+
+# Set up organization-level orbs
+orbs-dir: .circleci/orbs
+orbs-settings:
+  namespace: posey
+  registry: local-registry
 
 # Define pipeline parameters that will be passed to the continuation configuration
 parameters:

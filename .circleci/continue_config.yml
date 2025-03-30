@@ -2,30 +2,21 @@ version: 2.1
 
 # Standard and local orbs
 orbs:
-  # Standard orbs
+  # Standard orbs from the registry
   docker: circleci/docker@2.5.0
   path-filtering: circleci/path-filtering@1.0.0
-  # Local orbs - reference them properly with file paths
-  common: 
-    path: .circleci/orbs/common-orb.yml
-  data-postgres: 
-    path: .circleci/orbs/data-postgres-orb.yml
-  data-couchbase: 
-    path: .circleci/orbs/data-couchbase-orb.yml
-  data-vector-db: 
-    path: .circleci/orbs/data-vector-db-orb.yml
-  service-auth: 
-    path: .circleci/orbs/service-auth-orb.yml
-  service-cron: 
-    path: .circleci/orbs/service-cron-orb.yml
-  service-mcp: 
-    path: .circleci/orbs/service-mcp-orb.yml
-  service-supertokens: 
-    path: .circleci/orbs/service-supertokens-orb.yml
-  service-voyager: 
-    path: .circleci/orbs/service-voyager-orb.yml
-  service-agents: 
-    path: .circleci/orbs/service-agents-orb.yml
+  
+  # Posey orbs with simplified references
+  common: posey/common@1.0
+  service-auth: posey/service-auth@1.0
+  service-cron: posey/service-cron@1.0
+  data-postgres: posey/data-postgres@1.0
+  data-couchbase: posey/data-couchbase@1.0
+  data-vector-db: posey/data-vector-db@1.0
+  service-mcp: posey/service-mcp@1.0
+  service-supertokens: posey/service-supertokens@1.0
+  service-voyager: posey/service-voyager@1.0
+  service-agents: posey/service-agents@1.0
 
 # Define the parameters that will be passed from the setup configuration
 parameters:

@@ -4,8 +4,7 @@ description: "Orb for building and deploying the Voyager service"
 
 # Use the common orb for shared executors and commands
 orbs:
-  common:
-    path: .circleci/orbs/common-orb.yml
+  common: posey/common@1.0
 
 jobs:
   build-voyager-service:
