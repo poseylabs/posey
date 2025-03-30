@@ -14,7 +14,7 @@ We use a two-stage approach for orbs:
 
 We now use consistent semantic versioning for all orbs:
 
-- **Common orb**: `posey/common@0.0.7` (production version)
+- **Common orb**: `posey/common@0.0.10` (production version)
 - **All other orbs**: Published as production versions (`0.0.1`) to match the common orb
 
 This approach ensures all orbs follow the same versioning scheme, making it easier to track updates and versions.
@@ -79,7 +79,7 @@ Before pushing to CircleCI, you must first publish the orbs locally to set up th
      cli: circleci/circleci-cli@0.1.9
      
      # Published orbs
-     common: posey/common@0.0.5
+     common: posey/common@0.0.10
      service-auth: posey/service-auth@0.1.0
      service-cron: posey/service-cron@0.1.0
      data-postgres: posey/data-postgres@0.1.0
