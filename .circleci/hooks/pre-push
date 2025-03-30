@@ -1,0 +1,21 @@
+#!/bin/bash
+# Git pre-push hook to ensure orb configuration is up-to-date
+
+# Run the update-orb-config.sh script
+SCRIPT_PATH="$(git rev-parse --show-toplevel)/.circleci/scripts/update-orb-config.sh"
+
+if [ -f "$SCRIPT_PATH" ]; then
+  echo "Running orb config update script..."
+  bash "$SCRIPT_PATH"
+  
+  # Check if the script made changes
+  if git diff --quiet .circleci/publish-orbs.yml; then
+    echo "No changes to orb config were needed."
+  else
+    echo "Orb config was updated. Please review changes to .circleci/publish-orbs.yml"
+    echo "and commit them before pushing again."
+    exit 1
+  fi
+else
+  echo "Orb config update script not found at $SCRIPT_PATH"
+fi 

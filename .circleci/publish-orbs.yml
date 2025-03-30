@@ -1,0 +1,423 @@
+version: 2.1
+
+# Parameters for the workflow
+parameters:
+  run-workflow:
+    type: boolean
+    default: true
+
+orbs:
+  # Use CircleCI's CLI orb for orb-specific commands
+  cli: circleci/circleci-cli@1.0
+  path-filtering: circleci/path-filtering@1.0.0
+
+# Commands that will be reused across jobs
+commands:
+  create-namespace-if-needed:
+    description: "Create the namespace if it doesn't exist"
+    parameters:
+      namespace:
+        type: string
+        default: "posey"
+    steps:
+      - run:
+          name: Check if namespace exists and create if needed
+          command: |
+            if ! circleci namespace list | grep -q "^<< parameters.namespace >> "; then
+              echo "Creating namespace: << parameters.namespace >>"
+              circleci namespace create << parameters.namespace >> --org-id "${CIRCLE_ORGANIZATION_ID}"
+            else
+              echo "Namespace << parameters.namespace >> already exists"
+            fi
+
+  create-orb-if-needed:
+    description: "Create an orb if it doesn't exist"
+    parameters:
+      namespace:
+        type: string
+        default: "posey"
+      orb-name:
+        type: string
+    steps:
+      - run:
+          name: Check if orb exists and create if needed
+          command: |
+            if ! circleci orb list << parameters.namespace >> | grep -q "^<< parameters.namespace >>/<< parameters.orb-name >> "; then
+              echo "Creating orb: << parameters.namespace >>/<< parameters.orb-name >>"
+              circleci orb create << parameters.namespace >>/<< parameters.orb-name >>
+            else
+              echo "Orb << parameters.namespace >>/<< parameters.orb-name >> already exists"
+            fi
+
+  publish-orb:
+    description: "Publish an orb from a file"
+    parameters:
+      namespace:
+        type: string
+        default: "posey"
+      orb-name:
+        type: string
+      orb-file:
+        type: string
+      is-private:
+        type: boolean
+        default: false
+    steps:
+      - run:
+          name: Publish orb
+          command: |
+            # First publish as a dev version
+            echo "Publishing dev version of << parameters.namespace >>/<< parameters.orb-name >>"
+            PRIVATE_FLAG=""
+            if [[ "<< parameters.is-private >>" == "true" ]]; then
+              PRIVATE_FLAG="--private"
+            fi
+            
+            circleci orb publish << parameters.orb-file >> << parameters.namespace >>/<< parameters.orb-name >>@dev:$(date +%s) $PRIVATE_FLAG
+            
+            # Then promote to 'patch' (or 'minor' or 'major' depending on your versioning needs)
+            echo "Promoting << parameters.namespace >>/<< parameters.orb-name >> to production version"
+            circleci orb publish promote << parameters.namespace >>/<< parameters.orb-name >>@dev:latest patch $PRIVATE_FLAG
+
+jobs:
+  # Job to check which orb files changed and trigger publishing
+  detect-orb-changes:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - path-filtering/filter:
+          mapping: |
+            .circleci/orbs/common-orb.yml run-common-orb-workflow true
+            .circleci/orbs/service-auth-orb.yml run-service-auth-orb-workflow true
+            .circleci/orbs/service-cron-orb.yml run-service-cron-orb-workflow true
+            .circleci/orbs/data-postgres-orb.yml run-data-postgres-orb-workflow true
+            .circleci/orbs/data-couchbase-orb.yml run-data-couchbase-orb-workflow true
+            .circleci/orbs/data-vector-db-orb.yml run-data-vector-db-orb-workflow true
+            .circleci/orbs/service-mcp-orb.yml run-service-mcp-orb-workflow true
+            .circleci/orbs/service-supertokens-orb.yml run-service-supertokens-orb-workflow true
+            .circleci/orbs/service-voyager-orb.yml run-service-voyager-orb-workflow true
+            .circleci/orbs/service-agents-orb.yml run-service-agents-orb-workflow true
+          base-revision: main
+          config-path: .circleci/publish-orbs.yml
+
+  # Job to publish the common orb (which all others depend on)
+  publish-common-orb:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - create-namespace-if-needed
+      - create-orb-if-needed:
+          orb-name: common
+      - publish-orb:
+          orb-name: common
+          orb-file: .circleci/orbs/common-orb.yml
+
+  # Jobs to publish service orbs
+  publish-service-auth-orb:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - create-namespace-if-needed
+      - create-orb-if-needed:
+          orb-name: service-auth
+      - publish-orb:
+          orb-name: service-auth
+          orb-file: .circleci/orbs/service-auth-orb.yml
+
+  publish-service-cron-orb:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - create-namespace-if-needed
+      - create-orb-if-needed:
+          orb-name: service-cron
+      - publish-orb:
+          orb-name: service-cron
+          orb-file: .circleci/orbs/service-cron-orb.yml
+
+  # Jobs to publish data orbs
+  publish-data-postgres-orb:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - create-namespace-if-needed
+      - create-orb-if-needed:
+          orb-name: data-postgres
+      - publish-orb:
+          orb-name: data-postgres
+          orb-file: .circleci/orbs/data-postgres-orb.yml
+
+  publish-data-couchbase-orb:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - create-namespace-if-needed
+      - create-orb-if-needed:
+          orb-name: data-couchbase
+      - publish-orb:
+          orb-name: data-couchbase
+          orb-file: .circleci/orbs/data-couchbase-orb.yml
+
+  publish-data-vector-db-orb:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - create-namespace-if-needed
+      - create-orb-if-needed:
+          orb-name: data-vector-db
+      - publish-orb:
+          orb-name: data-vector-db
+          orb-file: .circleci/orbs/data-vector-db-orb.yml
+
+  # Jobs to publish other service orbs
+  publish-service-mcp-orb:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - create-namespace-if-needed
+      - create-orb-if-needed:
+          orb-name: service-mcp
+      - publish-orb:
+          orb-name: service-mcp
+          orb-file: .circleci/orbs/service-mcp-orb.yml
+
+  publish-service-supertokens-orb:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - create-namespace-if-needed
+      - create-orb-if-needed:
+          orb-name: service-supertokens
+      - publish-orb:
+          orb-name: service-supertokens
+          orb-file: .circleci/orbs/service-supertokens-orb.yml
+
+  publish-service-voyager-orb:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - create-namespace-if-needed
+      - create-orb-if-needed:
+          orb-name: service-voyager
+      - publish-orb:
+          orb-name: service-voyager
+          orb-file: .circleci/orbs/service-voyager-orb.yml
+
+  publish-service-agents-orb:
+    docker:
+      - image: cimg/base:2023.10
+    steps:
+      - checkout
+      - cli/install
+      - create-namespace-if-needed
+      - create-orb-if-needed:
+          orb-name: service-agents
+      - publish-orb:
+          orb-name: service-agents
+          orb-file: .circleci/orbs/service-agents-orb.yml
+
+workflows:
+  publish-orbs:
+    when: << pipeline.parameters.run-workflow >>
+    jobs:
+      - detect-orb-changes:
+          context: org-global
+
+      # Publish common orb first (since other orbs depend on it)
+      - publish-common-orb:
+          requires:
+            - detect-orb-changes
+          context: org-global
+          filters:
+            branches:
+              only: main
+
+      # Then publish all other orbs (which depend on common)
+      - publish-service-auth-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+          filters:
+            branches:
+              only: main
+
+      - publish-service-cron-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+          filters:
+            branches:
+              only: main
+
+      - publish-data-postgres-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+          filters:
+            branches:
+              only: main
+
+      - publish-data-couchbase-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+          filters:
+            branches:
+              only: main
+
+      - publish-data-vector-db-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+          filters:
+            branches:
+              only: main
+
+      - publish-service-mcp-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+          filters:
+            branches:
+              only: main
+
+      - publish-service-supertokens-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+          filters:
+            branches:
+              only: main
+
+      - publish-service-voyager-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+          filters:
+            branches:
+              only: main
+
+      - publish-service-agents-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+          filters:
+            branches:
+              only: main
+
+  # Conditional workflows based on what changed
+  run-common-orb-workflow:
+    when: << pipeline.parameters.run-common-orb-workflow >>
+    jobs:
+      - publish-common-orb:
+          context: org-global
+
+  run-service-auth-orb-workflow:
+    when: << pipeline.parameters.run-service-auth-orb-workflow >>
+    jobs:
+      - publish-common-orb:
+          context: org-global
+      - publish-service-auth-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+
+  run-service-cron-orb-workflow:
+    when: << pipeline.parameters.run-service-cron-orb-workflow >>
+    jobs:
+      - publish-common-orb:
+          context: org-global
+      - publish-service-cron-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+
+  run-data-postgres-orb-workflow:
+    when: << pipeline.parameters.run-data-postgres-orb-workflow >>
+    jobs:
+      - publish-common-orb:
+          context: org-global
+      - publish-data-postgres-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+
+  run-data-couchbase-orb-workflow:
+    when: << pipeline.parameters.run-data-couchbase-orb-workflow >>
+    jobs:
+      - publish-common-orb:
+          context: org-global
+      - publish-data-couchbase-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+
+  run-data-vector-db-orb-workflow:
+    when: << pipeline.parameters.run-data-vector-db-orb-workflow >>
+    jobs:
+      - publish-common-orb:
+          context: org-global
+      - publish-data-vector-db-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+
+  run-service-mcp-orb-workflow:
+    when: << pipeline.parameters.run-service-mcp-orb-workflow >>
+    jobs:
+      - publish-common-orb:
+          context: org-global
+      - publish-service-mcp-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+
+  run-service-supertokens-orb-workflow:
+    when: << pipeline.parameters.run-service-supertokens-orb-workflow >>
+    jobs:
+      - publish-common-orb:
+          context: org-global
+      - publish-service-supertokens-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+
+  run-service-voyager-orb-workflow:
+    when: << pipeline.parameters.run-service-voyager-orb-workflow >>
+    jobs:
+      - publish-common-orb:
+          context: org-global
+      - publish-service-voyager-orb:
+          requires:
+            - publish-common-orb
+          context: org-global
+
+  run-service-agents-orb-workflow:
+    when: << pipeline.parameters.run-service-agents-orb-workflow >>
+    jobs:
+      - publish-common-orb:
+          context: org-global
+      - publish-service-agents-orb:
+          requires:
+            - publish-common-orb
+          context: org-global 
