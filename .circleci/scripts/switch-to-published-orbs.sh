@@ -1,17 +1,25 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# This script switches the continue_config.yml to use published orbs instead of inline orbs
+# Script to switch from inline orbs to published orbs
 
-# Backup the current config
-cp .circleci/continue_config.yml .circleci/continue_config.inline.yml
+echo "Switching to published orbs configuration..."
 
-# Copy the published orbs version which only uses published orb references
-# and doesn't include any inline orb definitions
-cp .circleci/continue_config.published.yml .circleci/continue_config.yml
+# Get the directory of the script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+CIRCLECI_DIR="$(dirname "$SCRIPT_DIR")"
 
-echo "Switched to published orbs configuration."
-echo "The original inline orbs config has been backed up to .circleci/continue_config.inline.yml"
+# Backup the current configuration
+echo "Backing up current configuration..."
+cp "${CIRCLECI_DIR}/continue_config.yml" "${CIRCLECI_DIR}/continue_config.inline.yml"
+
+# Copy the published configuration to the active configuration
+echo "Copying published configuration to active configuration..."
+cp "${CIRCLECI_DIR}/continue_config.published.yml" "${CIRCLECI_DIR}/continue_config.yml"
+
+echo "Successfully switched to published orbs configuration."
+echo "The inline configuration has been backed up to continue_config.inline.yml"
+
 echo ""
 echo "The inline orb definitions have been completely removed from the active configuration."
 echo "Make sure you have run .circleci/scripts/publish-orbs-local.sh before pushing to CircleCI"
