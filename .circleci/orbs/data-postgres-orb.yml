@@ -4,7 +4,7 @@ description: "Orb for building and deploying the Postgres service"
 
 # Use the common orb for shared executors and commands
 orbs:
-  common: posey/common@0.0.13
+  common: posey/common@0.0.14
 
 jobs:
   build-postgres:
@@ -72,70 +72,95 @@ jobs:
       - common/setup-kubeconfig
       - run:
           name: Trigger ArgoCD sync for Postgres
+          shell: /bin/bash -o pipefail
           command: |
-            # Debug environment
+            # Initial diagnostics - run these before anything else
+            echo "=== Environment Diagnostics ==="
             echo "Current directory: $(pwd)"
             echo "Available disk space:"
             df -h
+            echo "Temporary directory space:"
+            df -h /tmp
+            echo "User and permissions:"
+            id
+            ls -la /usr/local/bin
             
-            # Check if ArgoCD variables are set (safely)
+            # Create temp directory for downloads
+            TEMP_DIR=$(mktemp -d)
+            echo "Created temporary directory: ${TEMP_DIR}"
+            echo "Temp directory permissions:"
+            ls -la ${TEMP_DIR}
+            cd ${TEMP_DIR}
+            
+            # Check ArgoCD variables
             if [ -z "${ARGOCD_SERVER}" ]; then
               echo "ERROR: ARGOCD_SERVER environment variable is not set"
               exit 1
-            else
-              echo "ARGOCD_SERVER is set to: ${ARGOCD_SERVER}"
             fi
+            echo "ARGOCD_SERVER is set to: ${ARGOCD_SERVER}"
             
             if [ -z "${ARGOCD_TOKEN}" ]; then
               echo "ERROR: ARGOCD_TOKEN environment variable is not set"
               exit 1
-            else
-              echo "ARGOCD_TOKEN is set (token length: ${#ARGOCD_TOKEN})"
             fi
+            echo "ARGOCD_TOKEN is set (length: ${#ARGOCD_TOKEN})"
             
-            # Create temp directory for downloads
-            TEMP_DIR=$(mktemp -d)
-            echo "Using temporary directory: ${TEMP_DIR}"
-            cd ${TEMP_DIR}
-            
-            # Install argocd CLI with verbose output and retry
-            echo "Downloading ArgoCD CLI..."
-            curl -v --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-            
-            # Check if download was successful
-            if [ $? -ne 0 ]; then
-              echo "ERROR: Failed to download ArgoCD CLI"
-              # Try specific version as fallback
-              echo "Trying specific version instead..."
-              curl -v --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/download/v2.8.4/argocd-linux-amd64
+            # Download attempt with full error capture
+            echo "Attempting to download ArgoCD CLI..."
+            {
+              curl -v --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 2>&1
+              CURL_EXIT_CODE=$?
               
-              if [ $? -ne 0 ]; then
-                echo "ERROR: Failed to download ArgoCD CLI (specific version)"
-                exit 1
+              if [ $CURL_EXIT_CODE -ne 0 ]; then
+                echo "Failed to download latest ArgoCD CLI (exit code: $CURL_EXIT_CODE)"
+                echo "Trying specific version v2.8.4..."
+                
+                curl -v --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/download/v2.8.4/argocd-linux-amd64 2>&1
+                CURL_EXIT_CODE=$?
+                
+                if [ $CURL_EXIT_CODE -ne 0 ]; then
+                  echo "Failed to download specific version (exit code: $CURL_EXIT_CODE)"
+                  exit 1
+                fi
               fi
+            } | tee download.log
+            
+            if [ ! -f argocd.download ]; then
+              echo "ERROR: argocd.download file does not exist after curl"
+              echo "Contents of temp directory:"
+              ls -la
+              echo "Download log:"
+              cat download.log
+              exit 1
             fi
             
-            echo "ArgoCD CLI downloaded successfully. Size: $(ls -lh argocd.download | awk '{print $5}')"
-            chmod +x argocd.download
-            sudo mv argocd.download /usr/local/bin/argocd
+            echo "File downloaded successfully. Size and permissions:"
+            ls -lh argocd.download
+            
+            echo "Making file executable..."
+            chmod +x argocd.download || { echo "Failed to chmod +x argocd.download"; exit 1; }
+            
+            echo "Moving to /usr/local/bin..."
+            sudo mv argocd.download /usr/local/bin/argocd || { echo "Failed to move argocd to /usr/local/bin"; exit 1; }
+            
+            echo "Verifying installation..."
+            which argocd || { echo "argocd not found in PATH"; exit 1; }
+            
             cd -
             
-            echo "ArgoCD CLI version:"
+            echo "Testing ArgoCD CLI..."
             argocd version --client
             
-            # Test the server connection
-            echo "Testing connection to ArgoCD server..."
-            curl -k -s ${ARGOCD_SERVER}/api/version | grep -q "version" && echo "Server connection successful" || echo "Server connection failed"
+            # Rest of the ArgoCD commands
+            echo "Testing server connection..."
+            curl -k -s ${ARGOCD_SERVER}/api/version || echo "Server connection test failed"
             
-            # Log in to ArgoCD (using token auth)
-            echo "Logging in to ArgoCD server..."
+            echo "Logging in to ArgoCD..."
             argocd login ${ARGOCD_SERVER} --auth-token ${ARGOCD_TOKEN} --grpc-web --insecure
             
-            # Trigger sync for the postgres application
-            echo "Triggering sync for posey-postgres..."
+            echo "Triggering sync..."
             argocd app sync posey-postgres --force
             
-            # Wait for sync to complete
             echo "Waiting for sync to complete..."
             argocd app wait posey-postgres --health --timeout 300
       - store_artifacts:
