@@ -203,10 +203,10 @@ workflows:
     when: << pipeline.parameters.run-auth-service-workflow >> # Temporarily simplifying the when condition for testing
     # when: << pipeline.parameters.run-auth-service-workflow >> && << pipeline.parameters.run-cron-service-workflow >> && << pipeline.parameters.run-postgres-workflow >> && << pipeline.parameters.run-couchbase-workflow >> && << pipeline.parameters.run-vector-db-workflow >> && << pipeline.parameters.run-mcp-workflow >> && << pipeline.parameters.run-supertokens-workflow >> && << pipeline.parameters.run-voyager-workflow >> && << pipeline.parameters.run-agents-workflow >>
     jobs:
-      # - service-auth/build-auth-service:
-      #     context:
-      #       - posey-prod-core
-      #       - posey-prod-services
+      - service-auth/build-auth-service:
+          context:
+            - posey-prod-core
+            - posey-prod-services
       # - service-cron/build-cron-service:
       #     context:
       #       - posey-prod-core
@@ -227,10 +227,10 @@ workflows:
       #     context:
       #       - posey-prod-core
       #       - posey-prod-services
-      - data-postgres/build-postgres:
-          context:
-            - posey-prod-core
-            - posey-prod-data
+      # - data-postgres/build-postgres:
+      #     context:
+      #       - posey-prod-core
+      #       - posey-prod-data
       # - data-couchbase/build-couchbase:
       #     context:
       #       - posey-prod-core
