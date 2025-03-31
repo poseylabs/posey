@@ -4,7 +4,7 @@ description: "Orb for building and deploying the MCP service"
 
 # Use the common orb for shared executors and commands
 orbs:
-  common: posey/common@0.0.14
+  common: posey/common@0.0.15
 
 jobs:
   build-mcp-service:

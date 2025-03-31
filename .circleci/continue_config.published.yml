@@ -1,5 +1,5 @@
 # Published orbs - all using production versioning
-common: posey/common@0.0.14           # Production version
+common: posey/common@0.0.15           # Production version
 service-auth: posey/service-auth@0.0.3    # Production version
 service-cron: posey/service-cron@0.0.3    # Production version
 data-postgres: posey/data-postgres@0.0.3  # Production version
