@@ -154,18 +154,24 @@ jobs:
             echo "Testing ArgoCD CLI..."
             argocd version --client
             
-            # Rest of the ArgoCD commands
+            # Clean up server URL - ensure single https:// prefix
+            ARGOCD_SERVER_URL=$(echo "${ARGOCD_SERVER}" | sed 's#^https\?://##')
+            ARGOCD_SERVER_URL="https://${ARGOCD_SERVER_URL}"
+            
+            # Test server connection with better redirect handling
             echo "Testing server connection..."
-            curl -k -s ${ARGOCD_SERVER}/api/version || echo "Server connection test failed"
+            echo "Using server URL: ${ARGOCD_SERVER_URL}"
+            curl -vk -L -s "${ARGOCD_SERVER_URL}/api/version" || echo "Server connection test failed"
             
             echo "Logging in to ArgoCD..."
-            argocd login ${ARGOCD_SERVER} --auth-token ${ARGOCD_TOKEN} --grpc-web --insecure
+            echo "Attempting login to: ${ARGOCD_SERVER_URL}"
+            argocd login --grpc-web-root-path / "${ARGOCD_SERVER_URL}" --auth-token "${ARGOCD_TOKEN}" --insecure --grpc-web
             
             echo "Triggering sync..."
-            argocd app sync posey-postgres --force
+            argocd app sync posey-postgres --force --grpc-web
             
             echo "Waiting for sync to complete..."
-            argocd app wait posey-postgres --health --timeout 300
+            argocd app wait posey-postgres --health --timeout 300 --grpc-web
       - store_artifacts:
           path: build-logs
           destination: build-logs 
