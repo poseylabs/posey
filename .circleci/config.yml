@@ -50,6 +50,10 @@ parameters:
     description: "Run Cron Service workflow"
     type: boolean
     default: false
+  run-common-change-workflow:
+    description: "Run the combined workflow when the common orb changes"
+    type: boolean
+    default: false
 
 workflows:
   # Path-based filtering to determine what to build
@@ -99,7 +103,7 @@ workflows:
             services/voyager/.* run-voyager-workflow true
             services/agents/.* run-agents-workflow true
             
-            # Orb file paths
+            # Orb file paths (trigger individual workflows)
             .circleci/orbs/service-auth-orb.yml run-auth-service-workflow true
             .circleci/orbs/service-cron-orb.yml run-cron-service-workflow true
             .circleci/orbs/data-postgres-orb.yml run-postgres-workflow true
@@ -110,16 +114,8 @@ workflows:
             .circleci/orbs/service-voyager-orb.yml run-voyager-workflow true
             .circleci/orbs/service-agents-orb.yml run-agents-workflow true
             
-            # Common orb changes trigger all services
-            .circleci/orbs/common-orb.yml run-auth-service-workflow true
-            .circleci/orbs/common-orb.yml run-cron-service-workflow true
-            .circleci/orbs/common-orb.yml run-postgres-workflow true
-            .circleci/orbs/common-orb.yml run-couchbase-workflow true
-            .circleci/orbs/common-orb.yml run-vector-db-workflow true
-            .circleci/orbs/common-orb.yml run-mcp-workflow true
-            .circleci/orbs/common-orb.yml run-supertokens-workflow true
-            .circleci/orbs/common-orb.yml run-voyager-workflow true
-            .circleci/orbs/common-orb.yml run-agents-workflow true
+            # Common orb change triggers the dedicated parameter
+            .circleci/orbs/common-orb.yml run-common-change-workflow true
           base-revision: main
           # This is the path to the configuration file that will be used for the continuation
           config-path: .circleci/continue_config.yml

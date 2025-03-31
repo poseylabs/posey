@@ -50,6 +50,10 @@ parameters:
     description: "Run Cron Service workflow"
     type: boolean
     default: false
+  run-common-change-workflow:
+    description: "Run the combined workflow when the common orb changes"
+    type: boolean
+    default: false
 
 workflows:
   version: 2
@@ -200,8 +204,7 @@ workflows:
 
   # Combined workflow for when common orb changes
   all-services:
-    # when: << pipeline.parameters.run-auth-service-workflow >> # Temporarily simplifying the when condition for testing
-    when: << pipeline.parameters.run-auth-service-workflow >> && << pipeline.parameters.run-cron-service-workflow >> && << pipeline.parameters.run-postgres-workflow >> && << pipeline.parameters.run-couchbase-workflow >> && << pipeline.parameters.run-vector-db-workflow >> && << pipeline.parameters.run-mcp-workflow >> && << pipeline.parameters.run-supertokens-workflow >> && << pipeline.parameters.run-voyager-workflow >> && << pipeline.parameters.run-agents-workflow >>
+    when: << pipeline.parameters.run-common-change-workflow >>
     jobs:
       - data-postgres/build-postgres:
           context:
