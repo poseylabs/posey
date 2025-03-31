@@ -8,16 +8,16 @@ orbs:
   cli: circleci/circleci-cli@0.1.9
   
   # Published orbs - using volatile for development
-  common: posey/common@volatile           # Development version
-  service-auth: posey/service-auth@volatile    # Development version
-  service-cron: posey/service-cron@volatile    # Development version
-  data-postgres: posey/data-postgres@volatile  # Development version
-  data-couchbase: posey/data-couchbase@volatile # Development version
-  data-vector-db: posey/data-vector-db@volatile # Development version
-  service-mcp: posey/service-mcp@volatile      # Development version
-  service-supertokens: posey/service-supertokens@volatile # Development version
-  service-voyager: posey/service-voyager@volatile # Development version
-  service-agents: posey/service-agents@volatile # Development version
+  common: posey/common@0.1.0
+  service-auth: posey/service-auth@0.1.0
+  service-cron: posey/service-cron@0.1.0
+  data-postgres: posey/data-postgres@0.1.0
+  data-couchbase: posey/data-couchbase@0.1.0
+  data-vector-db: posey/data-vector-db@0.1.0
+  service-mcp: posey/service-mcp@0.1.0
+  service-supertokens: posey/service-supertokens@0.1.0
+  service-voyager: posey/service-voyager@0.1.0
+  service-agents: posey/service-agents@0.1.0
 
 # Define the parameters that will be passed from the setup configuration
 parameters:

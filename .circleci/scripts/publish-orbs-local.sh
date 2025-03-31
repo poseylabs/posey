@@ -58,6 +58,10 @@ fi
 
 echo "Publishing orbs with $VERSION_TYPE version bump..."
 
+# Arrays to store orb names and versions
+ORB_NAMES=()
+ORB_VERSIONS=()
+
 # First publish the common orb
 echo "Publishing common orb..."
 COMMON_ORB_FILE="${ORBS_DIR}/common-orb.yml"
@@ -76,6 +80,8 @@ circleci orb publish "$COMMON_ORB_FILE" posey/common@$DEV_VERSION
 echo "Promoting common orb to $VERSION_TYPE version..."
 COMMON_VERSION=$(circleci orb publish promote posey/common@$DEV_VERSION $VERSION_TYPE | grep -o 'posey/common@[0-9.]*' | cut -d@ -f2 | tr -d '\n')
 echo "Common orb published as version $COMMON_VERSION"
+ORB_NAMES+=("common")
+ORB_VERSIONS+=("$COMMON_VERSION")
 
 # Update all service and data orbs to reference the new common version
 echo "Updating all orbs to reference common@$COMMON_VERSION..."
@@ -104,6 +110,8 @@ for ORB_FILE in "$ORBS_DIR"/service-*-orb.yml; do
   echo "Promoting $ORB_NAME orb to $VERSION_TYPE version..."
   SERVICE_VERSION=$(circleci orb publish promote posey/$ORB_NAME@$DEV_VERSION $VERSION_TYPE | grep -o "posey/$ORB_NAME@[0-9.]*" | cut -d@ -f2 | tr -d '\n')
   echo "$ORB_NAME orb published as version $SERVICE_VERSION"
+  ORB_NAMES+=("$ORB_NAME")
+  ORB_VERSIONS+=("$SERVICE_VERSION")
 done
 
 # Now publish all data orbs
@@ -129,18 +137,38 @@ for ORB_FILE in "$ORBS_DIR"/data-*-orb.yml; do
   echo "Promoting $ORB_NAME orb to $VERSION_TYPE version..."
   DATA_VERSION=$(circleci orb publish promote posey/$ORB_NAME@$DEV_VERSION $VERSION_TYPE | grep -o "posey/$ORB_NAME@[0-9.]*" | cut -d@ -f2 | tr -d '\n')
   echo "$ORB_NAME orb published as version $DATA_VERSION"
+  ORB_NAMES+=("$ORB_NAME")
+  ORB_VERSIONS+=("$DATA_VERSION")
 done
 
-# Update continue_config.yml to keep using @volatile
-echo "Updating continue_config.yml to use @volatile..."
-sed -i '' "s|common: posey/common@[0-9.]*\(volatile\)*|common: posey/common@volatile|g" "$CIRCLECI_DIR/continue_config.yml"
+# Update continue_config.yml with all new versions
+echo "Updating continue_config.yml with new versions..."
+for i in "${!ORB_NAMES[@]}"; do
+  ORB_NAME="${ORB_NAMES[$i]}"
+  VERSION="${ORB_VERSIONS[$i]}"
+  if [[ "$ORB_NAME" == "common" ]]; then
+    sed -i '' "s|common: posey/common@[0-9.]*\(volatile\)*|common: posey/common@$VERSION|g" "$CIRCLECI_DIR/continue_config.yml"
+  else
+    sed -i '' "s|$ORB_NAME: posey/$ORB_NAME@[0-9.]*\(volatile\)*|$ORB_NAME: posey/$ORB_NAME@$VERSION|g" "$CIRCLECI_DIR/continue_config.yml"
+  fi
+done
 
-# Update continue_config.published.yml with the specific version
+# Also update continue_config.published.yml if it exists
 if [ -f "$CIRCLECI_DIR/continue_config.published.yml" ]; then
-  echo "Updating continue_config.published.yml with new version $COMMON_VERSION..."
-  sed -i '' "s|common: posey/common@[0-9.]*\(volatile\)*|common: posey/common@$COMMON_VERSION|g" "$CIRCLECI_DIR/continue_config.published.yml"
+  echo "Updating continue_config.published.yml with new versions..."
+  for i in "${!ORB_NAMES[@]}"; do
+    ORB_NAME="${ORB_NAMES[$i]}"
+    VERSION="${ORB_VERSIONS[$i]}"
+    if [[ "$ORB_NAME" == "common" ]]; then
+      sed -i '' "s|common: posey/common@[0-9.]*\(volatile\)*|common: posey/common@$VERSION|g" "$CIRCLECI_DIR/continue_config.published.yml"
+    else
+      sed -i '' "s|$ORB_NAME: posey/$ORB_NAME@[0-9.]*\(volatile\)*|$ORB_NAME: posey/$ORB_NAME@$VERSION|g" "$CIRCLECI_DIR/continue_config.published.yml"
+    fi
+  done
 fi
 
 echo "Orb publishing complete!"
-echo "Common orb published as version $COMMON_VERSION"
-echo "All service and data orbs published as production versions with $VERSION_TYPE increment" 
+echo "Published versions:"
+for i in "${!ORB_NAMES[@]}"; do
+  echo "posey/${ORB_NAMES[$i]}@${ORB_VERSIONS[$i]}"
+done 
