@@ -58,7 +58,7 @@ workflows:
   auth-service:
     when: << pipeline.parameters.run-auth-service-workflow >>
     jobs:
-      - build-auth-service:
+      - service-auth/build-auth-service:
           context:
             - posey-prod-core
             - posey-prod-services
@@ -74,7 +74,7 @@ workflows:
   cron-service:
     when: << pipeline.parameters.run-cron-service-workflow >>
     jobs:
-      - build-cron-service:
+      - service-cron/build-cron-service:
           context:
             - posey-prod-core
             - posey-prod-services
@@ -90,7 +90,7 @@ workflows:
   mcp-service:
     when: << pipeline.parameters.run-mcp-workflow >>
     jobs:
-      - build-mcp-service:
+      - service-mcp/build-mcp-service:
           context:
             - posey-prod-core
             - posey-prod-services
@@ -106,7 +106,7 @@ workflows:
   supertokens-service:
     when: << pipeline.parameters.run-supertokens-workflow >>
     jobs:
-      - build-supertokens-service:
+      - service-supertokens/build-supertokens-service:
           context:
             - posey-prod-core
             - posey-prod-services
@@ -122,7 +122,7 @@ workflows:
   voyager-service:
     when: << pipeline.parameters.run-voyager-workflow >>
     jobs:
-      - build-voyager-service:
+      - service-voyager/build-voyager-service:
           context:
             - posey-prod-core
             - posey-prod-services
@@ -138,7 +138,7 @@ workflows:
   agents-service:
     when: << pipeline.parameters.run-agents-workflow >>
     jobs:
-      - build-agents-service:
+      - service-agents/build-agents-service:
           context:
             - posey-prod-core
             - posey-prod-services
@@ -154,7 +154,7 @@ workflows:
   postgres:
     when: << pipeline.parameters.run-postgres-workflow >>
     jobs:
-      - build-postgres:
+      - data-postgres/build-postgres:
           context:
             - posey-prod-core
             - posey-prod-data
@@ -170,7 +170,7 @@ workflows:
   couchbase:
     when: << pipeline.parameters.run-couchbase-workflow >>
     jobs:
-      - build-couchbase:
+      - data-couchbase/build-couchbase:
           context:
             - posey-prod-core
             - posey-prod-data
@@ -186,7 +186,7 @@ workflows:
   vector-db:
     when: << pipeline.parameters.run-vector-db-workflow >>
     jobs:
-      - build-vector-db:
+      - data-vector-db/build-vector-db:
           context:
             - posey-prod-core
             - posey-prod-data
