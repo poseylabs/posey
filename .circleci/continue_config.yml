@@ -8,7 +8,7 @@ orbs:
   cli: circleci/circleci-cli@0.1.9
   
   # Published orbs - using volatile for development
-  common: posey/common@0.0.16volatile
+  common: posey/common@volatile
   service-auth: posey/service-auth@volatile
   service-cron: posey/service-cron@volatile
   data-postgres: posey/data-postgres@volatile
