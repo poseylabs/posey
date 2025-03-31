@@ -4,7 +4,7 @@ description: "Orb for building and deploying the Postgres service"
 
 # Use the common orb for shared executors and commands
 orbs:
-  common: posey/common@0.0.15
+  common: posey/common@0.0.16
 
 jobs:
   build-postgres:
@@ -100,6 +100,9 @@ jobs:
               echo "ERROR: ARGOCD_SERVER environment variable is not set"
               exit 1
             fi
+            
+            # Clean up ARGOCD_SERVER URL - strip any protocol and trailing slashes
+            ARGOCD_SERVER=$(echo "${ARGOCD_SERVER}" | sed 's#^[^:]*://##' | sed 's#/*$##')
             echo "ARGOCD_SERVER is set to: ${ARGOCD_SERVER}"
             
             if [ -z "${ARGOCD_TOKEN}" ]; then
@@ -156,10 +159,10 @@ jobs:
             
             # Rest of the ArgoCD commands
             echo "Testing server connection..."
-            curl -k -s ${ARGOCD_SERVER}/api/version || echo "Server connection test failed"
+            curl -k -s "https://${ARGOCD_SERVER}/api/version" || echo "Server connection test failed"
             
             echo "Logging in to ArgoCD..."
-            argocd login ${ARGOCD_SERVER} --auth-token ${ARGOCD_TOKEN} --grpc-web --insecure
+            argocd login "${ARGOCD_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure
             
             echo "Triggering sync..."
             argocd app sync posey-postgres --force

@@ -4,7 +4,7 @@ description: "Orb for building and deploying the Auth service"
 
 # We'll use the common orb for executors and shared commands
 orbs:
-  common: posey/common@0.0.15
+  common: posey/common@0.0.16
 
 jobs:
   build-auth-service:
