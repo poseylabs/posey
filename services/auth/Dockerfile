@@ -14,7 +14,6 @@ ENV YARN_VERBOSE=true
 ENV YARN_CACHE_FOLDER=/tmp/.yarn-cache
 ENV YARN_RC_FILENAME=.yarnrc.yml
 ENV YARN_INSTALL_STATE_PATH=/tmp/.yarn-state.gz
-ENV YARN_PNP_ENABLE_CACHE=true
 ENV YARN_LOG_LEVEL="info"
 
 # Install only the minimal dependencies needed
@@ -41,7 +40,7 @@ COPY .yarn ./.yarn
 COPY services/auth/package.json ./services/auth/
 
 # Install dependencies with proper focus on auth service - with verbose logging
-RUN set -x && yarn workspaces focus @posey.ai/auth --production=false --verbose 2>&1 | tee /tmp/yarn-install.log
+RUN set -x && yarn workspaces focus @posey.ai/auth --verbose 2>&1 | tee /tmp/yarn-install.log
 
 # Copy remaining files for the build
 COPY . .
