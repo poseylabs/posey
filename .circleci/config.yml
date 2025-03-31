@@ -109,7 +109,17 @@ workflows:
             .circleci/orbs/service-supertokens-orb.yml run-supertokens-workflow true
             .circleci/orbs/service-voyager-orb.yml run-voyager-workflow true
             .circleci/orbs/service-agents-orb.yml run-agents-workflow true
-            .circleci/orbs/common-orb.yml run-auth-service-workflow run-cron-service-workflow run-postgres-workflow run-couchbase-workflow run-vector-db-workflow run-mcp-workflow run-supertokens-workflow run-voyager-workflow run-agents-workflow true
+            
+            # Common orb changes trigger all services
+            .circleci/orbs/common-orb.yml run-auth-service-workflow true
+            .circleci/orbs/common-orb.yml run-cron-service-workflow true
+            .circleci/orbs/common-orb.yml run-postgres-workflow true
+            .circleci/orbs/common-orb.yml run-couchbase-workflow true
+            .circleci/orbs/common-orb.yml run-vector-db-workflow true
+            .circleci/orbs/common-orb.yml run-mcp-workflow true
+            .circleci/orbs/common-orb.yml run-supertokens-workflow true
+            .circleci/orbs/common-orb.yml run-voyager-workflow true
+            .circleci/orbs/common-orb.yml run-agents-workflow true
           base-revision: main
           # This is the path to the configuration file that will be used for the continuation
           config-path: .circleci/continue_config.yml
