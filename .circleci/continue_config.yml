@@ -196,4 +196,45 @@ workflows:
                 - main
                 - develop
             tags:
-              only: /^v.*/ 
+              only: /^v.*/
+
+  # Combined workflow for when common orb changes
+  all-services:
+    when: << pipeline.parameters.run-auth-service-workflow >> && << pipeline.parameters.run-cron-service-workflow >> && << pipeline.parameters.run-postgres-workflow >> && << pipeline.parameters.run-couchbase-workflow >> && << pipeline.parameters.run-vector-db-workflow >> && << pipeline.parameters.run-mcp-workflow >> && << pipeline.parameters.run-supertokens-workflow >> && << pipeline.parameters.run-voyager-workflow >> && << pipeline.parameters.run-agents-workflow >>
+    jobs:
+      - service-auth/build-auth-service:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - service-cron/build-cron-service:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - service-mcp/build-mcp-service:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - service-supertokens/build-supertokens-service:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - service-voyager/build-voyager-service:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - service-agents/build-agents-service:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - data-postgres/build-postgres:
+          context:
+            - posey-prod-core
+            - posey-prod-data
+      - data-couchbase/build-couchbase:
+          context:
+            - posey-prod-core
+            - posey-prod-data
+      - data-vector-db/build-vector-db:
+          context:
+            - posey-prod-core
+            - posey-prod-data 
