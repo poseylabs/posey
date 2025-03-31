@@ -8,16 +8,16 @@ orbs:
   cli: circleci/circleci-cli@0.1.9
   
   # Published orbs - using volatile for development
-  common: posey/common@0.1.1
-  service-auth: posey/service-auth@0.1.1
-  service-cron: posey/service-cron@0.1.1
-  data-postgres: posey/data-postgres@0.1.1
-  data-couchbase: posey/data-couchbase@0.1.1
-  data-vector-db: posey/data-vector-db@0.1.1
-  service-mcp: posey/service-mcp@0.1.1
-  service-supertokens: posey/service-supertokens@0.1.1
-  service-voyager: posey/service-voyager@0.1.1
-  service-agents: posey/service-agents@0.1.1
+  common: posey/common@0.1.2
+  service-auth: posey/service-auth@0.1.2
+  service-cron: posey/service-cron@0.1.2
+  data-postgres: posey/data-postgres@0.1.2
+  data-couchbase: posey/data-couchbase@0.1.2
+  data-vector-db: posey/data-vector-db@0.1.2
+  service-mcp: posey/service-mcp@0.1.2
+  service-supertokens: posey/service-supertokens@0.1.2
+  service-voyager: posey/service-voyager@0.1.2
+  service-agents: posey/service-agents@0.1.2
 
 # Define the parameters that will be passed from the setup configuration
 parameters:
@@ -171,20 +171,20 @@ workflows:
               only: /^v.*/
 
   # Couchbase workflow
-  # couchbase:
-  #   when: << pipeline.parameters.run-couchbase-workflow >>
-  #   jobs:
-  #     - data-couchbase/build-couchbase:
-  #         context:
-  #           - posey-prod-core
-  #           - posey-prod-data
-  #         filters:
-  #           branches:
-  #             only:
-  #               - main
-  #               - develop
-  #           tags:
-  #             only: /^v.*/
+  couchbase:
+    when: << pipeline.parameters.run-couchbase-workflow >>
+    jobs:
+      - data-couchbase/build-couchbase:
+          context:
+            - posey-prod-core
+            - posey-prod-data
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
 
   # Vector DB workflow
   vector-db:
@@ -210,10 +210,10 @@ workflows:
           context:
             - posey-prod-core
             - posey-prod-data
-      # - data-couchbase/build-couchbase:
-      #     context:
-      #       - posey-prod-core
-      #       - posey-prod-data
+      - data-couchbase/build-couchbase:
+          context:
+            - posey-prod-core
+            - posey-prod-data
       - data-vector-db/build-vector-db:
           context:
             - posey-prod-core

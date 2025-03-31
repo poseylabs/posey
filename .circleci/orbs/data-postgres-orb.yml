@@ -4,7 +4,7 @@ description: "Orb for building and deploying the Postgres service"
 
 # Use the common orb for shared executors and commands
 orbs:
-  common: posey/common@0.1.1
+  common: posey/common@0.1.2
 
 jobs:
   build-postgres:
@@ -111,14 +111,14 @@ jobs:
             # Download attempt with full error capture
             echo "Attempting to download ArgoCD CLI..."
             {
-              curl -v --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 2>&1
+              curl --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 2>&1
               CURL_EXIT_CODE=$?
               
               if [ $CURL_EXIT_CODE -ne 0 ]; then
                 echo "Failed to download latest ArgoCD CLI (exit code: $CURL_EXIT_CODE)"
                 echo "Trying specific version v2.8.4..."
                 
-                curl -v --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/download/v2.8.4/argocd-linux-amd64 2>&1
+                curl --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/download/v2.8.4/argocd-linux-amd64 2>&1
                 CURL_EXIT_CODE=$?
                 
                 if [ $CURL_EXIT_CODE -ne 0 ]; then
@@ -161,11 +161,11 @@ jobs:
             # Test server connection with better redirect handling
             echo "Testing server connection..."
             echo "Using server URL: ${ARGOCD_SERVER_URL}"
-            curl -vk -L -s "${ARGOCD_SERVER_URL}/api/version" || echo "Server connection test failed"
+            curl -k -L -s "${ARGOCD_SERVER_URL}/api/version" || echo "Server connection test failed"
             
             echo "Logging in to ArgoCD..."
             echo "Attempting login to: ${ARGOCD_SERVER_URL}"
-            argocd login --grpc-web-root-path / "${ARGOCD_SERVER_URL}" --auth-token "${ARGOCD_TOKEN}" --insecure --grpc-web
+            argocd login "${ARGOCD_SERVER_URL}" --auth-token "${ARGOCD_TOKEN}" --insecure --grpc-web
             
             echo "Triggering sync..."
             argocd app sync posey-postgres --force --grpc-web
