@@ -11,7 +11,7 @@
     "build:local": "echo '🔨 Building Docker image posey-couchbase:latest...' && docker build --no-cache -t posey-couchbase:latest . && docker images posey-couchbase:latest",
     "k8s:check": "kubectl cluster-info > /dev/null 2>&1 || (echo 'Error: Kubernetes cluster not accessible. Please ensure:'; echo '1. Kubernetes is running (minikube, kind, etc.)'; echo '2. kubectl is configured correctly'; echo '3. Your VPN is connected if using a remote cluster'; exit 1)",
     "deploy": "bash ../../scripts/k8s-deploy.sh couchbase",
-    "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -f k8s/namespace.yaml && kubectl apply -k k8s",
+    "deploy:local": "yarn build:local && yarn k8s:check && kubectl apply -k k8s",
     "verify": "kubectl get pods -n posey -l app=couchbase && kubectl get services -n posey -l app=couchbase",
     "debug": "echo '🔍 Checking Docker images:' && docker images | grep couchbase && echo '🔍 Checking Kubernetes pods:' && kubectl get pods -n posey -l app=couchbase -o wide && echo '🔍 Checking pod details:' && kubectl describe pod -n posey -l app=couchbase || echo 'No pods found' && echo '🔍 Checking PVC status:' && kubectl get pvc -n posey | grep couchbase && echo '🔍 Checking Kubernetes events:' && kubectl get events -n posey --sort-by=.metadata.creationTimestamp | tail -n 15",
     "clean": "yarn k8s:check && kubectl delete -k k8s",

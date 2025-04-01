@@ -1,0 +1,121 @@
+# /k8s/data/postgres/postgres-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  # namespace: posey # Let ArgoCD/Kustomize handle namespace
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: posey-data
+spec:
+  # Ensure pods are created one after the other
+  podManagementPolicy: OrderedReady
+  # How to handle updates
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0 # Update all pods
+  # Number of desired pods (replicas)
+  replicas: 1 # Start with 1 for simplicity, can increase for HA later
+  # Selector to link with the pods this StatefulSet manages
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  # ServiceName links to the headless service for stable network IDs
+  # Create a separate headless service if you need pod-specific DNS (postgres-0.postgres, postgres-1.postgres)
+  # serviceName: postgres-headless # Example, if headless service exists
+  serviceName: postgres # Using the regular service for now
+  # Pod template
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: posey-data
+    spec:
+      # Service account if using specific permissions
+      # serviceAccountName: postgres-sa
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: postgres
+        # Image should ideally point to your specific registry (e.g., GCR or your DO registry)
+        # image: postgres:latest # Using stock image for example, replace with your built image
+        image: registry.digitalocean.com/posey/posey-postgres:latest # Use the image built by CircleCI
+        imagePullPolicy: Always # Ensure K8s always checks for newer images
+        ports:
+        - containerPort: 5432 # Match the targetPort in the Service
+          name: postgres
+        env:
+        # Get DB name and User from ConfigMap
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_USER
+        # Get Password from Secret
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secrets
+              key: POSTGRES_PASSWORD
+        # Optional: Set PGDATA if your container needs it explicitly
+        # - name: PGDATA
+        #   value: /var/lib/postgresql/data/pgdata
+
+        # Liveness and Readiness Probes are crucial for production
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - $(POSTGRES_USER) # Use the user from env
+            - -d
+            - $(POSTGRES_DB) # Use the db from env
+            - -h
+            - 127.0.0.1
+            - -p
+            - "5432"
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+
+        # Resource requests and limits are essential for stability
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+        # Mount the persistent volume
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data # Standard mount path for postgres data
+
+  # Define the volume claim template that uses the PVC we created earlier
+  # Note: For StatefulSets, the PVC name must match the metadata.name in the PVC definition
+  # The StatefulSet controller will create PVCs based on this template if they don't exist.
+  # However, since we define the PVC separately, this mainly ensures the link.
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data # This name is internal to the template but MUST match volumeMounts.name
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: standard-rwx # Must match the PVC storageClassName
+      resources:
+        requests:
+          storage: 10Gi # Must match the PVC storage size
+      # selector: # Optional: match specific PVs
+      #   matchLabels:
+      #     disk: ssd 

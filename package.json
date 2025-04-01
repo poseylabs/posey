@@ -23,14 +23,12 @@
     "ingress:local": "yarn ingress:setup && bash scripts/port-forward-ingress.sh",
     "ingress:prod": "node scripts/posey-ingress.js",
     "port-forward": "bash scripts/port-forward-all.sh",
-    "sync:env": "bash scripts/sync-circleci-env.sh",
-    "orbs:versions": "bash .circleci/scripts/orb-versions.sh",
+    "sync:env": "bash lib/scripts/sync-circleci-env.sh",
     "orbs:switch-published": "bash .circleci/scripts/switch-to-published-orbs.sh",
-    "publish:orbs": "bash .circleci/scripts/publish-orbs-local.sh",
+    "publish:orbs": "bash .circleci/scripts/publish-orbs-local.sh patch",
     "publish:orbs:patch": "bash .circleci/scripts/publish-orbs-local.sh patch",
     "publish:orbs:minor": "bash .circleci/scripts/publish-orbs-local.sh minor",
-    "publish:orbs:major": "bash .circleci/scripts/publish-orbs-local.sh major",
-    "orbs": "node ./scripts/orbs-cli.js"
+    "publish:orbs:major": "bash .circleci/scripts/publish-orbs-local.sh major"
   },
   "devDependencies": {
     "@nrwl/nx-cloud": "19.1.0",

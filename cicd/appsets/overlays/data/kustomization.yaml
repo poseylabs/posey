@@ -1,0 +1,17 @@
+# /cicd/appsets/overlays/data/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Inherit from the base ApplicationSet definition
+resources:
+  - ../../base 
+
+# Define patches using the standard YAML patch format
+patches:
+- target: # Explicitly target the base resource
+    group: argoproj.io
+    version: v1alpha1
+    kind: ApplicationSet
+    name: posey-appset-base
+  # Reference the patch file
+  path: appset-patch.yaml 

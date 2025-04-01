@@ -1,0 +1,67 @@
+# /cicd/appsets/base/applicationset.yaml
+# Base ApplicationSet template for Posey services/apps/data
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  # name will be patched by overlay (e.g., posey-data-services)
+  name: posey-appset-base 
+  # ApplicationSets live in the argocd namespace
+  namespace: argocd
+spec:
+  # Define generators - overlay will set the specific path
+  generators:
+  - git:
+      # Define common repoURL and revision in the base
+      repoURL: https://github.com/poseylabs/posey.git
+      revision: HEAD
+      directories:
+      # path will be patched by overlay (e.g., k8s/data/*)
+      - path: k8s/placeholder/* 
+
+  # Define the template for the ArgoCD Applications to be generated
+  template:
+    metadata:
+      # Generate the Application name dynamically: posey-<dirname>
+      name: posey-{{path.basename}}
+      # Add standard labels, including the directory name
+      labels:
+        # app label will use the path basename (e.g., postgres)
+        app: posey-{{path.basename}}
+        # applicationset label will be patched by overlay (e.g., posey-data-services)
+        argocd.argoproj.io/applicationset: posey-appset-placeholder
+        # category label will be patched by overlay (e.g., data, services, apps)
+        category: placeholder 
+      # Add the finalizer for resource cleanup
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      # Common project for all services
+      project: posey
+
+      # Source for the Kubernetes manifests
+      source:
+        repoURL: https://github.com/poseylabs/posey.git
+        targetRevision: HEAD
+        # Use the path discovered by the generator (e.g., k8s/data/postgres)
+        path: "{{path}}"
+
+      # Common destination for all services
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: posey
+
+      # Common sync policy - can be overridden by overlay patches if needed
+      syncPolicy:
+        automated:
+          prune: false # Default, consider patching to true for stateless services
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
+        - Validate=false
+        - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m 

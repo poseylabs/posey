@@ -1,0 +1,29 @@
+# /cicd/appsets/overlays/data/appset-patch.yaml
+# Patch specific fields in the base ApplicationSet for data services
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  # Target the base name
+  name: posey-appset-base 
+spec:
+  generators:
+  - git:
+      # Explicitly include repoURL and revision in the patch 
+      # along with the directories path modification.
+      repoURL: https://github.com/poseylabs/posey.git
+      revision: HEAD
+      directories:
+        # Set the correct path for data services
+      - path: k8s/data/* 
+  template:
+    metadata:
+      # Set the correct name for the generated application (This overrides the base name for the *output*)
+      name: posey-data-services 
+      labels:
+        # Set the correct labels
+        argocd.argoproj.io/applicationset: posey-data-services
+        category: data
+    # spec: # Keep spec commented out unless specific overrides are needed
+    #   syncPolicy:
+    #     automated:
+    #       prune: false # Example: Keep prune false for data 
