@@ -8,22 +8,19 @@ metadata:
 spec:
   generators:
   - git:
-      # Explicitly include repoURL and revision in the patch 
-      # along with the directories path modification.
-      repoURL: https://github.com/poseylabs/posey.git
-      revision: HEAD
+      # Only patch the directory path here
       directories:
-        # Set the correct path for data services
-      - path: k8s/data/* 
+      - path: k8s/charts/data/* # Point to data charts directory
   template:
     metadata:
-      # Set the correct name for the generated application (This overrides the base name for the *output*)
-      name: posey-data-services 
+      # Set the correct name for the generated application
+      name: posey-data-services # Keep this name override
       labels:
         # Set the correct labels
         argocd.argoproj.io/applicationset: posey-data-services
         category: data
-    # spec: # Keep spec commented out unless specific overrides are needed
-    #   syncPolicy:
+    # No source override needed here anymore, it's handled by the base template
+    # spec:
+    #   syncPolicy: # Example: Uncomment to patch syncPolicy if needed
     #     automated:
-    #       prune: false # Example: Keep prune false for data 
+    #       prune: false

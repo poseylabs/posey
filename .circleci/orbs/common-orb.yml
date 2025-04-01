@@ -15,21 +15,15 @@ executors:
       YARN_LOG_LEVEL: info
 
 commands:
-  setup-doctl:
-    description: "Install and configure doctl"
+  setup-gcloud-auth:
+    description: "Authenticate gcloud CLI using a service account key"
     steps:
       - run:
-          name: Install doctl
+          name: Authenticate gcloud
           command: |
-            cd /tmp
-            curl -sL --retry 5 --retry-delay 5 https://github.com/digitalocean/doctl/releases/download/v1.92.1/doctl-1.92.1-linux-amd64.tar.gz | tar -xzv
-            sudo mv doctl /usr/local/bin/
-            doctl version
-            doctl auth init -t ${DO_API_TOKEN}
-      - run:
-          name: Log in to DigitalOcean Container Registry
-          command: |
-            doctl registry login --expiry-seconds 7200
+            echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=- --project $GCLOUD_PROJECT_ID
+            gcloud --quiet config set project $GCLOUD_PROJECT_ID
+            echo "gcloud authenticated."
 
   setup-buildx:
     description: "Set up Docker Buildx"
@@ -51,24 +45,35 @@ commands:
             kubectl version --client
 
   setup-kubeconfig:
-    description: "Set up kubeconfig for Digital Ocean"
+    description: "Set up kubeconfig for GKE"
+    parameters:
+      cluster-name:
+        type: env_var_name
+        default: GKE_CLUSTER_NAME
+      cluster-zone: # Or use cluster-region if using a regional cluster
+        type: env_var_name
+        default: GKE_ZONE
     steps:
       - run:
-          name: Set up kubeconfig
+          name: Set up GKE kubeconfig
           command: |
-            if [ -z "${DO_KUBERNETES_CLUSTER_ID}" ]; then
-              echo "Error: DO_KUBERNETES_CLUSTER_ID environment variable is not set"
+            CLUSTER_NAME_VAR="<< parameters.cluster-name >>"
+            CLUSTER_ZONE_VAR="<< parameters.cluster-zone >>"
+            if [ -z "${!CLUSTER_NAME_VAR}" ] || [ -z "${!CLUSTER_ZONE_VAR}" ]; then
+              echo "Error: << parameters.cluster-name >> and << parameters.cluster-zone >> environment variables must be set"
               exit 1
             fi
-            doctl kubernetes cluster kubeconfig save ${DO_KUBERNETES_CLUSTER_ID}
-            kubectl config use-context do-sfo3-posey-cluster
-            
+            echo "Fetching credentials for GKE cluster ${!CLUSTER_NAME_VAR} in zone ${!CLUSTER_ZONE_VAR}..."
+            # Use --zone for zonal clusters, --region for regional clusters
+            gcloud container clusters get-credentials "${!CLUSTER_NAME_VAR}" --zone "${!CLUSTER_ZONE_VAR}"
+            echo "kubectl context set."
+
   setup-common:
     description: "Setup common environment"
     steps:
       - checkout
       - setup_remote_docker:
-          version: 20.10.24
+          version: 20.10.24 # Consider using a newer version if available/needed
           docker_layer_caching: true
       - run:
           name: Configure git
@@ -79,12 +84,30 @@ commands:
           name: Configure network
           command: |
             echo "Setting up network optimizations..."
+            # Note: Modifying resolv.conf directly might be overwritten. Consider systemd-resolved if available.
             echo "options single-request-reopen" | sudo tee -a /etc/resolv.conf
             echo "options timeout:10" | sudo tee -a /etc/resolv.conf
             echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
             echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf
             # Increase TCP performance
+            # Ensure these settings are appropriate for the environment
             sudo sysctl -w net.ipv4.tcp_slow_start_after_idle=0
             sudo sysctl -w net.ipv4.tcp_fastopen=3
-      - setup-doctl
+      - run:
+          name: Install gcloud SDK
+          command: |
+            echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+            sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates gnupg
+            curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+            sudo apt-get update && sudo apt-get install -y google-cloud-sdk
+      - setup-gcloud-auth # Authenticate gcloud
+      - run: # Add Docker Hub login
+          name: Log in to Docker Hub
+          command: |
+            if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+               echo "Docker Hub credentials (DOCKERHUB_USERNAME, DOCKERHUB_TOKEN) not found. Skipping login."
+            else
+               echo "Logging into Docker Hub..."
+               echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            fi
       - setup-buildx 

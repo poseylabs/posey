@@ -1,0 +1,13 @@
+# /k8s/charts/library/common-helpers/Chart.yaml
+apiVersion: v2
+name: common-helpers
+description: A library chart containing common helper templates for Posey charts
+
+# Library charts don't deploy anything themselves, they provide templates for other charts
+type: library
+
+# Version of this library chart
+version: 0.1.0
+
+# AppVersion is not typically used for library charts
+# appVersion: "1.0.0" 

@@ -1,0 +1,18 @@
+# /k8s/charts/data/postgres/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # Use the common fullname helper
+  name: {{ include "common-helpers.fullname" . }}-config
+  labels:
+    # Use common Helm labels
+    {{- include "common-helpers.labels" . | nindent 4 }}
+    # Add any additional labels if needed
+    # my-label: my-value
+data:
+  # Use values defined in values.yaml (which defaults from base-values.yaml)
+  POSTGRES_DB: {{ .Values.configData.POSTGRES_DB | quote }}
+  POSTGRES_USER: {{ .Values.configData.POSTGRES_USER | quote }}
+  # Add other non-sensitive config key-value pairs here if needed
+  # Example:
+  # MAX_CONNECTIONS: "200" 

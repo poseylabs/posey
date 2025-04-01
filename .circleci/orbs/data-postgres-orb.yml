@@ -15,9 +15,9 @@ jobs:
           name: Pull existing images for cache
           command: |
             echo "Pulling existing images for caching..."
-            docker pull registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-postgres:latest || echo "No latest image found"
-            docker pull registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-postgres:buildcache || echo "No buildcache image found" 
-            docker pull registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-postgres:PRODUCTION || echo "No PRODUCTION image found"
+            docker pull docker.io/poseylabs/posey-postgres:latest || echo "No latest image found"
+            docker pull docker.io/poseylabs/posey-postgres:buildcache || echo "No buildcache image found"
+            docker pull docker.io/poseylabs/posey-postgres:PRODUCTION || echo "No PRODUCTION image found"
       - run:
           name: Build Postgres Service
           no_output_timeout: 30m
@@ -41,13 +41,13 @@ jobs:
                 --build-arg NODE_ENV=production \
                 --progress=plain \
                 --memory=8g \
-                --cache-from type=registry,ref=registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-postgres:buildcache \
-                --cache-from registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-postgres:latest \
-                --cache-from registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-postgres:PRODUCTION \
-                --cache-to type=registry,ref=registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-postgres:buildcache,mode=max \
-                -t registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-postgres:latest \
-                -t registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-postgres:PRODUCTION \
-                -t registry.digitalocean.com/${DO_REGISTRY_NAME}/posey-postgres:$(echo $CIRCLE_SHA1 | cut -c1-7) \
+                --cache-from type=registry,ref=docker.io/poseylabs/posey-postgres:buildcache \
+                --cache-from docker.io/poseylabs/posey-postgres:latest \
+                --cache-from docker.io/poseylabs/posey-postgres:PRODUCTION \
+                --cache-to type=registry,ref=docker.io/poseylabs/posey-postgres:buildcache,mode=max \
+                -t docker.io/poseylabs/posey-postgres:latest \
+                -t docker.io/poseylabs/posey-postgres:PRODUCTION \
+                -t docker.io/poseylabs/posey-postgres:$(echo $CIRCLE_SHA1 | cut -c1-7) \
                 -f data/postgres/Dockerfile \
                 --push \
                 ./data/postgres 2>&1 | tee build-logs/build-attempt-$attempt.log

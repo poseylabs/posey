@@ -1,0 +1,12 @@
+image:
+  repository: posey-postgres
+  tag: ""
+
+existingSecret: postgres-secrets
+
+configData:
+  POSTGRES_DB: posey_prod
+  POSTGRES_USER: posey_user
+
+service:
+  port: 5432

@@ -1,0 +1,24 @@
+# /k8s/charts/data/postgres/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  # Use the common fullname helper
+  name: {{ include "common-helpers.fullname" . }}
+  labels:
+    # Use common Helm labels
+    {{- include "common-helpers.labels" . | nindent 4 }}
+    # Additional labels?
+    # my-label: my-value
+spec:
+  ports:
+  - port: {{ .Values.service.port }} # Use the port from values.yaml
+    # targetPort should match the containerPort in the statefulset template
+    targetPort: {{ .Values.service.port }} # Assuming container port is same as service port
+    protocol: TCP
+    name: tcp-postgres
+  # Use the service type defined in values (defaulting to global)
+  type: {{ .Values.service.type | default .Values.global.service.type | default "ClusterIP" }}
+  # Selects the pods managed by the StatefulSet using standard selector labels
+  selector:
+    # Use common selector labels
+    {{- include "common-helpers.selectorLabels" . | nindent 4 }} 
