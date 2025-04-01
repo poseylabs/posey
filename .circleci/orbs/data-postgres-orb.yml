@@ -72,106 +72,15 @@ jobs:
       - common/setup-kubeconfig
       - run:
           name: Trigger ArgoCD sync for Postgres
-          shell: /bin/bash
+          # Increased timeout for the whole step to accommodate script execution + wait time
+          no_output_timeout: 10m 
           command: |
-            set +e  # Explicitly disable exit on error
-            set -o pipefail  # Keep pipefail enabled
+            # Ensure the script is executable
+            chmod +x .circleci/scripts/trigger-argocd-sync.sh
             
-            # Initial diagnostics - run these before anything else
-            echo "=== Environment Diagnostics ==="
-            echo "Current directory: $(pwd)"
-            echo "Available disk space:"
-            df -h
-            echo "Temporary directory space:"
-            df -h /tmp
-            echo "User and permissions:"
-            id
-            ls -la /usr/local/bin
-            
-            # Create temp directory for downloads
-            TEMP_DIR=$(mktemp -d)
-            echo "Created temporary directory: ${TEMP_DIR}"
-            echo "Temp directory permissions:"
-            ls -la ${TEMP_DIR}
-            cd ${TEMP_DIR}
-            
-            # Check ArgoCD variables
-            if [ -z "${ARGOCD_SERVER}" ]; then
-              echo "ERROR: ARGOCD_SERVER environment variable is not set"
-              exit 1
-            fi
-            echo "ARGOCD_SERVER is set to: ${ARGOCD_SERVER}"
-            
-            if [ -z "${ARGOCD_TOKEN}" ]; then
-              echo "ERROR: ARGOCD_TOKEN environment variable is not set"
-              exit 1
-            fi
-            echo "ARGOCD_TOKEN is set (length: ${#ARGOCD_TOKEN})"
-            
-            # Download attempt with full error capture
-            echo "Attempting to download ArgoCD CLI..."
-            {
-              curl --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 2>&1
-              CURL_EXIT_CODE=$?
-              
-              if [ $CURL_EXIT_CODE -ne 0 ]; then
-                echo "Failed to download latest ArgoCD CLI (exit code: $CURL_EXIT_CODE)"
-                echo "Trying specific version v2.8.4..."
-                
-                curl --retry 3 --retry-delay 5 -L -o argocd.download https://github.com/argoproj/argo-cd/releases/download/v2.8.4/argocd-linux-amd64 2>&1
-                CURL_EXIT_CODE=$?
-                
-                if [ $CURL_EXIT_CODE -ne 0 ]; then
-                  echo "Failed to download specific version (exit code: $CURL_EXIT_CODE)"
-                  exit 1
-                fi
-              fi
-            } | tee download.log
-            
-            if [ ! -f argocd.download ]; then
-              echo "ERROR: argocd.download file does not exist after curl"
-              echo "Contents of temp directory:"
-              ls -la
-              echo "Download log:"
-              cat download.log
-              exit 1
-            fi
-            
-            echo "File downloaded successfully. Size and permissions:"
-            ls -lh argocd.download
-            
-            echo "Making file executable..."
-            chmod +x argocd.download || { echo "Failed to chmod +x argocd.download"; exit 1; }
-            
-            echo "Moving to /usr/local/bin..."
-            sudo mv argocd.download /usr/local/bin/argocd || { echo "Failed to move argocd to /usr/local/bin"; exit 1; }
-            
-            echo "Verifying installation..."
-            which argocd || { echo "argocd not found in PATH"; exit 1; }
-            
-            cd -
-            
-            echo "Testing ArgoCD CLI..."
-            argocd version --client
-            
-            # Clean up server URL - ensure single https:// prefix
-            ARGOCD_SERVER_URL=$(echo "${ARGOCD_SERVER}" | sed 's#^https\?://##')
-            ARGOCD_SERVER_URL="https://${ARGOCD_SERVER_URL}"
-            
-            # Test server connection with better redirect handling
-            echo "Testing server connection..."
-            echo "Using server URL: ${ARGOCD_SERVER_URL}"
-            curl -k -L -s "${ARGOCD_SERVER_URL}/api/version" || echo "Server connection test failed"
-            
-            echo "Logging in to ArgoCD..."
-            echo "Attempting login to: ${ARGOCD_SERVER_URL}"
-            argocd login "${ARGOCD_SERVER_URL}" --auth-token "${ARGOCD_TOKEN}" --insecure
-            
-            echo "Triggering sync..."
-            argocd app sync posey-postgres --force
-            
-            echo "Waiting for sync to complete..."
-            argocd app wait posey-postgres --health --timeout 300
+            # Execute the script, passing the application name
+            .circleci/scripts/trigger-argocd-sync.sh posey-postgres
+
       - store_artifacts:
           path: build-logs
           destination: build-logs 
