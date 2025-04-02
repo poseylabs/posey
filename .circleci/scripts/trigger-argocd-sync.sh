@@ -122,8 +122,14 @@ echo "Token start: ${TOKEN_START}..."
 echo "Token end: ...${TOKEN_END}"
 # --- END DEBUGGING TOKEN --- 
 
+# --- UNSET interfering variables --- 
+echo "Unsetting potential interfering auth variables (ARGOCD_USERNAME, ARGOCD_PASSWORD)..."
+unset ARGOCD_USERNAME
+unset ARGOCD_PASSWORD
+# --- END UNSET --- 
+
 # Test if we can access the application info directly
-echo "Testing direct API access to application: ${APP_NAME}..."
+echo "Testing direct API access to application: ${APP_NAME}... (Using ONLY --auth-token)"
 argocd app get "${APP_NAME}" --grpc-web --server "${CLEAN_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure || {
   echo "ERROR: Failed to access application via API. Cannot proceed with sync."
   echo "Please verify ArgoCD server URL, token (permissions!), and application name are correct."
