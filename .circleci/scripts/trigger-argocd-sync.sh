@@ -110,12 +110,12 @@ else
   exit 1
 fi
 
-# Use direct API access with HTTPS
-echo "Using direct API access via CLI flags..."
+# Use direct API access with HTTPS, without grpc-web for diagnosis
+echo "Using direct API access via CLI flags (without grpc-web)..."
 
 # Test if we can access the application info directly
 echo "Testing direct API access to application: ${APP_NAME}..."
-argocd app get "${APP_NAME}" --grpc-web --server "https://${CLEAN_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --plaintext || {
+argocd app get "${APP_NAME}" --server "https://${CLEAN_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure || {
   echo "ERROR: Failed to access application via API. Cannot proceed with sync."
   echo "Please verify ArgoCD server URL, token, and application name are correct."
   exit 1
@@ -124,12 +124,12 @@ argocd app get "${APP_NAME}" --grpc-web --server "https://${CLEAN_SERVER}" --aut
 echo "Successfully authenticated with ArgoCD API."
 
 echo "Triggering sync for app: ${APP_NAME}..."
-argocd app sync "${APP_NAME}" --force --grpc-web --server "https://${CLEAN_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --plaintext --timeout 90
+argocd app sync "${APP_NAME}" --force --server "https://${CLEAN_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --timeout 90
 echo "Sync command issued."
 
 echo "Waiting up to 5 minutes for sync and health status for app: ${APP_NAME}..."
 # Wait for sync and health. Increased timeout to 300s (5 mins)
-argocd app wait "${APP_NAME}" --health --sync --grpc-web --server "https://${CLEAN_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --plaintext --timeout 300
+argocd app wait "${APP_NAME}" --health --sync --server "https://${CLEAN_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --timeout 300
 echo "App ${APP_NAME} is synced and healthy."
 
 echo "=== ArgoCD Sync for ${APP_NAME} completed successfully ==="
