@@ -43,75 +43,41 @@ id
 ls -la /usr/local/bin
 echo "-----------------------------"
 
-# Create temp directory for downloads
-TEMP_DIR=$(mktemp -d)
-echo "Created temporary directory: ${TEMP_DIR}"
-cd "${TEMP_DIR}"
-
-# Download ArgoCD CLI with retries
-echo "Attempting to download ArgoCD CLI..."
-ARGOCD_LATEST_URL="https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64"
-ARGOCD_FALLBACK_URL="https://github.com/argoproj/argo-cd/releases/download/v2.8.4/argocd-linux-amd64"
-
-{ # Capture output to log file
-  curl --retry 3 --retry-delay 5 -L -o argocd.download "${ARGOCD_LATEST_URL}"
-  CURL_EXIT_CODE=$?
-
-  if [ $CURL_EXIT_CODE -ne 0 ]; then
-    echo "Failed to download latest ArgoCD CLI (exit code: $CURL_EXIT_CODE). Trying fallback version..."
-    curl --retry 3 --retry-delay 5 -L -o argocd.download "${ARGOCD_FALLBACK_URL}"
-    CURL_EXIT_CODE=$?
-    if [ $CURL_EXIT_CODE -ne 0 ]; then
-      echo "ERROR: Failed to download ArgoCD CLI from both latest and fallback URLs (exit code: $CURL_EXIT_CODE)."
-      exit 1
+# --- Install jq (JSON processor) --- 
+echo "Installing jq..."
+if ! command -v jq &> /dev/null; then
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y jq
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y jq
+    elif command -v apk &> /dev/null; then
+        sudo apk add jq
+    else
+        echo "ERROR: Cannot determine package manager to install jq." >&2
+        exit 1
     fi
-  fi
-} >> download.log 2>&1 # Append both stdout and stderr to log
-
-if [ ! -f argocd.download ]; then
-  echo "ERROR: argocd.download file does not exist after curl attempts."
-  echo "Contents of temp directory:"
-  ls -la
-  echo "Download log:"
-  cat download.log || echo "download.log not found"
-  exit 1
 fi
-
-echo "File downloaded successfully. Size and permissions:"
-ls -lh argocd.download
-
-echo "Making file executable..."
-chmod +x argocd.download
-
-echo "Moving to /usr/local/bin..."
-sudo mv argocd.download /usr/local/bin/argocd
-
-echo "Verifying installation..."
-which argocd
-
-# Go back to original directory (important for relative paths if any)
-cd -
-
-# Clean up temp dir
-rm -rf "${TEMP_DIR}"
-
-echo "Testing ArgoCD CLI client..."
-argocd version --client
+if ! command -v jq &> /dev/null; then
+    echo "ERROR: jq installation failed." >&2
+    exit 1
+fi
+echo "jq installed successfully."
+# --- END Install jq --- 
 
 # Clean the server URL to ensure no protocol prefix
 CLEAN_SERVER=$(echo "${ARGOCD_SERVER}" | sed -E 's|^https?://||')
+BASE_URL="https://${CLEAN_SERVER}"
 
 # Test server connection using HTTPS
 echo "Testing server connection to ${CLEAN_SERVER}..."
-if curl --fail -k -L -s "https://${CLEAN_SERVER}/api/version"; then
+if curl --fail --silent --show-error -k -L "${BASE_URL}/api/version"; then
   echo "HTTPS connection successful"
 else
   echo "ERROR: Failed to connect to ArgoCD server via HTTPS"
   exit 1
 fi
 
-# Use direct API access with HTTPS, passing only hostname to --server, and grpc-web
-echo "Using direct API access via CLI flags (hostname only for --server, with grpc-web)..."
+echo "Attempting direct REST API calls..."
 
 # --- DEBUGGING TOKEN --- 
 echo "Verifying token value before use..."
@@ -128,25 +94,83 @@ unset ARGOCD_USERNAME
 unset ARGOCD_PASSWORD
 # --- END UNSET --- 
 
-# Test if we can access the application info directly
-echo "Testing direct API access to application: ${APP_NAME}... (Using ONLY --auth-token)"
-argocd app get "${APP_NAME}" --grpc-web --server "${CLEAN_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure || {
-  echo "ERROR: Failed to access application via API. Cannot proceed with sync."
-  echo "Please verify ArgoCD server URL, token (permissions!), and application name are correct."
-  exit 1
-}
+# Test if we can access the application info directly via REST API
+echo "Testing direct API GET access to application: ${APP_NAME}..."
+API_GET_URL="${BASE_URL}/api/v1/applications/${APP_NAME}"
+echo "Calling: GET ${API_GET_URL}"
 
-echo "Successfully authenticated with ArgoCD API."
+HTTP_RESPONSE=$(curl --silent --write-out "HTTPSTATUS:%{http_code}" -k -L -H "Authorization: Bearer ${ARGOCD_TOKEN}" "${API_GET_URL}")
+HTTP_STATUS=$(echo "$HTTP_RESPONSE" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+HTTP_BODY=$(echo "$HTTP_RESPONSE" | sed -e 's/HTTPSTATUS:.*//')
 
-echo "Triggering sync for app: ${APP_NAME}..."
-argocd app sync "${APP_NAME}" --force --grpc-web --server "${CLEAN_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --timeout 90
-echo "Sync command issued."
+echo "GET Response Status: ${HTTP_STATUS}"
+if [ "$HTTP_STATUS" -ne 200 ]; then
+    echo "ERROR: Failed to access application via API (GET). Status: ${HTTP_STATUS}"
+    echo "Response Body: ${HTTP_BODY}"
+    echo "Please verify ArgoCD server URL, token (permissions!), and application name are correct."
+    exit 1
+fi
+echo "Successfully accessed application info via API (GET)."
 
-echo "Waiting up to 5 minutes for sync and health status for app: ${APP_NAME}..."
-# Wait for sync and health. Increased timeout to 300s (5 mins)
-argocd app wait "${APP_NAME}" --health --sync --grpc-web --server "${CLEAN_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --timeout 300
-echo "App ${APP_NAME} is synced and healthy."
 
-echo "=== ArgoCD Sync for ${APP_NAME} completed successfully ==="
+# Trigger sync via REST API
+echo "Triggering sync for app: ${APP_NAME} via POST..."
+API_SYNC_URL="${BASE_URL}/api/v1/applications/${APP_NAME}/sync"
+echo "Calling: POST ${API_SYNC_URL}"
+SYNC_PAYLOAD='{"prune": true, "strategy": {"hook": {"force": true}}}' # Example payload for force/prune
+
+HTTP_RESPONSE=$(curl --silent --write-out "HTTPSTATUS:%{http_code}" -k -L -X POST -H "Authorization: Bearer ${ARGOCD_TOKEN}" -H "Content-Type: application/json" -d "${SYNC_PAYLOAD}" "${API_SYNC_URL}")
+HTTP_STATUS=$(echo "$HTTP_RESPONSE" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+HTTP_BODY=$(echo "$HTTP_RESPONSE" | sed -e 's/HTTPSTATUS:.*//')
+
+echo "POST Sync Response Status: ${HTTP_STATUS}"
+if [ "$HTTP_STATUS" -ne 200 ]; then
+    echo "ERROR: Failed to trigger sync via API (POST). Status: ${HTTP_STATUS}"
+    echo "Response Body: ${HTTP_BODY}"
+    exit 1
+fi
+echo "Sync command issued via API (POST)."
+
+
+# Wait for sync/health via REST API polling
+echo "Waiting up to 5 minutes for sync and health status for app: ${APP_NAME} via polling..."
+POLL_TIMEOUT=300 # seconds (5 minutes)
+POLL_INTERVAL=10 # seconds
+START_TIME=$(date +%s)
+
+while true; do
+    CURRENT_TIME=$(date +%s)
+    ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+
+    if [ $ELAPSED_TIME -gt $POLL_TIMEOUT ]; then
+        echo "ERROR: Timeout waiting for application to become Synced and Healthy."
+        exit 1
+    fi
+
+    echo "Polling application status... (Elapsed: ${ELAPSED_TIME}s)"
+    HTTP_RESPONSE=$(curl --silent --write-out "HTTPSTATUS:%{http_code}" -k -L -H "Authorization: Bearer ${ARGOCD_TOKEN}" "${API_GET_URL}")
+    HTTP_STATUS=$(echo "$HTTP_RESPONSE" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+    HTTP_BODY=$(echo "$HTTP_RESPONSE" | sed -e 's/HTTPSTATUS:.*//')
+
+    if [ "$HTTP_STATUS" -ne 200 ]; then
+        echo "WARN: Failed to poll application status (Status: ${HTTP_STATUS}). Retrying in ${POLL_INTERVAL}s..."
+        sleep $POLL_INTERVAL
+        continue
+    fi
+
+    SYNC_STATUS=$(echo "${HTTP_BODY}" | jq -r '.status.sync.status // "Unknown"')
+    HEALTH_STATUS=$(echo "${HTTP_BODY}" | jq -r '.status.health.status // "Unknown"')
+
+    echo "Current Status - Sync: ${SYNC_STATUS}, Health: ${HEALTH_STATUS}"
+
+    if [ "${SYNC_STATUS}" == "Synced" ] && [ "${HEALTH_STATUS}" == "Healthy" ]; then
+        echo "App ${APP_NAME} is Synced and Healthy."
+        break
+    fi
+
+    sleep $POLL_INTERVAL
+done
+
+echo "=== ArgoCD Sync for ${APP_NAME} completed successfully via REST API ==="
 
 exit 0 
