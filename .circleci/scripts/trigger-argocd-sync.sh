@@ -108,10 +108,14 @@ curl --fail -k -L -s "${ARGOCD_SERVER}/api/version" || {
 }
 echo "Server connection test successful."
 
+# Properly format the server URL for ArgoCD login
+# Extract the host part from the URL by removing http:// or https:// 
+SERVER_HOST=$(echo "${ARGOCD_SERVER}" | sed -E 's|^https?://||')
+echo "Extracted server host: ${SERVER_HOST}"
 
-echo "Logging in to ArgoCD server: ${ARGOCD_SERVER}..."
+echo "Logging in to ArgoCD server using host: ${SERVER_HOST}..."
 # Use --grpc-web flag to avoid gRPC issues and ensure non-interactive login
-argocd login "${ARGOCD_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --grpc-web
+argocd login "${SERVER_HOST}" --auth-token "${ARGOCD_TOKEN}" --insecure --grpc-web
 echo "Login successful."
 
 echo "Triggering sync for app: ${APP_NAME}..."
