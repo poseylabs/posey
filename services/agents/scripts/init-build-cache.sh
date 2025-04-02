@@ -3,7 +3,6 @@ set -e  # Exit on error
 
 # Ensure BuildKit is enabled
 export DOCKER_BUILDKIT=1
-export COMPOSE_DOCKER_CLI_BUILD=1
 
 # Clean up any existing cache
 rm -rf /tmp/.buildx-cache*

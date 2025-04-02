@@ -8,7 +8,6 @@ chmod -R 777 /tmp/.buildx-cache-new
 
 # Enable BuildKit
 export DOCKER_BUILDKIT=1
-export COMPOSE_DOCKER_CLI_BUILD=1
 
 # Run tests with cache
 docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit

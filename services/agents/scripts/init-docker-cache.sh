@@ -3,7 +3,6 @@
 
 # Ensure BuildKit is enabled
 export DOCKER_BUILDKIT=1
-export COMPOSE_DOCKER_CLI_BUILD=1
 
 # Create cache directories
 mkdir -p /tmp/.buildx-cache

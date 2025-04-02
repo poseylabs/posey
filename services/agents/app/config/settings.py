@@ -170,7 +170,7 @@ class Settings(BaseSettings):
 
     # Build Settings
     DOCKER_BUILDKIT: Optional[str] = None
-    COMPOSE_DOCKER_CLI_BUILD: Optional[str] = None
+
 
     # Locale Settings
     DEFAULT_TIMEZONE: str = "America/Los_Angeles"
