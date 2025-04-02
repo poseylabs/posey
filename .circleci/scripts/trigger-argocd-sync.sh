@@ -98,25 +98,28 @@ rm -rf "${TEMP_DIR}"
 echo "Testing ArgoCD CLI client..."
 argocd version --client
 
-# Test server connection (use raw server name, assume https)
+# Test server connection using HTTPS first
 echo "Testing server connection to ${ARGOCD_SERVER}..."
-# Use --fail to make curl return non-zero on server errors (4xx, 5xx)
-curl --fail -k -L -s "${ARGOCD_SERVER}/api/version" || {
-  echo "ERROR: Server connection test failed for ${ARGOCD_SERVER}/api/version"
-  exit 1
-}
-echo "Server connection test successful."
+if curl --fail -k -L -s "https://${ARGOCD_SERVER}/api/version"; then
+  SERVER_URL="https://${ARGOCD_SERVER}"
+  echo "HTTPS connection successful"
+else
+  echo "HTTPS connection failed, trying HTTP..."
+  if curl --fail -k -L -s "http://${ARGOCD_SERVER}/api/version"; then
+    SERVER_URL="http://${ARGOCD_SERVER}"
+    echo "HTTP connection successful"
+  else
+    echo "ERROR: Failed to connect to ArgoCD server via both HTTPS and HTTP"
+    exit 1
+  fi
+fi
 
-# Skip the login process entirely - use environment variables instead
-echo "Setting up ArgoCD authentication via environment variables..."
-export ARGOCD_SERVER
-export ARGOCD_AUTH_TOKEN="${ARGOCD_TOKEN}"
-export ARGOCD_INSECURE="true"
-export ARGOCD_GRPC_WEB="true"
+# Use direct API access with the detected protocol
+echo "Using direct API access via CLI flags..."
 
 # Test if we can access the application info directly
 echo "Testing direct API access to application: ${APP_NAME}..."
-argocd app get "${APP_NAME}" --grpc-web --server "${ARGOCD_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure || {
+argocd app get "${APP_NAME}" --grpc-web --server "${SERVER_URL}" --auth-token "${ARGOCD_TOKEN}" --insecure --plaintext || {
   echo "ERROR: Failed to access application via API. Cannot proceed with sync."
   echo "Please verify ArgoCD server URL, token, and application name are correct."
   exit 1
@@ -125,12 +128,12 @@ argocd app get "${APP_NAME}" --grpc-web --server "${ARGOCD_SERVER}" --auth-token
 echo "Successfully authenticated with ArgoCD API."
 
 echo "Triggering sync for app: ${APP_NAME}..."
-argocd app sync "${APP_NAME}" --force --grpc-web --server "${ARGOCD_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --timeout 90
+argocd app sync "${APP_NAME}" --force --grpc-web --server "${SERVER_URL}" --auth-token "${ARGOCD_TOKEN}" --insecure --plaintext --timeout 90
 echo "Sync command issued."
 
 echo "Waiting up to 5 minutes for sync and health status for app: ${APP_NAME}..."
 # Wait for sync and health. Increased timeout to 300s (5 mins)
-argocd app wait "${APP_NAME}" --health --sync --grpc-web --server "${ARGOCD_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --timeout 300
+argocd app wait "${APP_NAME}" --health --sync --grpc-web --server "${SERVER_URL}" --auth-token "${ARGOCD_TOKEN}" --insecure --plaintext --timeout 300
 echo "App ${APP_NAME} is synced and healthy."
 
 echo "=== ArgoCD Sync for ${APP_NAME} completed successfully ==="
