@@ -98,15 +98,18 @@ rm -rf "${TEMP_DIR}"
 echo "Testing ArgoCD CLI client..."
 argocd version --client
 
+# Clean the server URL to ensure no protocol prefix
+CLEAN_SERVER=$(echo "${ARGOCD_SERVER}" | sed -E 's|^https?://||')
+
 # Test server connection using HTTPS first
-echo "Testing server connection to ${ARGOCD_SERVER}..."
-if curl --fail -k -L -s "https://${ARGOCD_SERVER}/api/version"; then
-  SERVER_URL="https://${ARGOCD_SERVER}"
+echo "Testing server connection to ${CLEAN_SERVER}..."
+if curl --fail -k -L -s "https://${CLEAN_SERVER}/api/version"; then
+  SERVER_URL="${CLEAN_SERVER}"
   echo "HTTPS connection successful"
 else
   echo "HTTPS connection failed, trying HTTP..."
-  if curl --fail -k -L -s "http://${ARGOCD_SERVER}/api/version"; then
-    SERVER_URL="http://${ARGOCD_SERVER}"
+  if curl --fail -k -L -s "http://${CLEAN_SERVER}/api/version"; then
+    SERVER_URL="${CLEAN_SERVER}"
     echo "HTTP connection successful"
   else
     echo "ERROR: Failed to connect to ArgoCD server via both HTTPS and HTTP"
