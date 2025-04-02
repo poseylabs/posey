@@ -29,7 +29,7 @@ if [ -z "${ARGOCD_TOKEN:-}" ]; then
   echo "ERROR: ARGOCD_TOKEN environment variable is not set."
   exit 1
 fi
-echo "ARGOCD_TOKEN is set (length: ${#ARGOCD_TOKEN})"
+echo "ARGOCD_TOKEN is set (initial length check: ${#ARGOCD_TOKEN})"
 
 # Initial diagnostics
 echo "--- Environment Diagnostics ---"
@@ -112,6 +112,15 @@ fi
 
 # Use direct API access with HTTPS, passing only hostname to --server, and grpc-web
 echo "Using direct API access via CLI flags (hostname only for --server, with grpc-web)..."
+
+# --- DEBUGGING TOKEN --- 
+echo "Verifying token value before use..."
+echo "Token length: ${#ARGOCD_TOKEN}"
+TOKEN_START="${ARGOCD_TOKEN:0:5}"
+TOKEN_END="${ARGOCD_TOKEN: -5}"
+echo "Token start: ${TOKEN_START}..."
+echo "Token end: ...${TOKEN_END}"
+# --- END DEBUGGING TOKEN --- 
 
 # Test if we can access the application info directly
 echo "Testing direct API access to application: ${APP_NAME}..."
