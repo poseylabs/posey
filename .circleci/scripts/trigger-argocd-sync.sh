@@ -110,19 +110,17 @@ echo "Server connection test successful."
 
 
 echo "Logging in to ArgoCD server: ${ARGOCD_SERVER}..."
-# Extract hostname from the URL for login command
-SERVER_HOST=$(echo "${ARGOCD_SERVER}" | sed 's|.*://||')
-# Use extracted SERVER_HOST and remove --insecure flag
-argocd login "${SERVER_HOST}" --auth-token "${ARGOCD_TOKEN}"
+# Use --grpc-web flag to avoid gRPC issues and ensure non-interactive login
+argocd login "${ARGOCD_SERVER}" --auth-token "${ARGOCD_TOKEN}" --insecure --grpc-web
 echo "Login successful."
 
 echo "Triggering sync for app: ${APP_NAME}..."
-argocd app sync "${APP_NAME}" --force
+argocd app sync "${APP_NAME}" --force --grpc-web
 echo "Sync command issued."
 
 echo "Waiting up to 5 minutes for sync and health status for app: ${APP_NAME}..."
 # Wait for sync and health. Increased timeout to 300s (5 mins)
-argocd app wait "${APP_NAME}" --health --sync --timeout 300
+argocd app wait "${APP_NAME}" --health --sync --timeout 300 --grpc-web
 echo "App ${APP_NAME} is synced and healthy."
 
 echo "=== ArgoCD Sync for ${APP_NAME} completed successfully ==="
