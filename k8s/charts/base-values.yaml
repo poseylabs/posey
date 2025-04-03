@@ -32,7 +32,6 @@ podSecurityContext: {}
 
 service:
   type: ClusterIP
-  port: 3333
 
 persistence:
   enabled: true
