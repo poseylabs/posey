@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: posey-argo
+  name: posey
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
