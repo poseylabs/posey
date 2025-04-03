@@ -40,28 +40,28 @@ spec:
             - name: tcp-postgres
               containerPort: {{- .Values.service.port -}}
               protocol: {{- "TCP" -}}
-          env:
-            - name: POSTGRES_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.existingSecret }}
-                  key: POSTGRES_PORT
-                  optional: true
-            - name: POSTGRES_DB
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.existingSecret }}
-                  key: POSTGRES_DB
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.existingSecret }}
-                  key: POSTGRES_USER
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.existingSecret }}
-                  key: POSTGRES_PASSWORD
+          # env:
+          #   - name: POSTGRES_PORT
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: {{ .Values.existingSecret }}
+          #         key: POSTGRES_PORT
+          #         optional: true
+          #   - name: POSTGRES_DB
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: {{ .Values.existingSecret }}
+          #         key: POSTGRES_DB
+          #   - name: POSTGRES_USER
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: {{ .Values.existingSecret }}
+          #         key: POSTGRES_USER
+          #   - name: POSTGRES_PASSWORD
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: {{ .Values.existingSecret }}
+          #         key: POSTGRES_PASSWORD
           livenessProbe:
             tcpSocket:
               port: {{- .Values.service.port -}}
