@@ -8,7 +8,7 @@ K8S_MANIFESTS_DIR="k8s"
 K8S_SECRETS_DIR="${K8S_MANIFESTS_DIR}/secrets"
 SEALED_CERT_PATH=".sealed-secrets/sealed-secrets-cert.pem"
 SEALED_CONTROLLER_NAME="sealed-secrets"
-SEALED_CONTROLLER_NAMESPACE="sealed-secrets"
+SEALED_CONTROLLER_NAMESPACE="kube-system"
 
 # --- Helper Functions ---
 
