@@ -7,6 +7,12 @@ existingSecret: postgres-secrets
 service:
   port: 3333
 
+persistence:
+  enabled: true
+  storageClass: "standard"
+  size: 10Gi
+  accessMode: ReadWriteOnce
+
 global:
   partOf: posey
   image:
