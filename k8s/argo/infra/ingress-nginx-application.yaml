@@ -27,3 +27,8 @@ spec:
     syncOptions:
       - CreateNamespace=true # Automatically create the target namespace
       - ServerSideApply=true # Use server-side apply for better conflict resolution
+  ignoreDifferences:
+  - group: "" # Core API group
+    kind: Service
+    jsonPointers:
+    - /status
