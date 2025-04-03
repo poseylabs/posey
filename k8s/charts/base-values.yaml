@@ -1,18 +1,10 @@
-# /k8s/charts/base-values.yaml
-# Shared default values for Posey Helm charts
-
-# Global values used across all charts
 global:
-  # Default part-of label (can be overridden per chart)
   partOf: posey
-  # Default service account settings
   serviceAccount:
     create: false
-  # Default image settings
   image:
     registry: docker.io/poseylabs
     pullPolicy: Always
-  # Default resource requests/limits
   resources:
     limits:
       cpu: "1"
@@ -21,12 +13,9 @@ global:
       cpu: "100m"
       memory: "128Mi"
 
-# Default replica count
 replicaCount: 1
 
 image:
-  # registry: is now handled globally via helm parameters in ApplicationSet
-  # repository: must be set by the specific chart
   pullPolicy: Always
 
 imagePullSecrets: []
@@ -40,25 +29,16 @@ serviceAccount:
 
 podAnnotations: {}
 podSecurityContext: {}
-  # fsGroup: 2000
 
-# Default service configuration (can be overridden)
 service:
   type: ClusterIP
-  port: 3333 # Define the default port here
-  # port: must be set by the specific chart
+  port: 3333
 
-# Default persistence config (can be overridden)
 persistence:
   enabled: true
-  storageClassName: "standard-rwx" # Needs verification per cluster/env
+  storageClassName: "standard-rwx"
   accessModes: [ "ReadWriteOnce" ]
   size: 10Gi
-
-# Default resource requests/limits are NOT set here.
-# They are injected globally via ApplicationSet helm parameters (`global.resources.*`)
-# to allow easier overriding without complex value merging.
-# resources: {}
 
 nodeSelector: {}
 tolerations: []
