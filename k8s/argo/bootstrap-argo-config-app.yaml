@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/poseylabs/posey
     targetRevision: HEAD
-    # Point ONLY to the directory containing Argo CD config resources
+    # Point to the directory containing Argo CD config resources
     path: k8s/argo
     # Use a directory source type
     directory:

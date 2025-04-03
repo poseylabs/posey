@@ -48,9 +48,9 @@ jobs:
                 -t docker.io/poseylabs/posey-postgres:latest \
                 -t docker.io/poseylabs/posey-postgres:PRODUCTION \
                 -t docker.io/poseylabs/posey-postgres:$(echo $CIRCLE_SHA1 | cut -c1-7) \
-                -f data/postgres/Dockerfile \
+                -f services/data/postgres/Dockerfile \
                 --push \
-                ./data/postgres 2>&1 | tee build-logs/build-attempt-$attempt.log
+                ./services/data/postgres 2>&1 | tee build-logs/build-attempt-$attempt.log
                 
               if [ ${PIPESTATUS[0]} -eq 0 ]; then
                 echo "Build succeeded on attempt $attempt"
