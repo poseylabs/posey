@@ -15,16 +15,6 @@ executors:
       YARN_LOG_LEVEL: info
 
 commands:
-  setup-gcloud-auth:
-    description: "Authenticate gcloud CLI using a service account key"
-    steps:
-      - run:
-          name: Authenticate gcloud
-          command: |
-            echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=- --project $GCLOUD_PROJECT_ID
-            gcloud --quiet config set project $GCLOUD_PROJECT_ID
-            echo "gcloud authenticated."
-
   setup-buildx:
     description: "Set up Docker Buildx"
     steps:
@@ -34,42 +24,8 @@ commands:
             docker buildx create --use --name=multiplatform-builder --driver=docker-container --driver-opt=network=host --buildkitd-flags="--allow-insecure-entitlement network.host" --bootstrap
             docker buildx inspect --bootstrap
 
-  install-kubectl:
-    description: "Install and configure kubectl"
-    steps:
-      - run:
-          name: Install kubectl
-          command: |
-            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-            sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-            kubectl version --client
-
-  setup-kubeconfig:
-    description: "Set up kubeconfig for GKE"
-    parameters:
-      cluster-name:
-        type: env_var_name
-        default: GKE_CLUSTER_NAME
-      cluster-zone: # Or use cluster-region if using a regional cluster
-        type: env_var_name
-        default: GKE_ZONE
-    steps:
-      - run:
-          name: Set up GKE kubeconfig
-          command: |
-            CLUSTER_NAME_VAR="<< parameters.cluster-name >>"
-            CLUSTER_ZONE_VAR="<< parameters.cluster-zone >>"
-            if [ -z "${!CLUSTER_NAME_VAR}" ] || [ -z "${!CLUSTER_ZONE_VAR}" ]; then
-              echo "Error: << parameters.cluster-name >> and << parameters.cluster-zone >> environment variables must be set"
-              exit 1
-            fi
-            echo "Fetching credentials for GKE cluster ${!CLUSTER_NAME_VAR} in zone ${!CLUSTER_ZONE_VAR}..."
-            # Use --zone for zonal clusters, --region for regional clusters
-            gcloud container clusters get-credentials "${!CLUSTER_NAME_VAR}" --zone "${!CLUSTER_ZONE_VAR}"
-            echo "kubectl context set."
-
   setup-common:
-    description: "Setup common environment"
+    description: "Setup common environment for Docker builds and basic CI tasks"
     steps:
       - checkout
       - setup_remote_docker:
@@ -93,14 +49,6 @@ commands:
             # Ensure these settings are appropriate for the environment
             sudo sysctl -w net.ipv4.tcp_slow_start_after_idle=0
             sudo sysctl -w net.ipv4.tcp_fastopen=3
-      - run:
-          name: Install gcloud SDK
-          command: |
-            echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-            sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates gnupg
-            curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-            sudo apt-get update && sudo apt-get install -y google-cloud-sdk
-      - setup-gcloud-auth # Authenticate gcloud
       - run: # Add Docker Hub login
           name: Log in to Docker Hub
           command: |
@@ -110,4 +58,4 @@ commands:
                echo "Logging into Docker Hub..."
                echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             fi
-      - setup-buildx 
+      - setup-buildx # Setup Buildx, needed for building images 
