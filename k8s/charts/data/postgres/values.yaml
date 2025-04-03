@@ -9,7 +9,7 @@ service:
 
 persistence:
   enabled: true
-  storageClass: "standard"
+  storageClass: "standard-rwo"
   size: 10Gi
   accessModes:
     - ReadWriteOnce
@@ -21,11 +21,11 @@ global:
     pullPolicy: IfNotPresent
   resources:
     limits:
-      cpu: "2"
-      memory: "4Gi"
-    requests:
       cpu: "1"
       memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
   replicaCount: 1
 
 podSecurityContext:
