@@ -64,7 +64,7 @@ spec:
                   key: POSTGRES_PASSWORD
           livenessProbe:
             tcpSocket:
-              port: {{- .Values.service.port -}}
+              port: {{ .Values.service.port | int }}
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
