@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default # This app itself belongs to the default project
   source:
-    repoURL: https://github.com/poseylabs/posey # <<< YOUR REPO URL HERE
+    repoURL: https://github.com/poseylabs/posey
     targetRevision: HEAD
     path: k8s/services/core/argo # <<< Directory containing your other Argo manifests
     # Use a directory source type
