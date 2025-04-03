@@ -12,7 +12,7 @@ spec:
 
   source:
     repoURL: https://github.com/poseylabs/posey
-    targetRevision: HEAD
+    targetRevision: main
     path: k8s/charts/data/postgres
     helm:
       valueFiles:

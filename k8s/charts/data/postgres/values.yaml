@@ -10,3 +10,6 @@ configData:
 
 service:
   port: 5432
+
+global:
+  partOf: posey
