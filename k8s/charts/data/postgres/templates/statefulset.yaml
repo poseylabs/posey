@@ -41,12 +41,6 @@ spec:
               containerPort: 3333
               protocol: TCP
           env:
-            - name: POSTGRES_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.existingSecret }}
-                  key: POSTGRES_PORT
-                  optional: true
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
