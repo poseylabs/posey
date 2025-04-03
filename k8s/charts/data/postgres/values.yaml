@@ -7,5 +7,9 @@ existingSecret: postgres-secrets
 service:
   port: 3333
 
+serviceAccount:
+  create: false
+  name: ""
+
 global:
   partOf: posey
