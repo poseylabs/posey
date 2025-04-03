@@ -16,7 +16,8 @@ spec:
     path: k8s/charts/data/postgres
     helm:
       valueFiles:
-        - values.yaml
+        - ../../base-values.yaml  # Include the base values first
+        - values.yaml             # Then the chart-specific values
 
   destination:
     server: https://kubernetes.default.svc
