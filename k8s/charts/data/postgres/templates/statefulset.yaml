@@ -39,7 +39,7 @@ spec:
           ports:
             - name: tcp-postgres
               containerPort: {{- .Values.service.port | int -}}
-              protocol: {{- "TCP" -}}
+              protocol: TCP
           env:
             - name: POSTGRES_PORT
               valueFrom:
