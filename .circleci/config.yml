@@ -67,7 +67,7 @@ workflows:
           name: check-updated-files
           mapping: |
             # Posatgres
-            data/postgres/.* run-postgres-workflow true
+            services/data/postgres/.* run-postgres-workflow true
             .circleci/orbs/data-postgres-orb.yml run-postgres-workflow true
             
             # Common orb change triggers the dedicated parameter
