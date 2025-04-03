@@ -3,8 +3,5 @@ image:
 
 existingSecret: postgres-secrets
 
-service:
-  port: 3333
-
 global:
   partOf: posey

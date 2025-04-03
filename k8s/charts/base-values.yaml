@@ -45,6 +45,7 @@ podSecurityContext: {}
 # Default service configuration (can be overridden)
 service:
   type: ClusterIP
+  port: 3333 # Define the default port here
   # port: must be set by the specific chart
 
 # Default persistence config (can be overridden)
