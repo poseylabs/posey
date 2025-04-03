@@ -32,3 +32,7 @@ spec:
     kind: Service
     jsonPointers:
     - /status
+  - group: "" # Core API group
+    kind: Service
+    jqPathExpressions:
+    - .metadata.annotations."cloud.google.com/neg"
