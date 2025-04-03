@@ -10,6 +10,7 @@ global:
     create: false
   # Default image settings
   image:
+    registry: docker.io/poseylabs
     pullPolicy: Always
   # Default resource requests/limits
   resources:
