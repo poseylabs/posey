@@ -13,6 +13,8 @@ spec:
   destinations:
   - server: https://kubernetes.default.svc
     namespace: '*' # Allow deployment to any namespace in the cluster
+  - server: https://kubernetes.default.svc
+    namespace: posey # Explicitly allow the posey namespace
   # Allow creation of Namespaces
   clusterResourceWhitelist:
   - group: ''
