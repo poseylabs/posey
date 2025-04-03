@@ -99,11 +99,11 @@ spec:
           # Resources block - uses global defaults if not overridden in chart values
           resources:
             limits:
-              cpu: {{ .Values.resources.limits.cpu | default .Values.global.resources.limits.cpu | quote }}
-              memory: {{ .Values.resources.limits.memory | default .Values.global.resources.limits.memory | quote }}
+              cpu: {{ .Values.global.resources.limits.cpu | quote }}
+              memory: {{ .Values.global.resources.limits.memory | quote }}
             requests:
-              cpu: {{ .Values.resources.requests.cpu | default .Values.global.resources.requests.cpu | quote }}
-              memory: {{ .Values.resources.requests.memory | default .Values.global.resources.requests.memory | quote }}
+              cpu: {{ .Values.global.resources.requests.cpu | quote }}
+              memory: {{ .Values.global.resources.requests.memory | quote }}
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
