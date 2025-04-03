@@ -17,5 +17,5 @@ spec:
     namespace: posey # Explicitly allow the posey namespace
   # Allow creation of Namespaces
   clusterResourceWhitelist:
-  - group: ''
-    kind: Namespace
+  - group: '*' # Allows all API groups
+    kind: '*'  # Allows all resource kinds
