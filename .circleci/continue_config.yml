@@ -8,8 +8,8 @@ orbs:
   cli: circleci/circleci-cli@0.1.9
   
   # Published orbs
-  common: posey/common@0.1.6
-  data-postgres: posey/data-postgres@0.1.5
+  common: posey/common@0.1.7
+  data-postgres: posey/data-postgres@0.1.6
 
 # Define the parameters that will be passed from the setup configuration
 parameters:

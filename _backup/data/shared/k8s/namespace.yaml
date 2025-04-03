@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: posey
-  labels:
-    name: posey
-    part-of: posey-platform
-    environment: development 
