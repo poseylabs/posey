@@ -45,11 +45,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy | default .Values.global.image.pullPolicy | default "Always" }}
           ports:
             - name: tcp-postgres
-              # --- BEGIN DEBUGGING --- 
-              {{- $resolvedPort := .Values.service.port | default "<PORT_VALUE_MISSING>" }}
-              {{- fail (printf "*** DEBUG: Resolved .Values.service.port inside Argo CD is: [%v] ***" $resolvedPort) }}
-              # --- END DEBUGGING --- 
-              containerPort: {{ .Values.service.port }} # Reverted: Use templated port
+              containerPort: {{- .Values.service.port -}} # Added whitespace control
               protocol: TCP
           env:
             # Inject port from the existing Secret or use the value from values.yaml
@@ -81,7 +77,7 @@ spec:
           # Liveness and Readiness Probes (using env var for port if available)
           livenessProbe:
             tcpSocket:
-              port: {{ .Values.service.port }} # Reverted: Use templated port
+              port: {{- .Values.service.port -}} # Added whitespace control
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
