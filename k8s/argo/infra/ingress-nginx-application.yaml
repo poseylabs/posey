@@ -1,0 +1,29 @@
+# k8s/argo/infra/ingress-nginx-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd # This application resource lives in the argocd namespace
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io # Ensures resources are deleted when the app is
+spec:
+  project: posey # Reference your existing Argo CD project
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 4.10.1 # Use a specific stable version
+    helm:
+      values: |
+        controller:
+          service:
+            type: LoadBalancer
+  destination:
+    server: https://kubernetes.default.svc # Deploy to the same cluster Argo CD is in
+    namespace: ingress-nginx # Target namespace for the nginx controller resources
+  syncPolicy:
+    automated:
+      prune: true # Delete resources removed from the chart
+      selfHeal: true # Re-sync if the live state drifts from Git
+    syncOptions:
+      - CreateNamespace=true # Automatically create the target namespace
+      - ServerSideApply=true # Use server-side apply for better conflict resolution
