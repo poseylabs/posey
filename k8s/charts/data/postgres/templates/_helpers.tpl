@@ -11,8 +11,23 @@ It uses the global registry value passed in via ApplicationSet/Helm parameters o
 Usage: {{ include "postgres.image" . }}
 */}}
 {{- define "postgres.image" -}}
-  {{- "postgres:16" -}} # Hardcoded simple image for debugging helper output
-{{- end }}
+{{- $registry := .Values.global.image.registry | default "docker.io/poseylabs" -}}
+{{- $repository := .Values.image.repository -}}
+{{- if not $repository -}}
+  {{- fail "postgres.image: image.repository is required in values.yaml" -}}
+{{- end -}}
+{{- $tag := "" -}}
+{{- if .Values.parameters -}}
+  {{- with .Values.parameters.image -}}
+    {{- $tag = .tag | default "" -}}
+  {{- end -}}
+{{- end -}}
+{{- if not $tag -}}
+  {{- $tag = .Values.image.tag | default "" -}}
+{{- end -}}
+{{- $tag = $tag | default "latest" -}}
+{{- printf "%s/%s:%s" $registry $repository $tag -}}
+{{- end -}}
 
 {{/* Other postgres-specific helpers could go here */}}
 
