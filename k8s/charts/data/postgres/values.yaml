@@ -1,5 +1,6 @@
 image:
   repository: posey-postgres
+  pullPolicy: IfNotPresent
 
 existingSecret: postgres-secrets
 
@@ -8,3 +9,23 @@ service:
 
 global:
   partOf: posey
+  image:
+    registry: docker.io
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+  replicaCount: 1
+
+podSecurityContext:
+  fsGroup: 999
+  runAsUser: 999
+  runAsGroup: 999
+
+nodeSelector: {}
+affinity: {}
+tolerations: []
