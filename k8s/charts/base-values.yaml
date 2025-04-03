@@ -28,7 +28,6 @@ image:
   # registry: is now handled globally via helm parameters in ApplicationSet
   # repository: must be set by the specific chart
   pullPolicy: Always
-  tag: "" # Defaults to Chart.appVersion
 
 imagePullSecrets: []
 nameOverride: ""

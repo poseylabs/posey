@@ -117,7 +117,7 @@ echo "Successfully accessed application info via API (GET)."
 echo "Triggering sync for app: ${APP_NAME} via POST..."
 API_SYNC_URL="${BASE_URL}/api/v1/applications/${APP_NAME}/sync"
 echo "Calling: POST ${API_SYNC_URL}"
-SYNC_PAYLOAD='{"prune": true, "strategy": {"hook": {"force": true}}}' # Example payload for force/prune
+SYNC_PAYLOAD='{"prune": true, "strategy": {"hook": {"force": true}}}'
 
 HTTP_RESPONSE=$(curl --silent --write-out "HTTPSTATUS:%{http_code}" -k -L -X POST -H "Authorization: Bearer ${ARGOCD_TOKEN}" -H "Content-Type: application/json" -d "${SYNC_PAYLOAD}" "${API_SYNC_URL}")
 HTTP_STATUS=$(echo "$HTTP_RESPONSE" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
