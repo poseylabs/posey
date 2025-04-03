@@ -13,3 +13,7 @@ spec:
   destinations:
   - server: https://kubernetes.default.svc
     namespace: '*' # Allow deployment to any namespace in the cluster
+  # Allow creation of Namespaces
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
