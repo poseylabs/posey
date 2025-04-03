@@ -89,19 +89,7 @@ Create the name of the service account to use
 Usage: {{ include "common-helpers.serviceAccountName" . }}
 */}}
 {{- define "common-helpers.serviceAccountName" -}}
-{{- $createSA := false -}}
-{{- if .Values.serviceAccount.create -}}
-  {{- $createSA = .Values.serviceAccount.create -}}
-{{- else if .Values.global.serviceAccount.create -}}
-  {{- $createSA = .Values.global.serviceAccount.create -}}
-{{- end -}}
-{{- if $createSA -}}
-{{- /* If creating, use fullname unless overridden */ -}}
-{{- default (include "common-helpers.fullname" .) .Values.serviceAccount.name -}}
-{{- else -}}
-{{- /* If not creating, use specified name or default K8s service account */ -}}
-{{- default "default" .Values.serviceAccount.name -}}
-{{- end -}}
+{{- "default" -}}
 {{- end -}}
 
 {{/* --- End Common Helper Templates --- */}} 
