@@ -5,13 +5,30 @@
 
 {{/*
 Return the appropriate image name for the Postgres chart.
-It uses the global registry value passed in via ApplicationSet/Helm parameters.
+It prioritizes the tag passed via Argo CD Helm parameters,
+then checks the chart's values file, and finally defaults to 'latest'.
+It uses the global registry value passed in via ApplicationSet/Helm parameters or values.
 Usage: {{ include "postgres.image" . }}
 */}}
 {{- define "postgres.image" -}}
-{{- $registry := .Values.global.image.registry | default "docker.io/poseylabs" }} # Use global registry, fallback for testing
+{{- $registry := .Values.global.image.registry | default "docker.io/poseylabs" }}
 {{- $repository := .Values.image.repository }}
-{{- $tag := .Values.image.tag | default "latest" }} # Use explicit tag from values, otherwise default to 'latest'
+{{- if not $repository }}
+  {{- fail "postgres.image: image.repository is required in values.yaml" }}
+{{- end }}
+{{/* Prioritize tag from Argo CD parameters if they exist */}}
+{{- $tag := "" }}
+{{- if .Values.parameters }}
+  {{- with .Values.parameters.image }} {{/* Check if parameters.image exists */}}
+    {{- $tag = .tag | default "" }}
+  {{- end }}
+{{- end }}
+{{/* If not found in parameters, check chart values */}}
+{{- if not $tag }}
+  {{- $tag = .Values.image.tag | default "" }}
+{{- end }}
+{{/* If still not found, default to 'latest' */}}
+{{- $tag = $tag | default "latest" }}
 {{- printf "%s/%s:%s" $registry $repository $tag }}
 {{- end }}
 

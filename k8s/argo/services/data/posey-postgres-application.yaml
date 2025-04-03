@@ -18,6 +18,10 @@ spec:
       valueFiles:
         - ../../base-values.yaml  # Include the base values first
         - values.yaml             # Then the chart-specific values
+      # Explicitly set the image tag to 'latest'
+      parameters:
+        - name: image.tag
+          value: "latest"
 
   destination:
     server: https://kubernetes.default.svc
