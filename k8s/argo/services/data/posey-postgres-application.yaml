@@ -4,7 +4,7 @@ metadata:
   name: posey-postgres
   namespace: argocd
   annotations:
-    argocd.argoproj.io/compare-options: server-side-diff=true # Ensure server-side diff for comparison
+    argocd.argoproj.io/compare-options: server-side-diff=true
   labels:
     app.kubernetes.io/component: database
     app.kubernetes.io/instance: posey-postgres
