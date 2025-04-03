@@ -48,11 +48,25 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
-            # Inject non-sensitive config from values.yaml configData
+            # Inject port from the existing Secret or use the value from values.yaml
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: POSTGRES_PORT
+                  optional: true # Make it optional so it falls back if not in secret
+            # Inject sensitive DB name from the existing Secret
             - name: POSTGRES_DB
-              value: {{ .Values.configData.POSTGRES_DB | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: POSTGRES_DB
+            # Inject sensitive user name from the existing Secret
             - name: POSTGRES_USER
-              value: {{ .Values.configData.POSTGRES_USER | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: POSTGRES_USER
             # Inject sensitive password from the existing Secret
             - name: POSTGRES_PASSWORD
               valueFrom:
@@ -60,7 +74,7 @@ spec:
                   # Use the secret name defined in values.yaml
                   name: {{ .Values.existingSecret }}
                   key: POSTGRES_PASSWORD
-          # Liveness and Readiness Probes (using values for user/db)
+          # Liveness and Readiness Probes (using env var for port if available)
           livenessProbe:
             tcpSocket:
               port: {{ .Values.service.port }}
@@ -77,7 +91,7 @@ spec:
                 - -h
                 - 127.0.0.1
                 - -p
-                - "{{ .Values.service.port }}"
+                - "$(POSTGRES_PORT)" # Use env var for port
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5

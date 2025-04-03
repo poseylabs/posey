@@ -1,22 +1,14 @@
 #!/bin/bash
 # Creates/updates SealedSecret manifests based on .env files for data services.
-
 set -e
 
-# --- Configuration ---
-# Location of the .env file specific to data services
-DATA_ENV_FILE="data/.env"
-# Namespace where secrets should be created in Kubernetes
+DATA_ENV_FILE="services/data/.env"
 NAMESPACE="posey"
-# Relative path to the directory containing Kubernetes manifests
 K8S_MANIFESTS_DIR="k8s"
-# Subdirectory within K8S_MANIFESTS_DIR for data service manifests
-K8S_DATA_DIR="${K8S_MANIFESTS_DIR}/data"
-# Path to store/find the Sealed Secrets public certificate
+K8S_SECRETS_DIR="${K8S_MANIFESTS_DIR}/secrets"
 SEALED_CERT_PATH=".sealed-secrets/sealed-secrets-cert.pem"
-# Name and namespace of the sealed-secrets controller in the cluster
 SEALED_CONTROLLER_NAME="sealed-secrets"
-SEALED_CONTROLLER_NAMESPACE="sealed-secrets" # Adjust if different
+SEALED_CONTROLLER_NAMESPACE="sealed-secrets"
 
 # --- Helper Functions ---
 
@@ -125,19 +117,21 @@ fi
 
 # 3. Process Postgres Secret
 POSTGRES_SECRET_NAME="postgres-secrets"
-POSTGRES_K8S_DIR="${K8S_DATA_DIR}/postgres"
-POSTGRES_REQUIRED_VARS=("POSTGRES_PASSWORD") # Only password needed for the secret
+POSTGRES_REQUIRED_VARS=("POSTGRES_PASSWORD" "POSTGRES_DB" "POSTGRES_USER" "POSTGRES_PORT")
 
 echo "--- Processing Postgres Secret (${POSTGRES_SECRET_NAME}) ---"
 if check_vars "Postgres" "${POSTGRES_REQUIRED_VARS[@]}"; then
   # Construct the kubectl command to generate the plain secret
   KUBECTL_CMD="kubectl create secret generic ${POSTGRES_SECRET_NAME} \
     --namespace='${NAMESPACE}' \
+    --from-literal=POSTGRES_DB='${POSTGRES_DB}' \
+    --from-literal=POSTGRES_USER='${POSTGRES_USER}' \
     --from-literal=POSTGRES_PASSWORD='${POSTGRES_PASSWORD}' \
+    --from-literal=POSTGRES_PORT='${POSTGRES_PORT}' \
     --dry-run=client -o yaml"
 
   # Seal the secret
-  if seal_secret "$POSTGRES_SECRET_NAME" "$POSTGRES_K8S_DIR" "$KUBECTL_CMD"; then
+  if seal_secret "$POSTGRES_SECRET_NAME" "$K8S_SECRETS_DIR" "$KUBECTL_CMD"; then
     echo "Successfully processed Postgres secret."
   else
     echo "Failed to process Postgres secret."
@@ -150,7 +144,7 @@ fi
 # 4. Process other data service secrets here (e.g., Couchbase, Vector DB)
 # Example for Couchbase (if you add its manifests later):
 # COUCHBASE_SECRET_NAME="couchbase-secrets"
-# COUCHBASE_K8S_DIR="${K8S_DATA_DIR}/couchbase"
+# COUCHBASE_K8S_DIR="${K8S_SECRETS_DIR}/couchbase"
 # COUCHBASE_REQUIRED_VARS=("COUCHBASE_USER" "COUCHBASE_PASSWORD")
 # echo "--- Processing Couchbase Secret (${COUCHBASE_SECRET_NAME}) ---"
 # if check_vars "Couchbase" "${COUCHBASE_REQUIRED_VARS[@]}"; then
