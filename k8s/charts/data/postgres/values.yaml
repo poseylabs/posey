@@ -11,7 +11,8 @@ persistence:
   enabled: true
   storageClass: "standard"
   size: 10Gi
-  accessMode: ReadWriteOnce
+  accessModes:
+    - ReadWriteOnce
 
 global:
   partOf: posey
