@@ -35,3 +35,11 @@ spec:
       - ApplyOutOfSyncOnly=true  # Example: Only apply changes if the app is OutOfSync
       - CreateNamespace=true # Create the 'postgres' namespace if it doesn't exist
       - PruneLast=true           # Example: Delete old resources after new ones are healthy
+
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: posey-postgres # Match the StatefulSet name
+      namespace: posey      # Match the StatefulSet namespace
+      jsonPointers:
+        - /spec/template/spec/containers/0/env # Ignore the env list for the first container
