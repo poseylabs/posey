@@ -13,3 +13,6 @@ service:
 
 global:
   partOf: posey
+
+commonLabels:
+  app.kubernetes.io/part-of: posey
