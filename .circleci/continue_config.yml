@@ -26,10 +26,7 @@ workflows:
 
   # Postgres workflow
   postgres:
-    when:
-      and:
-        - equal: [ true, << pipeline.parameters.run-postgres-workflow >> ]
-        - equal: [ false, << pipeline.parameters.run-common-change-workflow >> ]
+    when: << pipeline.parameters.run-postgres-workflow >>
     jobs:
       - data-postgres/build-postgres:
           context:
