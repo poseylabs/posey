@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: posey-argo
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Project for Posey applications
+  sourceRepos:
+  - '*' 
+  # Define destination clusters/namespaces allowed
+  destinations:
+  - server: https://kubernetes.default.svc
+    namespace: '*' # Allow deployment to any namespace in the cluster

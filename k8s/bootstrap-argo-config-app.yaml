@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-argo-config # Name of this bootstrap application
+  namespace: argocd
+spec:
+  project: default # This app itself belongs to the default project
+  source:
+    repoURL: https://github.com/poseylabs/posey # <<< YOUR REPO URL HERE
+    targetRevision: HEAD
+    path: k8s/services/core/argo # <<< Directory containing your other Argo manifests
+    # Use a directory source type
+    directory:
+      recurse: true # Process YAML files in subdirectories too, if any
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd # Apply these resources (AppProject, Application) into the argocd namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true # Should already exist, but good practice
