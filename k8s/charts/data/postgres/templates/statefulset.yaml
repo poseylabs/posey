@@ -34,8 +34,11 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: {{ .Chart.Name }}
-          image: {{- include "postgres.image" . -}}
-          imagePullPolicy: {{- .Values.image.pullPolicy | default .Values.global.image.pullPolicy | default "Always" -}}
+          imagePullPolicy: {{ .Values.image.pullPolicy | default .Values.global.image.pullPolicy | default "Always" }}
+          ports:
+            - name: tcp-postgres
+              containerPort: 3333
+              protocol: TCP
           env:
             - name: POSTGRES_PORT
               valueFrom:
