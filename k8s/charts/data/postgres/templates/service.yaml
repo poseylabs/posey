@@ -17,7 +17,7 @@ spec:
     protocol: TCP
     name: tcp-postgres
   # Use the service type defined in values (defaulting to global)
-  type: {{ .Values.service.type | default .Values.global.service.type | default "ClusterIP" }}
+  type: {{ .Values.service.type | default "ClusterIP" }}
   # Selects the pods managed by the StatefulSet using standard selector labels
   selector:
     # Use common selector labels
