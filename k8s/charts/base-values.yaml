@@ -1,6 +1,25 @@
 # /k8s/charts/base-values.yaml
 # Shared default values for Posey Helm charts
 
+# Global values used across all charts
+global:
+  # Default part-of label (can be overridden per chart)
+  partOf: posey
+  # Default service account settings
+  serviceAccount:
+    create: false
+  # Default image settings
+  image:
+    pullPolicy: Always
+  # Default resource requests/limits
+  resources:
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
 # Default replica count
 replicaCount: 1
 

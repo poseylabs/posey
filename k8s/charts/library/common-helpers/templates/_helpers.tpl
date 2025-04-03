@@ -73,9 +73,14 @@ Usage: {{ include "common-helpers.inferPartOf" . }}
 */}}
 {{- define "common-helpers.inferPartOf" -}}
 {{- $pathParts := splitList "/" .Chart.Name -}}
-{{- $category := index $pathParts (sub (len $pathParts) 2) -}}
-{{- if eq $category "data" "services" "apps" -}}
-{{- printf "posey-%s" $category -}}
+{{- if gt (len $pathParts) 2 -}}
+  {{- $category := index $pathParts (sub (len $pathParts) 2) -}}
+  {{- if eq $category "data" "services" "apps" -}}
+    {{- printf "posey-%s" $category -}}
+  {{- end -}}
+{{- else -}}
+  {{- /* If no path info, use the chart name as the category */}}
+  {{- printf "posey-%s" .Chart.Name -}}
 {{- end -}}
 {{- end -}}
 
