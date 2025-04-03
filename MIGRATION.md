@@ -127,7 +127,7 @@ Add to docker-compose.yml:
 services:
   auth:
     build:
-      context: ./services/auth
+      context: ./services/core/auth
       dockerfile: Dockerfile
     container_name: auth
     environment:

@@ -28,14 +28,14 @@ We maintain separate build and deploy scripts for data and application services 
 
 **Data Services:**
 ```bash
-cd /data
+cd /services/data
 yarn build:local    # Build Docker images
 yarn deploy:local   # Deploy to local Kubernetes
 ```
 
 **Application Services:**
 ```bash
-cd /services
+cd /services/core
 yarn build:local    # Build Docker images
 yarn deploy:local   # Deploy to local Kubernetes
 ```

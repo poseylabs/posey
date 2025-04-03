@@ -10,7 +10,7 @@ A Model Context Protocol (MCP) server implementation for the Posey.AI platform t
 - Extensible tool system
 
 ## Setup
-All services are meant to be run from the root of the /services folder using docker compose:
+All core services are meant to be run from the root of the /services/core folder using docker compose:
 
 1. Build the Docker image:
 ```bash
