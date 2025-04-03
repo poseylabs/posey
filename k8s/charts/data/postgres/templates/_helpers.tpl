@@ -11,7 +11,7 @@ Usage: {{ include "postgres.image" . }}
 {{- define "postgres.image" -}}
 {{- $registry := .Values.global.image.registry | default "docker.io/poseylabs" }} # Use global registry, fallback for testing
 {{- $repository := .Values.image.repository }}
-{{- $tag := default .Chart.AppVersion .Values.image.tag }}
+{{- $tag := .Values.image.tag | default "latest" }} # Use explicit tag from values, otherwise default to 'latest'
 {{- printf "%s/%s:%s" $registry $repository $tag }}
 {{- end }}
 

@@ -1,6 +1,5 @@
 image:
   repository: posey-postgres
-  tag: ""
 
 existingSecret: postgres-secrets
 
