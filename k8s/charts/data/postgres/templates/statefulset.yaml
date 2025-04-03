@@ -38,7 +38,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy | default .Values.global.image.pullPolicy | default "Always" }}
           ports:
             - name: postgres
-              containerPort: {{- .Values.service.port -}}
+              containerPort: 3333
               protocol: TCP
           env:
             - name: POSTGRES_PORT
