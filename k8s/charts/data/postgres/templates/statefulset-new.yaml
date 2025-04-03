@@ -45,7 +45,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy | default .Values.global.image.pullPolicy | default "Always" }}
           ports:
             - name: tcp-postgres
-              containerPort: {{- .Values.service.port -}} # Added whitespace control
+              containerPort: 3333 # Hardcoded again for debugging
               protocol: TCP
           env:
             # Inject port from the existing Secret or use the value from values.yaml
@@ -77,7 +77,7 @@ spec:
           # Liveness and Readiness Probes (using env var for port if available)
           livenessProbe:
             tcpSocket:
-              port: {{- .Values.service.port -}} # Added whitespace control
+              port: 3333 # Hardcoded again for debugging
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
