@@ -107,7 +107,7 @@ Usage: {{ include "common-helpers.image" . }}
 {{- $repository := .Values.image.repository -}}
 {{- if not $repository -}}
   {{- fail (printf "%s: image.repository is required in values.yaml for chart %s" (include "common-helpers.fullname" .) .Chart.Name) -}}
-{{- end -}}\
+{{- end -}}
 {{- $tag := "" -}}
 {{- /* Prioritize tag from Argo CD parameters if available */ -}}
 {{- if .Values.parameters -}}
