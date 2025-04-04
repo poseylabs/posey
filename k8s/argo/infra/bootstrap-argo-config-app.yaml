@@ -29,3 +29,9 @@ spec:
     namespace: argocd
     jsonPointers:
     - /spec/source/directory
+  - group: argoproj.io
+    kind: Application
+    name: env-secrets
+    namespace: argocd
+    jsonPointers:
+    - /spec/source/directory
