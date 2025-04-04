@@ -28,11 +28,10 @@ spec:
       - CreateNamespace=true # Automatically create the target namespace
       - ServerSideApply=true # Use server-side apply for better conflict resolution
   ignoreDifferences:
-  - group: "" # Core API group
-    kind: Service
+  - kind: Service # Removed group: ""
     jsonPointers:
-    - /status
-  - group: "" # Core API group
-    kind: Service
+    - /status # Ignore the entire status block
+  - kind: Service # Removed group: ""
+    # Ignore just this specific annotation key added by GKE
     jqPathExpressions:
     - .metadata.annotations."cloud.google.com/neg"
