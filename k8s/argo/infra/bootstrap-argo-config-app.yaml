@@ -22,3 +22,10 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true # Should already exist, but good practice
+  ignoreDifferences:
+  - group: argoproj.io
+    kind: Application
+    name: posey-sealed-secrets
+    namespace: argocd
+    jsonPointers:
+    - /spec/source/directory
