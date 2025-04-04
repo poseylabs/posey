@@ -35,6 +35,7 @@ spec:
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ include "common-helpers.image" . }}"
+          # Use local pullPolicy, fallback to global, default to Always
           imagePullPolicy: {{ .Values.image.pullPolicy | default .Values.global.image.pullPolicy | default "Always" }}
           
           # --- TEMPORARY SIMPLIFICATION FOR DEBUGGING --- 

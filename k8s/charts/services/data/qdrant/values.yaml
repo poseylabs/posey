@@ -1,6 +1,6 @@
 image:
   repository: poseylabs/posey-qdrant
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
   tag: "v1.9.0"
 
 imagePullSecrets: []
@@ -122,7 +122,3 @@ global:
   # Default replica count
   replicaCount: 1
 
-podSecurityContext:
-  fsGroup: 999
-  runAsUser: 999
-  runAsGroup: 999
