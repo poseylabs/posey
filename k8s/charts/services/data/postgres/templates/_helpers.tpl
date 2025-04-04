@@ -1,4 +1,4 @@
-{{/* /k8s/charts/data/postgres/templates/_helpers.tpl */}}
+{{/* /k8s/charts/services/data/postgres/templates/_helpers.tpl */}}
 {{/* vim: set filetype=mustache: */}}
 
 {{/* --- Postgres Specific Helper Templates --- */}}

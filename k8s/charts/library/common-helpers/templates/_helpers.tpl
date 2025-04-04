@@ -68,7 +68,7 @@ app.kubernetes.io/part-of: {{ $partOf }}
 {{- end }}
 
 {{/*
-Helper to infer the 'part-of' label from the chart's path (e.g., k8s/charts/data -> posey-data)
+Helper to infer the 'part-of' label from the chart's path (e.g., k8s/charts/services/data -> posey-data)
 Usage: {{ include "common-helpers.inferPartOf" . }}
 */}}
 {{- define "common-helpers.inferPartOf" -}}

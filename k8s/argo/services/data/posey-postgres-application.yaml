@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: https://github.com/poseylabs/posey
     targetRevision: main
-    path: k8s/charts/data/postgres
+    path: k8s/charts/services/data/postgres
     helm:
       valueFiles:
         - ../../base-values.yaml
