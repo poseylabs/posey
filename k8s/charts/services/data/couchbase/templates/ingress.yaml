@@ -1,0 +1,6 @@
+{{/*
+Include the common ingress helper template.
+The necessary configuration is expected in .Values.ingress.
+We also need to specify .Values.service.ingressPortName in values.yaml.
+*/}}
+{{ include "common-helpers.ingress" . }} 

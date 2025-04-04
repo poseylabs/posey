@@ -5,7 +5,6 @@ image:
   pullPolicy: Always
   tag: "latest"
 
-imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: "posey-couchbase"
 
@@ -14,13 +13,6 @@ serviceAccount:
   automount: true
   annotations: {}
   name: ""
-
-podAnnotations: {}
-podLabels: {}
-
-podSecurityContext: {}
-
-securityContext: {}
 
 service:
   type: ClusterIP
@@ -40,9 +32,11 @@ service:
     - name: data-service
       port: 11210
       targetPort: 11210
+  ingressPortName: http-ui
 
+# Port name for the ingress controller to target for UI/API access
 ingress:
-  enabled: false # Typically false for databases, expose via Service if needed externally
+  subdomain: couchbase # Will use default baseDomain (db.posey.ai) and default issuer/paths/tls
 
 resources: {}
   # limits:
@@ -53,18 +47,12 @@ resources: {}
   #   memory: 2Gi
 
 autoscaling:
-  enabled: false # StatefulSets usually don't autoscale well without an operator
+  enabled: false
 
-# Couchbase typically uses a StatefulSet for stable network identifiers and storage
-# We'll need to create the StatefulSet template separately.
-# This values.yaml will configure aspects of it.
 
 statefulSet:
-  # Annotations for the StatefulSet itself
   annotations: {}
-  # Labels for the StatefulSet itself
   labels: {}
-  # Update strategy for the StatefulSet
   updateStrategy:
     type: RollingUpdate
     # rollingUpdate:
@@ -77,31 +65,15 @@ persistence:
   size: 20Gi # Adjust based on expected data volume
   mountPath: /opt/couchbase/var # Default Couchbase data path
 
-# Couchbase specific configuration
-# Passed via environment variables. Check your image documentation for exact variable names.
 config:
   clusterName: posey-couchbase
   # services: data,index,query,fts # Services to enable on nodes (can often be set via env var)
 
 
 adminCredentials:
-  # If envFromSecret is enabled and the secret contains the admin creds,
-  # secretName might not be needed here. Otherwise, specify the secret name.
   secretName: posey-prod-data-env-vars
   usernameKey: COUCHBASE_USER # Key name matches the variable in .env
   passwordKey: COUCHBASE_PASSWORD # Key name matches the variable in .env
-
-# Additional volumes for the StatefulSet pods
-volumes: []
-
-# Additional volumeMounts for the StatefulSet pods
-volumeMounts: []
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {} 
 
 global:
   partOf: posey
@@ -116,3 +88,17 @@ global:
       cpu: "500m"
       memory: "1Gi"
   replicaCount: 1
+
+# Optional / Unused defaults
+affinity: {}
+imagePullSecrets: []
+nodeSelector: {}
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
+tolerations: []
+volumes: []
+volumeMounts: []
+
+# Couchbase typically uses a StatefulSet for stable network identifiers and storage
