@@ -10,7 +10,6 @@ fullnameOverride: "posey-qdrant"
 serviceAccount:
   create: true
   automount: true
-  annotations: {}
   name: "posey-qdrant"
 
 podAnnotations: {}
