@@ -89,7 +89,14 @@ Create the name of the service account to use
 Usage: {{ include "common-helpers.serviceAccountName" . }}
 */}}
 {{- define "common-helpers.serviceAccountName" -}}
+{{- if .Values.serviceAccount.name -}}
+{{- .Values.serviceAccount.name | quote -}}
+{{- else -}}
+{{- if .Values.serviceAccount.create -}}
+{{- include "common-helpers.fullname" . -}}
+{{- else -}}
 {{- "default" -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
