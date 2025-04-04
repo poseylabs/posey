@@ -1,5 +1,5 @@
 image:
-  repository: posey-postgres
+  repository: poseylabs/posey-postgres
   pullPolicy: IfNotPresent
 
 existingSecret: postgres-secrets
