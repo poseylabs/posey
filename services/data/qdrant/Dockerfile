@@ -1,6 +1,12 @@
 # Pin to a specific version for stability, e.g., v1.9.0
 FROM qdrant/qdrant:v1.9.0
 
+# Install curl for entrypoint script checks
+USER root
+RUN apt-get update && apt-get install -y curl --no-install-recommends && \
+  rm -rf /var/lib/apt/lists/*
+USER qdrant
+
 WORKDIR /qdrant
 
 # Configuration is now handled via Helm/env vars, no need to copy local config.yaml

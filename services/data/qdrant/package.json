@@ -1,6 +1,6 @@
 {
   "name": "@posey.ai/qdrant",
-  "version": "1.0.0-alpha.3",
+  "version": "1.0.0-beta.1",
   "type": "module",
   "scripts": {
     "deploy": "bash ../../scripts/k8s-deploy.sh qdrant",
