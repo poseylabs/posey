@@ -1,0 +1,209 @@
+---
+# Source: couchbase/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "posey-couchbase"
+  labels:
+    helm.sh/chart: couchbase-0.1.0
+    app.kubernetes.io/name: couchbase
+    app.kubernetes.io/instance: posey-couchbase
+    app.kubernetes.io/part-of: posey
+    app.kubernetes.io/version: "community-7.2.4"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: couchbase/templates/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: posey-couchbase-headless
+  labels:
+    helm.sh/chart: couchbase-0.1.0
+    app.kubernetes.io/name: couchbase
+    app.kubernetes.io/instance: posey-couchbase
+    app.kubernetes.io/part-of: posey
+    app.kubernetes.io/version: "community-7.2.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+    - port: 8091
+      targetPort: 8091
+      protocol: TCP
+      name: http-ui
+    - port: 8092
+      targetPort: 8092
+      protocol: TCP
+      name: capi
+    - port: 8093
+      targetPort: 8093
+      protocol: TCP
+      name: query-n1ql
+    - port: 8094
+      targetPort: 8094
+      protocol: TCP
+      name: fts
+    - port: 11210
+      targetPort: 11210
+      protocol: TCP
+      name: data-service
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: couchbase
+    app.kubernetes.io/instance: posey-couchbase
+    app.kubernetes.io/part-of: posey
+---
+# Source: couchbase/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: posey-couchbase
+  labels:
+    helm.sh/chart: couchbase-0.1.0
+    app.kubernetes.io/name: couchbase
+    app.kubernetes.io/instance: posey-couchbase
+    app.kubernetes.io/part-of: posey
+    app.kubernetes.io/version: "community-7.2.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8091
+      targetPort: 8091
+      protocol: TCP
+      name: http-ui
+    - port: 8092
+      targetPort: 8092
+      protocol: TCP
+      name: capi
+    - port: 8093
+      targetPort: 8093
+      protocol: TCP
+      name: query-n1ql
+    - port: 8094
+      targetPort: 8094
+      protocol: TCP
+      name: fts
+    - port: 11210
+      targetPort: 11210
+      protocol: TCP
+      name: data-service
+  selector:
+    app.kubernetes.io/name: couchbase
+    app.kubernetes.io/instance: posey-couchbase
+    app.kubernetes.io/part-of: posey
+---
+# Source: couchbase/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: posey-couchbase
+  labels:
+    helm.sh/chart: couchbase-0.1.0
+    app.kubernetes.io/name: couchbase
+    app.kubernetes.io/instance: posey-couchbase
+    app.kubernetes.io/part-of: posey
+    app.kubernetes.io/version: "community-7.2.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: posey-couchbase-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: couchbase
+      app.kubernetes.io/instance: posey-couchbase
+      app.kubernetes.io/part-of: posey
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: couchbase
+        app.kubernetes.io/instance: posey-couchbase
+        app.kubernetes.io/part-of: posey
+    spec:
+      serviceAccountName: "posey-couchbase"
+      terminationGracePeriodSeconds: 10 # Allow time for graceful shutdown
+      securityContext:
+        {}
+      containers:
+        - name: couchbase
+          securityContext:
+            {}
+          image: "docker.io/poseylabs/posey-couchbase:latest"
+          imagePullPolicy: Always
+          env:
+            # Required for Couchbase clustering and node naming
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # Cluster Name from values
+            - name: COUCHBASE_CLUSTER_NAME # Check image docs for exact env var name
+              value: "posey-couchbase"
+
+            # Admin credentials from secret (adjust names based on image)
+            - name: COUCHBASE_ADMINISTRATOR_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: posey-prod-data-env-vars
+                  key: COUCHBASE_USER
+            - name: COUCHBASE_ADMINISTRATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: posey-prod-data-env-vars
+                  key: COUCHBASE_PASSWORD
+            # Add other explicit config env vars if needed
+            # - name: COUCHBASE_SERVICES
+            #   value: "data,index,query,fts"
+          resources:
+            {}
+          volumeMounts:
+            - name: couchbase-data
+              mountPath: /opt/couchbase/var
+  volumeClaimTemplates:
+    - metadata:
+        name: couchbase-data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "20Gi"
+        storageClassName: "standard-rwo"
+---
+# Source: couchbase/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: posey-couchbase
+  labels:
+    helm.sh/chart: couchbase-0.1.0
+    app.kubernetes.io/name: couchbase
+    app.kubernetes.io/instance: posey-couchbase
+    app.kubernetes.io/part-of: posey
+    app.kubernetes.io/version: "community-7.2.4"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        # Use the determined hostname
+        - "couchbase.db.posey.ai"
+      # Use the determined or provided secret name
+      secretName: couchbase-db-posey-ai-tls
+  rules:
+    # Use the determined hostname
+    - host: "couchbase.db.posey.ai"
+      http:
+        paths:
+          # Use the determined or provided paths
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: posey-couchbase
+                port:
+                  # Use specified ingress port name, default to 'http'
+                  name: http-ui
