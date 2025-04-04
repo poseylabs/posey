@@ -1,6 +1,6 @@
 image:
   repository: poseylabs/posey-postgres
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 existingSecret: postgres-secrets
 
@@ -21,7 +21,7 @@ global:
   partOf: posey
   image:
     registry: docker.io
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   resources:
     limits:
       cpu: "1"
@@ -35,7 +35,3 @@ podSecurityContext:
   fsGroup: 999
   runAsUser: 999
   runAsGroup: 999
-
-nodeSelector: {}
-affinity: {}
-tolerations: []
