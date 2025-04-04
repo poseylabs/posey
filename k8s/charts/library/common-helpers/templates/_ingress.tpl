@@ -9,7 +9,7 @@ Optional overrides/settings:
   .Values.ingress.className (defaults to nginx)
   .Values.ingress.annotations (merged with defaults)
   .Values.ingress.paths (defaults to path: /, pathType: ImplementationSpecific)
-  .Values.ingress.tls.enabled (defaults to true if hostname/subdomain set, use ingress.enabled=false to disable)
+  .Values.ingress.tls.enabled (defaults to true if ingress enabled. Set explicitly to false to disable TLS.)
   .Values.ingress.tls.secretName (defaults to generated name like <hostname-as-kebab-case>-tls)
   .Values.ingress.forceSSL (defaults to true, adds redirect annotation if TLS is enabled)
   .Values.service.ingressPortName (defaults to http)
@@ -46,8 +46,18 @@ Optional overrides/settings:
 {{- /* --- Annotation Logic --- */}}
 {{- $defaultAnnotations := dict "cert-manager.io/cluster-issuer" "letsencrypt-prod" -}}
 {{- $finalAnnotations := $defaultAnnotations -}}
+
+{{- /* --- TLS and Force SSL Logic --- */}}
+{{- /* Check if TLS section exists and if .enabled is explicitly false */}}
+{{- $tlsExplicitlyDisabled := false -}}
+{{- if .Values.ingress.tls -}}
+{{-   if hasKey .Values.ingress.tls "enabled" -}}
+{{-     $tlsExplicitlyDisabled = eq .Values.ingress.tls.enabled false -}}
+{{-   end -}}
+{{- end -}}
+{{- $tlsEnabled := and $ingressEnabled $hostname (not $tlsExplicitlyDisabled) -}}
+
 {{- /* Add force SSL redirect annotation if TLS is enabled and forceSSL is not explicitly false */}}
-{{- $tlsEnabled := and $ingressEnabled $hostname (.Values.ingress.tls.enabled | default true) -}}
 {{- $forceSSLEnabled := and $tlsEnabled (ne (.Values.ingress.forceSSL | default true) false) -}}
 {{- if $forceSSLEnabled -}}
 {{-   $_ := set $finalAnnotations "nginx.ingress.kubernetes.io/force-ssl-redirect" "true" -}}
@@ -55,9 +65,12 @@ Optional overrides/settings:
 {{- /* Merge user annotations over defaults */}}
 {{- $finalAnnotations = mergeOverwrite $finalAnnotations (.Values.ingress.annotations | default dict) -}}
 
-{{- /* --- TLS Logic --- */}}
+{{- /* --- Determine TLS Secret Name --- */}}
 {{- $generatedSecretName := printf "%s-tls" ($hostname | replace "." "-") -}}
-{{- $tlsSecretName := .Values.ingress.tls.secretName | default $generatedSecretName -}}
+{{- $tlsSecretName := $generatedSecretName -}} {{/* Default to generated */}}
+{{- if .Values.ingress.tls -}}
+{{-   $tlsSecretName = .Values.ingress.tls.secretName | default $generatedSecretName -}}
+{{- end -}}
 
 {{- /* --- Render Ingress --- */}}
 {{- if and $ingressEnabled $hostname $paths -}}
