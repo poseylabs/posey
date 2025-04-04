@@ -1,10 +1,9 @@
 {{/* This file can be removed if not defining any chart-specific helpers */}}
 
 {{/*
-Return the appropriate apiVersion for deployment.
-This is kept locally as it's specific to the kind of resource (Deployment)
+Return the appropriate apiVersion for statefulset.
 */}}
-{{- define "qdrant.deployment.apiVersion" -}}
+{{- define "qdrant.statefulset.apiVersion" -}}
 {{- if semverCompare ">=1.9-0" .Capabilities.KubeVersion.GitVersion -}}
 {{- print "apps/v1" -}}
 {{- else -}}

@@ -1,0 +1,21 @@
+# Headless service for stable network IDs required by StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common-helpers.fullname" . }}-headless
+  labels:
+    {{- include "common-helpers.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+    - port: {{ .Values.service.httpPort }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    # Add other ports if needed for inter-node communication (e.g., Qdrant clustering ports)
+  clusterIP: None # Required for Headless service
+  selector:
+    {{- include "common-helpers.selectorLabels" . | nindent 4 }} 

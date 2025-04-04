@@ -1,11 +1,11 @@
-apiVersion: {{ include "qdrant.deployment.apiVersion" . }}
-kind: Deployment
+apiVersion: {{ include "qdrant.statefulset.apiVersion" . }}
+kind: StatefulSet
 metadata:
   name: {{ include "common-helpers.fullname" . }}
   labels:
     {{- include "common-helpers.labels" . | nindent 4 }}
 spec:
-  # Use global replica count
+  serviceName: {{ include "common-helpers.fullname" . }}-headless
   replicas: {{ .Values.global.replicaCount }}
   selector:
     matchLabels:
@@ -27,6 +27,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "common-helpers.serviceAccountName" . }}
+      terminationGracePeriodSeconds: 10
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -36,22 +37,37 @@ spec:
           image: "{{ include "common-helpers.image" . }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           
+          # --- TEMPORARY SIMPLIFICATION FOR DEBUGGING --- 
+          # {{- if .Values.envFromSecret.enabled }}
+          # envFrom:
+          #   - secretRef:
+          #       # Temporarily remove required for testing
+          #       name: {{ .Values.envFromSecret.secretName | default "placeholder-secret-name" }}
+          # {{- end }}
+          
           env:
+            # Keep only one simple env var for testing
             - name: QDRANT__LOG__LEVEL
               value: {{ .Values.configOverrides.logLevel | quote }}
+            # - name: QDRANT__SERVICE__HTTP_PORT
+            #   value: {{ .Values.service.httpPort | quote }}
+            # - name: QDRANT__SERVICE__GRPC_PORT
+            #   value: {{ .Values.service.port | quote }}
+            # - name: QDRANT__TELEMETRY__DISABLED
+            #   value: {{ .Values.configOverrides.telemetryDisabled | quote }}
+          # --- END TEMPORARY SIMPLIFICATION ---
 
           ports:
             - name: http
-              containerPort: {{ .Values.service.httpPort }} # Matches the service definition
+              containerPort: {{ .Values.service.httpPort }}
               protocol: TCP
             - name: grpc
-              containerPort: {{ .Values.service.port }} # Matches the service definition
+              containerPort: {{ .Values.service.port }}
               protocol: TCP
-          # Use Qdrant's readyz endpoint for probes
           livenessProbe:
             httpGet:
               path: /livez
-              port: http # Use the HTTP port name
+              port: http
             initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 5
@@ -59,12 +75,11 @@ spec:
           readinessProbe:
             httpGet:
               path: /readyz
-              port: http # Use the HTTP port name
+              port: http
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
-          # Use global resources
           resources:
             limits:
               cpu: {{ .Values.global.resources.limits.cpu | quote }}
@@ -80,15 +95,11 @@ spec:
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+      # Volumes defined here are shared across all pods (if any needed besides PVC)
+      {{- with .Values.volumes }}
       volumes:
-        {{- if .Values.persistence.enabled }}
-        - name: qdrant-storage
-          persistentVolumeClaim:
-            claimName: {{ include "common-helpers.fullname" . }}
-        {{- end }}
-        {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -100,4 +111,23 @@ spec:
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
-      {{- end }} 
+      {{- end }}
+  {{- if .Values.persistence.enabled }}
+  # Define Volume Claim Templates for StatefulSet
+  volumeClaimTemplates:
+    - metadata:
+        name: qdrant-storage
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode | quote }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size | quote }}
+        {{- if .Values.persistence.storageClassName }}
+        {{- if (eq "-" .Values.persistence.storageClassName) }}
+        storageClassName: ""
+        {{- else }}
+        storageClassName: {{ .Values.persistence.storageClassName | quote }}
+        {{- end }}
+        {{- end }}
+  {{- end }} 
