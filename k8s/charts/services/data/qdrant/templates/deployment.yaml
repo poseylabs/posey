@@ -47,8 +47,6 @@ spec:
               value: {{ .Values.service.port | quote }}
             - name: QDRANT__TELEMETRY__DISABLED
               value: {{ .Values.configOverrides.telemetryDisabled | quote }}
-
-            {{- end }}
           {{- if .Values.envFromSecret.enabled }}
           envFrom:
             - secretRef:
