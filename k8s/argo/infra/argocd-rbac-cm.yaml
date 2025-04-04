@@ -12,4 +12,4 @@ data:
     p, role:admin, *, *, */*, allow # Grant admin full access
     g, admin, role:admin          # Assign admin user to admin role
     p, role:circleci, applications, sync, posey/*, allow
-    g, circleci:apiKey, role:circleci
+    g, circleci:ci-sync-token, role:circleci
