@@ -14,7 +14,7 @@ Usage: {{ include "common-helpers.serviceaccount" . }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "common-helpers.serviceAccountName" . }}
+  name: {{ .Values.serviceAccount.name | default (include "common-helpers.fullname" .) }}
   labels:
     {{- include "common-helpers.labels" . | nindent 4 }}
   {{- with .Values.serviceAccount.annotations }}
