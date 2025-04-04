@@ -1,0 +1,32 @@
+# k8s/argo/apps/ingresses-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingresses
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: posey # Reference the 'posey' project
+
+  source:
+    repoURL: https://github.com/poseylabs/posey # Your repository
+    targetRevision: HEAD # Or main
+    path: k8s/ingresses # Point to the directory containing Ingress manifests
+    directory:
+      recurse: true # Allow subdirectories if needed later
+
+  destination:
+    server: https://kubernetes.default.svc
+    # Ingress resources often live in the namespace of the service they point to,
+    # but they can live elsewhere. Let's manage them from the 'argocd' namespace for now.
+    # The Ingress manifest itself specifies the target service's namespace.
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # Don't create the argocd namespace, it exists
+      - ServerSideApply=true 

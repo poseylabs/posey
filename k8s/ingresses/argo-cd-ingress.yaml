@@ -1,0 +1,25 @@
+# k8s/ingresses/argo-cd-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd # Argo CD server is in the argocd namespace
+  annotations:
+    # Use the nginx ingress class we installed
+    kubernetes.io/ingress.class: nginx
+    # Optional: Force redirect to HTTPS if needed later (requires TLS)
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Optional: Backend protocol (Argo CD server uses gRPC/HTTP2)
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP" # Use HTTP for now, can change to HTTPS/GRPC later
+spec:
+  rules:
+  - host: argo.posey.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server # Name of the Argo CD server service
+            port:
+              number: 80 # Port the Argo CD server service listens on (usually 80 for HTTP) 
