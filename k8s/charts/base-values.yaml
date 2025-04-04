@@ -25,7 +25,6 @@ fullnameOverride: ""
 serviceAccount:
   create: false
   annotations: {}
-  name: ""
 
 podAnnotations: {}
 podSecurityContext: {}
