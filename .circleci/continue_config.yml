@@ -8,10 +8,10 @@ orbs:
   cli: circleci/circleci-cli@0.1.9
   
   # Published orbs
-  common: posey/common@0.1.13
-  data-postgres: posey/data-postgres@0.1.11
-  data-qdrant: posey/data-qdrant@0.0.2 # Placeholder version, update after publishing
-  data-couchbase: posey/data-couchbase@0.1.5 # Placeholder version, update after publishing
+  common: posey/common@0.1.14
+  data-postgres: posey/data-postgres@0.1.12
+  data-qdrant: posey/data-qdrant@0.0.3 # Placeholder version, update after publishing
+  data-couchbase: posey/data-couchbase@0.1.6 # Placeholder version, update after publishing
 
 # Define the parameters that will be passed from the setup configuration
 parameters:

@@ -36,25 +36,9 @@ spec:
           image: "{{ include "common-helpers.image" . }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           
-          # --- TEMPORARY SIMPLIFICATION FOR DEBUGGING --- 
-          # {{- if .Values.envFromSecret.enabled }}
-          # envFrom:
-          #   - secretRef:
-          #       # Temporarily remove required for testing
-          #       name: {{ .Values.envFromSecret.secretName | default "placeholder-secret-name" }}
-          # {{- end }}
-          
           env:
-            # Keep only one simple env var for testing
             - name: QDRANT__LOG__LEVEL
               value: {{ .Values.configOverrides.logLevel | quote }}
-            # - name: QDRANT__SERVICE__HTTP_PORT
-            #   value: {{ .Values.service.httpPort | quote }}
-            # - name: QDRANT__SERVICE__GRPC_PORT
-            #   value: {{ .Values.service.port | quote }}
-            # - name: QDRANT__TELEMETRY__DISABLED
-            #   value: {{ .Values.configOverrides.telemetryDisabled | quote }}
-          # --- END TEMPORARY SIMPLIFICATION ---
 
           ports:
             - name: http
