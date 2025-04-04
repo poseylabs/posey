@@ -1,29 +1,16 @@
-# Default values for qdrant chart.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
-replicaCount: 1
-
 image:
-  repository: docker.io/poseylabs/posey-qdrant
+  repository: poseylabs/posey-qdrant
   pullPolicy: IfNotPresent
-  # Overridden by Argo CD application parameter
-  # Pin to a specific version for stability, e.g., "v1.9.0"
-  tag: "v1.9.0" # Should match the Dockerfile FROM tag & Chart.yaml appVersion
+  tag: "v1.9.0"
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: "posey-qdrant"
 
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
-  # Automatically mount a ServiceAccount token
   automount: true
-  # Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
   name: ""
 
 podAnnotations: {}
@@ -62,17 +49,8 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+# Resources are now defined under global section
+# resources: {}
 
 autoscaling:
   enabled: false
@@ -122,11 +100,22 @@ envFromSecret:
   enabled: false
   secretName: "posey-qdrant-config" # Name of the secret containing env vars
 
-apiKey:
-  enabled: true # Assume API key is generally needed
-  # If envFromSecret is enabled and the secret contains the API key, secretName might not be needed here.
-  # Otherwise, specify the secret containing the API key.
-  secretName: posey-qdrant-apikey # Default secret name for the API key
-  secretKey: api-key
-  # Set value if not using a secret (NOT RECOMMENDED)
-  # value: "your-api-key" 
+# Global values mirroring the structure in postgres/values.yaml
+global:
+  partOf: posey # Application group label
+  image:
+    # Default registry, used by common-helpers.image if not overridden
+    registry: docker.io
+    # Default pull policy, used by common-helpers.image if not set locally
+    pullPolicy: IfNotPresent
+  # Default resources, can be overridden by specific chart values if needed
+  resources:
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+  # Default replica count
+  replicaCount: 1
+

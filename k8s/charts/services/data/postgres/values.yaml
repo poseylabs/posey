@@ -5,7 +5,6 @@ image:
 existingSecret: postgres-secrets
 
 service:
-  # port: 3333 # Old single port definition - replaced by ports list
   type: LoadBalancer
   ports:
     - name: tcp-postgres
