@@ -5,9 +5,15 @@ image:
   pullPolicy: Always
   tag: "latest"
 
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: "posey-couchbase"
+
 serviceAccount:
   create: true
   automount: true
+  annotations: {}
+  name: ""
 
 podAnnotations: {}
 podLabels: {}
@@ -37,6 +43,32 @@ service:
 
 ingress:
   enabled: false # Typically false for databases, expose via Service if needed externally
+
+resources: {}
+  # limits:
+  #   cpu: 2000m
+  #   memory: 4Gi
+  # requests:
+  #   cpu: 1000m
+  #   memory: 2Gi
+
+autoscaling:
+  enabled: false # StatefulSets usually don't autoscale well without an operator
+
+# Couchbase typically uses a StatefulSet for stable network identifiers and storage
+# We'll need to create the StatefulSet template separately.
+# This values.yaml will configure aspects of it.
+
+statefulSet:
+  # Annotations for the StatefulSet itself
+  annotations: {}
+  # Labels for the StatefulSet itself
+  labels: {}
+  # Update strategy for the StatefulSet
+  updateStrategy:
+    type: RollingUpdate
+    # rollingUpdate:
+    #   partition: 0 # Controls staged rollouts
 
 persistence:
   enabled: true
