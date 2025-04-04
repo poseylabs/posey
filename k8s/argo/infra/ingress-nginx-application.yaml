@@ -31,7 +31,7 @@ spec:
   - kind: Service # Removed group: ""
     jsonPointers:
     - /status # Ignore the entire status block
-  - kind: Service # Removed group: ""
-    # Ignore just this specific annotation key added by GKE
-    jqPathExpressions:
-    - .metadata.annotations."cloud.google.com/neg"
+    - /metadata/annotations # Ignore the whole annotations block
+  # - kind: Service # Removed group: ""
+  #   jqPathExpressions:
+  #   - .metadata.annotations."cloud.google.com/neg"
