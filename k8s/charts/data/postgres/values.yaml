@@ -6,6 +6,7 @@ existingSecret: postgres-secrets
 
 service:
   port: 3333
+  type: LoadBalancer
 
 persistence:
   enabled: true
