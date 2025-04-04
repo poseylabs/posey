@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  policy.default: role:readonly
+  policy.csv: |
+    p, role:admin, *, *, */*, allow # Grant admin full access
+    g, admin, role:admin          # Assign admin user to admin role
+    p, role:circleci, applications, sync, posey/*, allow
+    g, circleci:apiKey, role:circleci
