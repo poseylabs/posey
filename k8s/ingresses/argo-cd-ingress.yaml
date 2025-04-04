@@ -10,8 +10,13 @@ metadata:
     # Optional: Force redirect to HTTPS if needed later (requires TLS)
     # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     # Optional: Backend protocol (Argo CD server uses gRPC/HTTP2)
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP" # Use HTTP for now, can change to HTTPS/GRPC later
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS" # Use HTTPS for now, can change to HTTPS/GRPC later
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  tls:
+  - hosts:
+    - argo.posey.ai
+    secretName: argocd-server-tls # cert-manager will store the created certificate in this secret
   rules:
   - host: argo.posey.ai
     http:
@@ -22,4 +27,4 @@ spec:
           service:
             name: argocd-server # Name of the Argo CD server service
             port:
-              number: 80 # Port the Argo CD server service listens on (usually 80 for HTTP) 
+              number: 443 # Port the Argo CD server service listens on (usually 80 for HTTP) 
