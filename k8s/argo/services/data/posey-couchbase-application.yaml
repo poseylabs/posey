@@ -18,11 +18,11 @@ spec:
     path: k8s/charts/services/data/couchbase
     helm:
       valueFiles:
-        - ../../../base-values.yaml
+        - ../../../charts/base-values.yaml
         - values.yaml
       parameters:
         - name: image.tag
-          value: "community-7.2.4"
+          value: "latest"
 
   destination:
     server: https://kubernetes.default.svc

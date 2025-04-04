@@ -18,7 +18,7 @@ spec:
     path: k8s/charts/services/data/postgres
     helm:
       valueFiles:
-        - ../../../base-values.yaml
+        - ../../../charts/base-values.yaml
         - values.yaml
       parameters:
         - name: image.tag
