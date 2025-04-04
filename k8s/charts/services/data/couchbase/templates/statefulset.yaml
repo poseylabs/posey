@@ -67,13 +67,6 @@ spec:
             - secretRef:
                 name: {{ required "envFromSecret.secretName must be provided if envFromSecret.enabled is true" .Values.envFromSecret.secretName }}
           {{- end }}
-          ports:
-            # Define container ports based on values.service.ports
-            {{- range .Values.service.ports }}
-            - containerPort: {{ .targetPort }}
-              name: {{ .name }}
-              protocol: TCP
-            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
