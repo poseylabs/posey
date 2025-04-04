@@ -11,4 +11,5 @@ data:
   policy.csv: |
     p, role:admin, *, *, */*, allow # Grant admin full access
     g, admin, role:admin          # Assign admin user to admin role
-    g, circleci, role:admin # Assign admin role to the actual subject 'circleci'
+    p, circleci, applications, sync, posey/posey-postgres, allow
+    g, circleci, role:admin
