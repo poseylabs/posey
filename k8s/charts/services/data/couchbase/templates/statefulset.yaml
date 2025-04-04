@@ -74,20 +74,6 @@ spec:
               name: {{ .name }}
               protocol: TCP
             {{- end }}
-          # Add readiness/liveness probes specific to Couchbase
-          # readinessProbe:
-          #   exec:
-          #     command:
-          #       - couchbase-cli
-          #       - server-info
-          #       - -c
-          #       - localhost:8091
-          #       - -u
-          #       - $(COUCHBASE_ADMINISTRATOR_USERNAME)
-          #       - -p
-          #       - $(COUCHBASE_ADMINISTRATOR_PASSWORD)
-          #   initialDelaySeconds: 15
-          #   periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
