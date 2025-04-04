@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: docker.io/poseylabs/posey-couchbase
+  repository: poseylabs/posey-couchbase
   pullPolicy: Always
   tag: "latest"
 
