@@ -26,12 +26,8 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      # Directly use the value, falling back to default if name is empty or create is false
-      {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ .Values.serviceAccount.name | default (include "common-helpers.fullname" .) }}
-      {{- else }}
-      serviceAccountName: default
-      {{- end }}
+      # Hardcoding service account name for testing
+      serviceAccountName: posey-qdrant
       terminationGracePeriodSeconds: 10
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}

@@ -23,6 +23,8 @@ spec:
       parameters:
         - name: image.tag
           value: "latest"
+        - name: serviceAccount.name
+          value: "posey-qdrant"
 
   destination:
     server: https://kubernetes.default.svc
