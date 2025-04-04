@@ -4,7 +4,7 @@ type: application
 name: postgres
 description: Helm chart for deploying Posey Postgres
 
-version: 0.1.0
+version: 0.1.1
 appVersion: "latest"
 
 # Declare dependency on the common helpers library chart
@@ -12,4 +12,4 @@ dependencies:
   - name: common-helpers
     # Corrected relative path to the library chart directory
     repository: "file://../../../library/common-helpers"
-    version: "0.1.0" # Should match the library chart's version
+    version: "0.1.1" # Should match the library chart's version

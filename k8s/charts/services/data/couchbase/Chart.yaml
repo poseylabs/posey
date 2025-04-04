@@ -2,7 +2,7 @@ apiVersion: v2
 name: couchbase
 description: A Helm chart for deploying the Posey Couchbase service
 type: application
-version: 0.1.0
+version: 0.1.1
 
 appVersion: "community-7.2.4"
 
@@ -21,4 +21,4 @@ maintainers:
 dependencies:
   - name: common-helpers
     repository: "file://../../../library/common-helpers"
-    version: "0.1.0"
+    version: "0.1.1"
