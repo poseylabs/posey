@@ -109,8 +109,8 @@ global:
   image:
     # Default registry, used by common-helpers.image if not overridden
     registry: docker.io
-    # Default pull policy, used by common-helpers.image if not set locally
-    pullPolicy: IfNotPresent
+    # Default pull policy, change to Always to ensure updates for non-unique tags
+    pullPolicy: Always
   # Default resources, can be overridden by specific chart values if needed
   resources:
     limits:
