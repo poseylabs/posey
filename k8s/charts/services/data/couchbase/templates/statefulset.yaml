@@ -1,0 +1,134 @@
+apiVersion: {{ include "couchbase.statefulset.apiVersion" . }}
+kind: StatefulSet
+metadata:
+  name: {{ include "couchbase.fullname" . }}
+  labels:
+    {{- include "couchbase.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "couchbase.fullname" . }}-headless
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "couchbase.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "couchbase.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "couchbase.serviceAccountName" . }}
+      terminationGracePeriodSeconds: 10 # Allow time for graceful shutdown
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            # Required for Couchbase clustering and node naming
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # Cluster Name from values
+            - name: COUCHBASE_CLUSTER_NAME # Check image docs for exact env var name
+              value: {{ .Values.config.clusterName | quote }}
+
+            # Admin credentials from secret (adjust names based on image)
+            {{- if .Values.adminCredentials.secretName }}
+            - name: COUCHBASE_ADMINISTRATOR_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.adminCredentials.secretName }}
+                  key: {{ .Values.adminCredentials.usernameKey }}
+            - name: COUCHBASE_ADMINISTRATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.adminCredentials.secretName }}
+                  key: {{ .Values.adminCredentials.passwordKey }}
+            {{- end }}
+            # Add other explicit config env vars if needed
+            # - name: COUCHBASE_SERVICES
+            #   value: {{ .Values.config.services | default "data,index,query,fts" | quote }}
+          {{- if .Values.envFromSecret.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ required "envFromSecret.secretName must be provided if envFromSecret.enabled is true" .Values.envFromSecret.secretName }}
+          {{- end }}
+          ports:
+            # Define container ports based on values.service.ports
+            {{- range .Values.service.ports }}
+            - containerPort: {{ .targetPort }}
+              name: {{ .name }}
+              protocol: TCP
+            {{- end }}
+          # Add readiness/liveness probes specific to Couchbase
+          # readinessProbe:
+          #   exec:
+          #     command:
+          #       - couchbase-cli
+          #       - server-info
+          #       - -c
+          #       - localhost:8091
+          #       - -u
+          #       - $(COUCHBASE_ADMINISTRATOR_USERNAME)
+          #       - -p
+          #       - $(COUCHBASE_ADMINISTRATOR_PASSWORD)
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: couchbase-data
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: couchbase-data
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode | quote }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size | quote }}
+        {{- if .Values.persistence.storageClassName }}
+        {{- if (eq "-" .Values.persistence.storageClassName) }}
+        storageClassName: ""
+        {{- else }}
+        storageClassName: {{ .Values.persistence.storageClassName | quote }}
+        {{- end }}
+        {{- end }}
+  {{- end }} 

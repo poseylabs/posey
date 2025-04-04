@@ -28,6 +28,12 @@ parameters:
     description: "Run the combined workflow when the common orb changes"
     type: boolean
     default: false
+  run-qdrant-workflow:
+    type: boolean
+    default: false
+  run-couchbase-workflow:
+    type: boolean
+    default: false
 
 workflows:
   # Path-based filtering to determine what to build
@@ -66,9 +72,17 @@ workflows:
                   echo "export PARAM_ORB_VERSION_TYPE=$VERSION_TYPE" >> $BASH_ENV
           name: check-updated-files
           mapping: |
-            # Posatgres
+            # Postgres
             services/data/postgres/.* run-postgres-workflow true
             .circleci/orbs/data-postgres-orb.yml run-postgres-workflow true
+            
+            # Qdrant
+            services/data/qdrant/.* run-qdrant-workflow true
+            .circleci/orbs/data-qdrant-orb.yml run-qdrant-workflow true
+            
+            # Couchbase
+            services/data/couchbase/.* run-couchbase-workflow true
+            .circleci/orbs/data-couchbase-orb.yml run-couchbase-workflow true
             
             # Common orb change triggers the dedicated parameter
             .circleci/orbs/common-orb.yml run-common-change-workflow true

@@ -1,0 +1,39 @@
+{{- define "qdrant.notes" }}
+Qdrant has been deployed.
+
+1. Access Qdrant:
+{{- if .Values.service.type "LoadBalancer" }}
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "qdrant.fullname" . }} --template "{{ range (index .status.loadBalancer.ingress 0) }}{{ . }}{{ end }}")
+  echo "Qdrant is accessible at http://$SERVICE_IP:{{ .Values.service.httpPort }} and grpc://$SERVICE_IP:{{ .Values.service.port }}"
+{{- else if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  {{- range .paths }}
+  echo "Qdrant is accessible at http://{{ $.Values.ingress.hosts.host }}{{ .path }}"
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT_HTTP=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"http\")].nodePort}" services {{ include "qdrant.fullname" . }})
+  export NODE_PORT_GRPC=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"grpc\")].nodePort}" services {{ include "qdrant.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo "Qdrant is accessible at http://$NODE_IP:$NODE_PORT_HTTP and grpc://$NODE_IP:$NODE_PORT_GRPC (replace $NODE_IP with your node's external IP if needed)"
+{{- else }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "qdrant.name" . }}" -o jsonpath="{.items[0].metadata.name}")
+  echo "Forward the Qdrant ports to your local machine using:"
+  echo "  kubectl port-forward --namespace {{ .Release.Namespace }} $POD_NAME {{ .Values.service.httpPort }}:{{ .Values.service.httpPort }}"
+  echo "  kubectl port-forward --namespace {{ .Release.Namespace }} $POD_NAME {{ .Values.service.port }}:{{ .Values.service.port }}"
+  echo "Qdrant will then be accessible at http://localhost:{{ .Values.service.httpPort }} and grpc://localhost:{{ .Values.service.port }}"
+{{- end }}
+
+{{- if .Values.apiKey.enabled }}
+{{- if .Values.apiKey.secretName }}
+2. The Qdrant API key is stored in the secret '{{ .Values.apiKey.secretName }}'.
+   You can retrieve it using:
+     kubectl get secret --namespace {{ .Release.Namespace }} {{ .Values.apiKey.secretName }} -o jsonpath="{.data.{{ .Values.apiKey.secretKey }}}" | base64 --decode
+{{- else if .Values.apiKey.value }}
+2. The Qdrant API key is configured directly in the values.yaml.
+   WARNING: Storing secrets directly in values is not recommended for production.
+{{- end }}
+{{- else }}
+2. API Key is disabled in the values.yaml.
+{{- end }}
+{{- end }} 

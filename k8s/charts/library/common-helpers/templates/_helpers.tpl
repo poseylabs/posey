@@ -92,4 +92,36 @@ Usage: {{ include "common-helpers.serviceAccountName" . }}
 {{- "default" -}}
 {{- end -}}
 
+{{/*
+Return the appropriate image name based on global and local values.
+It prioritizes the tag passed via Argo CD Helm parameters (.Values.parameters.image.tag),
+then checks the chart's values file (.Values.image.tag), and finally defaults to 'latest'.
+It uses the global registry value passed in via ApplicationSet/Helm parameters or values
+(.Values.global.image.registry) or defaults to 'docker.io/poseylabs'.
+The image repository must be defined in the chart's values (.Values.image.repository).
+
+Usage: {{ include "common-helpers.image" . }}
+*/}}
+{{- define "common-helpers.image" -}}
+{{- $registry := .Values.global.image.registry | default "docker.io/poseylabs" -}}
+{{- $repository := .Values.image.repository -}}
+{{- if not $repository -}}
+  {{- fail (printf "%s: image.repository is required in values.yaml for chart %s" (include "common-helpers.fullname" .) .Chart.Name) -}}
+{{- end -}}\
+{{- $tag := "" -}}
+{{- /* Prioritize tag from Argo CD parameters if available */ -}}
+{{- if .Values.parameters -}}
+  {{- with .Values.parameters.image -}}
+    {{- $tag = .tag | default "" -}}
+  {{- end -}}
+{{- end -}}
+{{- /* Fallback to chart's image tag value */ -}}
+{{- if not $tag -}}
+  {{- $tag = .Values.image.tag | default "" -}}
+{{- end -}}
+{{- /* Default to 'latest' if no tag is specified anywhere */ -}}
+{{- $tag = $tag | default "latest" -}}
+{{- printf "%s/%s:%s" $registry $repository $tag -}}
+{{- end -}}
+
 {{/* --- End Common Helper Templates --- */}} 

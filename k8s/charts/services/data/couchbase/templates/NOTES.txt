@@ -1,0 +1,36 @@
+{{- define "couchbase.notes" }}
+Couchbase has been deployed.
+
+1. Get the admin password (if managed by the chart):
+{{- if .Values.adminCredentials.secretName }}
+   export ADMIN_PASSWORD=$(kubectl get secret --namespace {{ .Release.Namespace }} {{ .Values.adminCredentials.secretName }} -o jsonpath="{.data.{{ .Values.adminCredentials.passwordKey }}}" | base64 --decode)
+   export ADMIN_USERNAME=$(kubectl get secret --namespace {{ .Release.Namespace }} {{ .Values.adminCredentials.secretName }} -o jsonpath="{.data.{{ .Values.adminCredentials.usernameKey }}}" | base64 --decode)
+   echo "Admin Username: $ADMIN_USERNAME"
+   echo "Admin Password: $ADMIN_PASSWORD"
+{{- else }}
+   Admin credentials are not managed by this chart. Please refer to your secret management solution.
+{{- end }}
+
+2. Access the Couchbase UI:
+   You can access the Couchbase Web Console by forwarding the UI port:
+
+   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "couchbase.name" . }}" -o jsonpath="{.items[0].metadata.name}")
+   echo "Forwarding UI port 8091..."
+   kubectl port-forward --namespace {{ .Release.Namespace }} $POD_NAME 8091:8091 &
+
+   Open your browser to http://localhost:8091
+
+3. Connect to Couchbase:
+   The Couchbase service can be reached internally within the cluster at:
+   {{ include "couchbase.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+
+   For connecting from outside the cluster, consider:
+   - Port-forwarding specific Couchbase ports (e.g., 11210 for data service).
+   - Setting up an Ingress (if needed, requires enabling in values.yaml).
+   - Using a LoadBalancer service type (if your environment supports it).
+
+   The headless service used by the StatefulSet is:
+   {{ include "couchbase.fullname" . }}-headless.{{ .Release.Namespace }}.svc.cluster.local
+
+Note: Initializing the Couchbase cluster (creating the first node, setting credentials, etc.) might require manual steps or an init container depending on the Docker image and configuration.
+{{- end }} 

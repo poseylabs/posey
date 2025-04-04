@@ -1,0 +1,25 @@
+apiVersion: v2
+name: couchbase
+description: A Helm chart for deploying the Posey Couchbase service
+type: application
+version: 0.1.0 # Chart version
+# Pin appVersion to match the Docker image tag
+appVersion: "community-7.2.4" # Corresponds to FROM couchbase:community-7.2.4
+
+keywords:
+  - couchbase
+  - database
+  - nosql
+  - posey
+  - service
+  - data
+
+maintainers:
+  - name: Posey AI Team
+    email: dev@posey.ai
+
+# Dependencies (if any, e.g., a common library chart)
+# dependencies:
+#   - name: common
+#     version: "0.1.0"
+#     repository: "file://../../common" 

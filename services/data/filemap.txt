@@ -9,7 +9,7 @@ File Map:
   - /postgres
     - docker-compose.yml
     - Dockerfile
-  - /vector.db
+  - /qdrant
     - docker-compose.yml
   - .env
   - docker-compose.yml

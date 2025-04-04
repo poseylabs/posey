@@ -1,0 +1,24 @@
+# Headless service for stable network IDs
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "couchbase.fullname" . }}-headless
+  labels:
+    {{- include "couchbase.labels" . | nindent 4 }}
+spec:
+  ports:
+    # Define ports needed for inter-node communication if necessary
+    # Example:
+    # - port: 11210 # Data Service
+    #   name: data-service
+    # - port: 8091 # UI / REST API
+    #   name: http-ui
+    {{- range .Values.service.ports }}
+    - port: {{ .port }}
+      targetPort: {{ .targetPort }}
+      protocol: TCP
+      name: {{ .name }}
+    {{- end }}
+  clusterIP: None # Required for Headless service
+  selector:
+    {{- include "couchbase.selectorLabels" . | nindent 4 }} 

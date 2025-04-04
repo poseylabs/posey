@@ -1,0 +1,118 @@
+# Default values for couchbase chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1 # Adjust based on desired cluster size/HA needs
+
+image:
+  repository: docker.io/poseylabs/posey-couchbase
+  pullPolicy: IfNotPresent
+  # Overridden by Argo CD application parameter
+  # Pin to match Dockerfile FROM tag and Chart.yaml appVersion
+  tag: "community-7.2.4"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: "posey-couchbase"
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  # Couchbase ports based on PORTS.md and standard usage
+  ports:
+    - name: http-ui
+      port: 8091
+      targetPort: 8091
+    - name: capi
+      port: 8092
+      targetPort: 8092
+    - name: query-n1ql
+      port: 8093
+      targetPort: 8093
+    - name: fts
+      port: 8094
+      targetPort: 8094
+    - name: data-service
+      port: 11210
+      targetPort: 11210
+    # Add other ports like SSL variants if needed
+
+ingress:
+  enabled: false # Typically false for databases, expose via Service if needed externally
+  # ... (ingress configuration similar to qdrant if needed)
+
+resources: {}
+  # limits:
+  #   cpu: 2000m
+  #   memory: 4Gi
+  # requests:
+  #   cpu: 1000m
+  #   memory: 2Gi
+
+autoscaling:
+  enabled: false # StatefulSets usually don't autoscale well without an operator
+
+# Couchbase typically uses a StatefulSet for stable network identifiers and storage
+# We'll need to create the StatefulSet template separately.
+# This values.yaml will configure aspects of it.
+
+statefulSet:
+  # Annotations for the StatefulSet itself
+  annotations: {}
+  # Labels for the StatefulSet itself
+  labels: {}
+  # Update strategy for the StatefulSet
+  updateStrategy:
+    type: RollingUpdate
+    # rollingUpdate:
+    #   partition: 0 # Controls staged rollouts
+
+persistence:
+  enabled: true
+  storageClassName: "standard" # Or your specific StorageClass
+  accessMode: ReadWriteOnce
+  size: 20Gi # Adjust based on expected data volume
+  mountPath: /opt/couchbase/var # Default Couchbase data path
+
+# Couchbase specific configuration
+# Passed via environment variables. Check your image documentation for exact variable names.
+config:
+  clusterName: posey-couchbase
+  # services: data,index,query,fts # Services to enable on nodes (can often be set via env var)
+
+# Optionally load environment variables from a Kubernetes secret
+# Useful for ports, credentials, or other configurations managed via sync:secrets
+envFromSecret:
+  enabled: false
+  secretName: "posey-couchbase-config" # Name of the secret containing env vars
+
+adminCredentials:
+  # If envFromSecret is enabled and the secret contains the admin creds,
+  # secretName might not be needed here. Otherwise, specify the secret name.
+  secretName: couchbase-admin-credentials
+  usernameKey: username
+  passwordKey: password
+
+# Additional volumes for the StatefulSet pods
+volumes: []
+
+# Additional volumeMounts for the StatefulSet pods
+volumeMounts: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {} 

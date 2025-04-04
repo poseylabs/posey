@@ -1,13 +1,13 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: posey-postgres
+  name: posey-couchbase
   namespace: argocd
   annotations:
     argocd.argoproj.io/compare-options: server-side-diff=true
   labels:
     app.kubernetes.io/component: database
-    app.kubernetes.io/instance: posey-postgres
+    app.kubernetes.io/instance: posey-couchbase
     app.kubernetes.io/part-of: posey
 spec:
   project: posey
@@ -15,18 +15,18 @@ spec:
   source:
     repoURL: https://github.com/poseylabs/posey
     targetRevision: main
-    path: k8s/charts/data/postgres
+    path: k8s/charts/services/data/couchbase
     helm:
       valueFiles:
-        - ../../base-values.yaml
+        - ../../../base-values.yaml
         - values.yaml
       parameters:
         - name: image.tag
-          value: "latest"
+          value: "community-7.2.4"
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: posey
+    namespace: posey # Deploying into the main posey namespace
 
   syncPolicy:
     automated:
@@ -35,4 +35,4 @@ spec:
     syncOptions:
       - ApplyOutOfSyncOnly=true
       - CreateNamespace=true
-      - PruneLast=true
+      - PruneLast=true 

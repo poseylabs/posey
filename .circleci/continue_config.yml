@@ -8,18 +8,31 @@ orbs:
   cli: circleci/circleci-cli@0.1.9
   
   # Published orbs
-  common: posey/common@0.1.11
-  data-postgres: posey/data-postgres@0.1.9
+  common: posey/common@0.1.12
+  data-postgres: posey/data-postgres@0.1.10
+  data-qdrant: posey/data-qdrant@0.0.1 # Placeholder version, update after publishing
+  data-couchbase: posey/data-couchbase@0.1.4 # Placeholder version, update after publishing
 
 # Define the parameters that will be passed from the setup configuration
 parameters:
   run-postgres-workflow:
     type: boolean
     default: false
+  run-qdrant-workflow:
+    type: boolean
+    default: false
+  run-couchbase-workflow:
+    type: boolean
+    default: false
   run-common-change-workflow:
     description: "Run the combined workflow when the common orb changes"
     type: boolean
     default: false
+  orb-version-type:
+    description: "Version type for orb publishing (patch, minor, major)"
+    type: enum
+    enum: ["patch", "minor", "major"]
+    default: "patch"
 
 workflows:
   version: 2
@@ -40,11 +53,51 @@ workflows:
             tags:
               only: /^v.*/
 
+  # Qdrant workflow
+  qdrant:
+    when: << pipeline.parameters.run-qdrant-workflow >>
+    jobs:
+      - data-qdrant/build-qdrant:
+          context:
+            - posey-prod-core
+            - posey-prod-data # Assuming qdrant secrets are in this context
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # Couchbase workflow
+  couchbase:
+    when: << pipeline.parameters.run-couchbase-workflow >>
+    jobs:
+      - data-couchbase/build-couchbase:
+          context:
+            - posey-prod-core
+            - posey-prod-data # Assuming couchbase secrets are in this context
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
   # Combined workflow for when common orb changes
   all-services:
     when: << pipeline.parameters.run-common-change-workflow >>
     jobs:
       - data-postgres/build-postgres:
+          context:
+            - posey-prod-core
+            - posey-prod-data
+      - data-qdrant/build-qdrant:
+          context:
+            - posey-prod-core
+            - posey-prod-data
+      - data-couchbase/build-couchbase:
           context:
             - posey-prod-core
             - posey-prod-data

@@ -34,7 +34,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: {{ .Chart.Name }}
-          image: {{ include "postgres.image" . }}
+          image: {{ include "common-helpers.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy | default .Values.global.image.pullPolicy | default "Always" }}
           ports:
             - name: tcp-postgres

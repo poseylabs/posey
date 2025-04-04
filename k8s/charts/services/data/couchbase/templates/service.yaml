@@ -1,0 +1,18 @@
+# Standard service (e.g., for UI access or load balancing if needed)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "couchbase.fullname" . }}
+  labels:
+    {{- include "couchbase.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    {{- range .Values.service.ports }}
+    - port: {{ .port }}
+      targetPort: {{ .targetPort }}
+      protocol: TCP
+      name: {{ .name }}
+    {{- end }}
+  selector:
+    {{- include "couchbase.selectorLabels" . | nindent 4 }} 
