@@ -3,7 +3,7 @@ Qdrant has been deployed.
 
 1. Access Qdrant:
 {{- if .Values.service.type "LoadBalancer" }}
-  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "qdrant.fullname" . }} --template "{{ range (index .status.loadBalancer.ingress 0) }}{{ . }}{{ end }}")
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "common-helpers.fullname" . }} --template "{{ range (index .status.loadBalancer.ingress 0) }}{{ . }}{{ end }}")
   echo "Qdrant is accessible at http://$SERVICE_IP:{{ .Values.service.httpPort }} and grpc://$SERVICE_IP:{{ .Values.service.port }}"
 {{- else if .Values.ingress.enabled }}
 {{- range .Values.ingress.hosts }}
@@ -12,12 +12,12 @@ Qdrant has been deployed.
   {{- end }}
 {{- end }}
 {{- else if contains "NodePort" .Values.service.type }}
-  export NODE_PORT_HTTP=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"http\")].nodePort}" services {{ include "qdrant.fullname" . }})
-  export NODE_PORT_GRPC=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"grpc\")].nodePort}" services {{ include "qdrant.fullname" . }})
+  export NODE_PORT_HTTP=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"http\")].nodePort}" services {{ include "common-helpers.fullname" . }})
+  export NODE_PORT_GRPC=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"grpc\")].nodePort}" services {{ include "common-helpers.fullname" . }})
   export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
   echo "Qdrant is accessible at http://$NODE_IP:$NODE_PORT_HTTP and grpc://$NODE_IP:$NODE_PORT_GRPC (replace $NODE_IP with your node's external IP if needed)"
 {{- else }}
-  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "qdrant.name" . }}" -o jsonpath="{.items[0].metadata.name}")
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "common-helpers.name" . }}" -o jsonpath="{.items[0].metadata.name}")
   echo "Forward the Qdrant ports to your local machine using:"
   echo "  kubectl port-forward --namespace {{ .Release.Namespace }} $POD_NAME {{ .Values.service.httpPort }}:{{ .Values.service.httpPort }}"
   echo "  kubectl port-forward --namespace {{ .Release.Namespace }} $POD_NAME {{ .Values.service.port }}:{{ .Values.service.port }}"

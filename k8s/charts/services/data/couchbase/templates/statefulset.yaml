@@ -1,15 +1,15 @@
 apiVersion: {{ include "couchbase.statefulset.apiVersion" . }}
 kind: StatefulSet
 metadata:
-  name: {{ include "couchbase.fullname" . }}
+  name: {{ include "common-helpers.fullname" . }}
   labels:
-    {{- include "couchbase.labels" . | nindent 4 }}
+    {{- include "common-helpers.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "couchbase.fullname" . }}-headless
+  serviceName: {{ include "common-helpers.fullname" . }}-headless
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "couchbase.selectorLabels" . | nindent 6 }}
+      {{- include "common-helpers.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -17,7 +17,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "couchbase.selectorLabels" . | nindent 8 }}
+        {{- include "common-helpers.selectorLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -26,7 +26,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "couchbase.serviceAccountName" . }}
+      serviceAccountName: {{ include "common-helpers.serviceAccountName" . }}
       terminationGracePeriodSeconds: 10 # Allow time for graceful shutdown
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
@@ -34,7 +34,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "common-helpers.image" . }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             # Required for Couchbase clustering and node naming

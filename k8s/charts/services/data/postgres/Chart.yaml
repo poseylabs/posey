@@ -10,6 +10,6 @@ appVersion: "latest"
 # Declare dependency on the common helpers library chart
 dependencies:
   - name: common-helpers
-    # Use relative path to the library chart directory
-    repository: "file://../../library/common-helpers"
+    # Corrected relative path to the library chart directory
+    repository: "file://../../../library/common-helpers"
     version: "0.1.0" # Should match the library chart's version

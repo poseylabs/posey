@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "couchbase.fullname" . }}-headless
+  name: {{ include "common-helpers.fullname" . }}-headless
   labels:
-    {{- include "couchbase.labels" . | nindent 4 }}
+    {{- include "common-helpers.labels" . | nindent 4 }}
 spec:
   ports:
     # Define ports needed for inter-node communication if necessary
@@ -21,4 +21,4 @@ spec:
     {{- end }}
   clusterIP: None # Required for Headless service
   selector:
-    {{- include "couchbase.selectorLabels" . | nindent 4 }} 
+    {{- include "common-helpers.selectorLabels" . | nindent 4 }} 

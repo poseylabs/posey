@@ -1,14 +1,14 @@
 apiVersion: {{ include "qdrant.deployment.apiVersion" . }}
 kind: Deployment
 metadata:
-  name: {{ include "qdrant.fullname" . }}
+  name: {{ include "common-helpers.fullname" . }}
   labels:
-    {{- include "qdrant.labels" . | nindent 4 }}
+    {{- include "common-helpers.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "qdrant.selectorLabels" . | nindent 6 }}
+      {{- include "common-helpers.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -16,7 +16,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "qdrant.selectorLabels" . | nindent 8 }}
+        {{- include "common-helpers.selectorLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -25,14 +25,14 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "qdrant.serviceAccountName" . }}
+      serviceAccountName: {{ include "common-helpers.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "common-helpers.image" . }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             # Set config overrides from values.yaml
@@ -103,7 +103,7 @@ spec:
         {{- if .Values.persistence.enabled }}
         - name: qdrant-storage
           persistentVolumeClaim:
-            claimName: {{ include "qdrant.fullname" . }}
+            claimName: {{ include "common-helpers.fullname" . }}
         {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}

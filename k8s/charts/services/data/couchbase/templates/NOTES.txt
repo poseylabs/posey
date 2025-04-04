@@ -14,7 +14,7 @@ Couchbase has been deployed.
 2. Access the Couchbase UI:
    You can access the Couchbase Web Console by forwarding the UI port:
 
-   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "couchbase.name" . }}" -o jsonpath="{.items[0].metadata.name}")
+   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "common-helpers.name" . }}" -o jsonpath="{.items[0].metadata.name}")
    echo "Forwarding UI port 8091..."
    kubectl port-forward --namespace {{ .Release.Namespace }} $POD_NAME 8091:8091 &
 
@@ -22,7 +22,7 @@ Couchbase has been deployed.
 
 3. Connect to Couchbase:
    The Couchbase service can be reached internally within the cluster at:
-   {{ include "couchbase.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+   {{ include "common-helpers.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
 
    For connecting from outside the cluster, consider:
    - Port-forwarding specific Couchbase ports (e.g., 11210 for data service).
@@ -30,7 +30,7 @@ Couchbase has been deployed.
    - Using a LoadBalancer service type (if your environment supports it).
 
    The headless service used by the StatefulSet is:
-   {{ include "couchbase.fullname" . }}-headless.{{ .Release.Namespace }}.svc.cluster.local
+   {{ include "common-helpers.fullname" . }}-headless.{{ .Release.Namespace }}.svc.cluster.local
 
 Note: Initializing the Couchbase cluster (creating the first node, setting credentials, etc.) might require manual steps or an init container depending on the Docker image and configuration.
 {{- end }} 

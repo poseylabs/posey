@@ -17,6 +17,12 @@ maintainers:
   - name: Posey AI Team
     email: dev@posey.ai
 
+# Declare dependency on the common helpers library chart
+dependencies:
+  - name: common-helpers
+    repository: "file://../../../library/common-helpers"
+    version: "0.1.0" # Should match the library chart's version
+
 # Dependencies (if any, e.g., a common library chart)
 # dependencies:
 #   - name: common
