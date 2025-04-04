@@ -49,6 +49,25 @@ commands:
             # Ensure these settings are appropriate for the environment
             sudo sysctl -w net.ipv4.tcp_slow_start_after_idle=0
             sudo sysctl -w net.ipv4.tcp_fastopen=3
+      - run:
+          name: Install Helm
+          command: |
+            echo "Installing Helm..."
+            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+            chmod 700 get_helm.sh
+            ./get_helm.sh
+            helm version
+      - run:
+          name: Build Helm Chart Dependencies
+          command: |
+            echo "Looking for charts with dependencies in k8s/charts..."
+            find k8s/charts -name Chart.yaml -exec grep -l '^dependencies:' {} \; | while read chart_file; do
+              chart_dir=$(dirname "$chart_file")
+              echo "Building dependencies for $chart_dir"
+              # Use helm dependency build for a clean state in CI
+              helm dependency build "$chart_dir" || { echo "Helm dependency build failed for $chart_dir"; exit 1; }
+            done
+            echo "Finished building Helm dependencies."
       - run: # Add Docker Hub login
           name: Log in to Docker Hub
           command: |
