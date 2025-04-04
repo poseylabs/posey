@@ -35,22 +35,27 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ include "common-helpers.image" . }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          # Env vars from secret are processed first by K8s
-          {{- if .Values.envFromSecret.enabled }}
-          envFrom:
-            - secretRef:
-                name: {{ required "envFromSecret.secretName must be provided if envFromSecret.enabled is true" .Values.envFromSecret.secretName }}
-          {{- end }}
-          # Explicit env vars are processed next, potentially overriding envFrom
+          
+          # --- TEMPORARY SIMPLIFICATION FOR DEBUGGING --- 
+          # {{- if .Values.envFromSecret.enabled }}
+          # envFrom:
+          #   - secretRef:
+          #       # Temporarily remove required for testing
+          #       name: {{ .Values.envFromSecret.secretName | default "placeholder-secret-name" }}
+          # {{- end }}
+          
           env:
+            # Keep only one simple env var for testing
             - name: QDRANT__LOG__LEVEL
               value: {{ .Values.configOverrides.logLevel | quote }}
-            - name: QDRANT__SERVICE__HTTP_PORT
-              value: {{ .Values.service.httpPort | quote }}
-            - name: QDRANT__SERVICE__GRPC_PORT
-              value: {{ .Values.service.port | quote }}
-            - name: QDRANT__TELEMETRY__DISABLED
-              value: {{ .Values.configOverrides.telemetryDisabled | quote }}
+            # - name: QDRANT__SERVICE__HTTP_PORT
+            #   value: {{ .Values.service.httpPort | quote }}
+            # - name: QDRANT__SERVICE__GRPC_PORT
+            #   value: {{ .Values.service.port | quote }}
+            # - name: QDRANT__TELEMETRY__DISABLED
+            #   value: {{ .Values.configOverrides.telemetryDisabled | quote }}
+          # --- END TEMPORARY SIMPLIFICATION ---
+
           ports:
             - name: http
               containerPort: {{ .Values.service.httpPort }} # Matches the service definition
