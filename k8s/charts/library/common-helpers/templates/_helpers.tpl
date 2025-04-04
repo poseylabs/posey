@@ -95,7 +95,7 @@ Usage: {{ include "common-helpers.serviceAccountName" . }}
 */}}
 {{- define "common-helpers.serviceAccountName" -}}
 {{- if .Values.serviceAccount.name -}}
-{{- .Values.serviceAccount.name | quote -}}
+{{- .Values.serviceAccount.name -}}
 {{- else -}}
 {{- if and .Values.serviceAccount (hasKey .Values.serviceAccount "create") .Values.serviceAccount.create -}}
 {{- include "common-helpers.fullname" . -}}
