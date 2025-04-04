@@ -38,7 +38,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy | default .Values.global.image.pullPolicy | default "Always" }}
           ports:
             - name: tcp-postgres
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ (first .Values.service.ports).port }}
               protocol: TCP
           env:
             - name: PGDATA
@@ -66,7 +66,7 @@ spec:
                   key: POSTGRES_PASSWORD
           livenessProbe:
             tcpSocket:
-              port: {{ .Values.service.port | int }}
+              port: {{ (first .Values.service.ports).port }}
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
