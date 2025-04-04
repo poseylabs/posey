@@ -12,9 +12,20 @@ spec:
       {{- include "common-helpers.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         {{- include "common-helpers.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       serviceAccountName: {{ include "common-helpers.serviceAccountName" . }}
       terminationGracePeriodSeconds: 10
       securityContext:
@@ -73,7 +84,31 @@ spec:
             requests:
               cpu: {{ .Values.global.resources.requests.cpu | quote }}
               memory: {{ .Values.global.resources.requests.memory | quote }}
-
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: qdrant-storage
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      # Volumes defined here are shared across all pods (if any needed besides PVC)
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
   {{- if .Values.persistence.enabled }}
   # Define Volume Claim Templates for StatefulSet
   volumeClaimTemplates:
