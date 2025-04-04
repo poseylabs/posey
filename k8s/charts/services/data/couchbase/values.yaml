@@ -6,10 +6,8 @@ replicaCount: 1 # Adjust based on desired cluster size/HA needs
 
 image:
   repository: docker.io/poseylabs/posey-couchbase
-  pullPolicy: IfNotPresent
-  # Overridden by Argo CD application parameter
-  # Pin to match Dockerfile FROM tag and Chart.yaml appVersion
-  tag: "community-7.2.4"
+  pullPolicy: Always
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
