@@ -13,25 +13,47 @@ serviceAccount:
   annotations: {}
   name: ""
 
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
 service:
   type: ClusterIP
-  port: 6333 # gRPC port
-  httpPort: 1111 # HTTP port
+  # Default Qdrant ports. Ensure Qdrant is configured (via env vars) to listen on these.
+  port: 6333 # Default Qdrant gRPC port (Standard)
+  httpPort: 1111 # Default Qdrant HTTP port (Matches PORTS.md / old config.yaml)
 
 ingress:
-  enabled: true
-  className: "nginx"
+  enabled: true # Enable Ingress resource creation
+  className: "nginx" # Assuming nginx ingress controller
   annotations:
+    # Correctly indented annotation
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Add any other specific annotations needed here
+    # kubernetes.io/ingress.class: nginx
   hosts:
-    - host: qdrant.db.posey.ai
+    - host: qdrant.db.posey.ai # Corrected hostname to match TLS and user query
       paths:
-        - path: /
-          pathType: ImplementationSpecific
+        - path: / # Expose Qdrant at the root path
+          pathType: ImplementationSpecific # Or Prefix if appropriate
   tls:
-   - secretName: qdrant-tls-secret
+  # Enable TLS configuration
+   - secretName: qdrant-tls-secret # Cert-manager will store the created certificate here
      hosts:
-       - qdrant.db.posey.ai
+       - qdrant.db.posey.ai # Hostname for the certificate
+
+# Resources are now defined under global section
+# resources: {}
 
 autoscaling:
   enabled: false
@@ -40,26 +62,56 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
 persistence:
   enabled: true
-  storageClassName: "standard"
+  storageClassName: "standard" # Or your specific StorageClass
   accessMode: ReadWriteOnce
   size: 10Gi
-  mountPath: /qdrant/storage
+  mountPath: /qdrant/storage # Qdrant data directory (Matches old config.yaml)
 
+# Qdrant specific configuration passed as environment variables
+# These will override Qdrant's internal defaults.
+# See Qdrant docs for available env vars (usually QDRANT__* or replacing . with __)
 configOverrides:
+  # grpcPort: "6333" # Explicitly set if needed, defaults internally
+  # httpPort: "1111" # Explicitly set if needed, defaults internally based on service.httpPort
   logLevel: INFO
-  telemetryDisabled: true
+  telemetryDisabled: true # Matches old config.yaml
 
+# Optionally load environment variables from a Kubernetes secret
+# Useful for ports, API keys, or other configurations managed via sync:secrets
 envFromSecret:
   enabled: false
-  secretName: "posey-qdrant-config"
+  secretName: "posey-qdrant-config" # Name of the secret containing env vars
 
+# Global values mirroring the structure in postgres/values.yaml
 global:
-  partOf: posey
+  partOf: posey # Application group label
   image:
+    # Default registry, used by common-helpers.image if not overridden
     registry: docker.io
+    # Default pull policy, change to Always to ensure updates for non-unique tags
     pullPolicy: Always
+  # Default resources, can be overridden by specific chart values if needed
   resources:
     limits:
       cpu: "1"
@@ -67,6 +119,7 @@ global:
     requests:
       cpu: "500m"
       memory: "1Gi"
+  # Default replica count
   replicaCount: 1
 
 podSecurityContext:
