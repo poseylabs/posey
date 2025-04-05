@@ -5632,7 +5632,7 @@ __metadata:
     express: "npm:^4.18.2"
     nodemon: "npm:^3.1.9"
     pg: "npm:^8.13.3"
-    react: "npm:^19.0.0"
+    react: "npm:^19.1.0"
     react-dom: "npm:^19.0.0"
     supertokens-auth-react: "npm:^0.48.0"
     supertokens-node: "npm:^16.6.0"
@@ -5883,7 +5883,7 @@ __metadata:
     postcss: "npm:8.4.38"
     postcss-nested: "npm:^7.0.2"
     prettier: "npm:3.3.3"
-    react: "npm:^19.0.0"
+    react: "npm:^19.1.0"
     react-dom: "npm:^19.0.0"
     react-error-boundary: "npm:^5.0.0"
     react-markdown: "npm:^9.0.3"
@@ -5949,7 +5949,7 @@ __metadata:
     postcss: "npm:^8"
     postcss-loader: "npm:^8.1.1"
     postcss-nested: "npm:^7.0.2"
-    react: "npm:^19.0.0"
+    react: "npm:^19.1.0"
     react-dom: "npm:^19.0.0"
     react-error-boundary: "npm:^5.0.0"
     react-hook-form: "npm:^7.54.1"
@@ -7709,13 +7709,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/prop-types@npm:*":
-  version: 15.7.14
-  resolution: "@types/prop-types@npm:15.7.14"
-  checksum: 10c0/1ec775160bfab90b67a782d735952158c7e702ca4502968aa82565bd8e452c2de8601c8dfe349733073c31179116cf7340710160d3836aa8a1ef76d1532893b1
-  languageName: node
-  linkType: hard
-
 "@types/qs@npm:*":
   version: 6.9.18
   resolution: "@types/qs@npm:6.9.18"
@@ -7764,13 +7757,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:^18.3.18":
-  version: 18.3.18
-  resolution: "@types/react@npm:18.3.18"
+"@types/react@npm:^19.1.0":
+  version: 19.1.0
+  resolution: "@types/react@npm:19.1.0"
   dependencies:
-    "@types/prop-types": "npm:*"
     csstype: "npm:^3.0.2"
-  checksum: 10c0/8fb2b00672072135d0858dc9db07873ea107cc238b6228aaa2a9afd1ef7a64a7074078250db38afbeb19064be8ea6af5eac32d404efdd5f45e093cc4829d87f8
+  checksum: 10c0/632fd20ee176e55801a61c5f854141b043571a3e363ef106b047b766a813a12735cbb37abb3d61d126346979f530f2ed269a60c8ef3cdee54e5e9fe4174e5dad
   languageName: node
   linkType: hard
 
@@ -12895,7 +12887,7 @@ __metadata:
     "@types/bcrypt": "npm:^5.0.2"
     "@types/node": "npm:^20.17.24"
     "@types/postcss-flexbugs-fixes": "npm:^5.0.3"
-    "@types/react": "npm:^18.3.18"
+    "@types/react": "npm:^19.1.0"
     "@types/react-dom": "npm:^18.3.5"
     autoprefixer: "npm:^10.4.21"
     bcrypt: "npm:^5.1.1"
@@ -12912,7 +12904,7 @@ __metadata:
     postcss-preset-env: "npm:^10.1.5"
     prisma: "npm:^6.5.0"
     qrcode.react: "npm:^4.2.0"
-    react: "npm:^19.0.0"
+    react: "npm:^19.1.0"
     react-dom: "npm:^19.0.0"
     supertokens-auth-react: "npm:^0.48.0"
     supertokens-web-js: "npm:^0.14.0"
@@ -17743,10 +17735,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:^19.0.0":
-  version: 19.0.0
-  resolution: "react@npm:19.0.0"
-  checksum: 10c0/9cad8f103e8e3a16d15cb18a0d8115d8bd9f9e1ce3420310aea381eb42aa0a4f812cf047bb5441349257a05fba8a291515691e3cb51267279b2d2c3253f38471
+"react@npm:^19.1.0":
+  version: 19.1.0
+  resolution: "react@npm:19.1.0"
+  checksum: 10c0/530fb9a62237d54137a13d2cfb67a7db6a2156faed43eecc423f4713d9b20c6f2728b026b45e28fcd72e8eadb9e9ed4b089e99f5e295d2f0ad3134251bdd3698
   languageName: node
   linkType: hard
 
