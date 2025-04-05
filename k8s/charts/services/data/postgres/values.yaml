@@ -2,6 +2,8 @@ image:
   repository: poseylabs/posey-postgres
   pullPolicy: Always
 
+existingSecret: postgres-secrets
+
 serviceAccount:
   create: true
   automount: true
