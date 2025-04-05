@@ -9,7 +9,7 @@ orbs:
   data-postgres: posey/data-postgres@0.3.0
   data-qdrant: posey/data-qdrant@0.2.0
   data-couchbase: posey/data-couchbase@0.3.0
-  services-mcp: posey/services-mcp@0.0.1
+  services-mcp: posey/services-mcp@0.3.0
 
 parameters:
   run-postgres-workflow:
