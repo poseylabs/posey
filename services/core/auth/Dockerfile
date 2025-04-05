@@ -39,7 +39,7 @@ COPY .yarn ./.yarn
 COPY services/core/auth/package.json ./services/core/auth/
 
 # Install dependencies - Use full install for build stage
-RUN set -x && yarn install --immutable 2>&1 | tee /tmp/yarn-install.log
+RUN set -x && yarn install 2>&1 | tee /tmp/yarn-install.log
 
 # Copy remaining files for the build
 COPY . .
