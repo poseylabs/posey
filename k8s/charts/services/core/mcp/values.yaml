@@ -61,7 +61,7 @@ configOverrides:
 
 envFromSecret:
   enabled: false
-  secretName: posey-prod-data-env-vars
+  secretName: "posey-mcp-config"
 
 global:
   partOf: posey
