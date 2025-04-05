@@ -1,0 +1,83 @@
+version: 2.1
+
+description: "Orb for building and deploying the MCP service"
+
+# Use the common orb for shared executors and commands
+orbs:
+  common: posey/common@0.3.0
+
+jobs:
+  build-mcp:
+    executor: common/docker-builder
+    steps:
+      - common/setup-common
+      - run:
+          name: Pull existing images for cache
+          command: |
+            echo "Pulling existing images for caching..."
+            docker pull docker.io/poseylabs/posey-mcp:latest || echo "No latest image found"
+            docker pull docker.io/poseylabs/posey-mcp:buildcache || echo "No buildcache image found"
+            docker pull docker.io/poseylabs/posey-mcp:PRODUCTION || echo "No PRODUCTION image found"
+      - run:
+          name: Build MCP Service
+          no_output_timeout: 30m
+          command: |
+            echo "Building mcp service..."
+            
+            # Create logs directory
+            mkdir -p build-logs
+            
+            # Try the build up to 3 times to handle network failures
+            max_attempts=3
+            attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "Build attempt $attempt of $max_attempts"
+              
+              # Only build for amd64 to speed up build time
+              set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
+                --platform linux/amd64 \
+                --build-arg BUILDKIT_INLINE_CACHE=1 \
+                --build-arg NODE_ENV=production \
+                --progress=plain \
+                --memory=8g \
+                --cache-from type=registry,ref=docker.io/poseylabs/posey-mcp:buildcache \
+                --cache-from docker.io/poseylabs/posey-mcp:latest \
+                --cache-from docker.io/poseylabs/posey-mcp:PRODUCTION \
+                --cache-to type=registry,ref=docker.io/poseylabs/posey-mcp:buildcache,mode=max \
+                -t docker.io/poseylabs/posey-mcp:latest \
+                -t docker.io/poseylabs/posey-mcp:PRODUCTION \
+                -t docker.io/poseylabs/posey-mcp:$(echo $CIRCLE_SHA1 | cut -c1-7) \
+                -f services/core/mcp/Dockerfile \
+                --push \
+                ./services/core/mcp 2>&1 | tee build-logs/build-attempt-$attempt.log
+                
+              if [ ${PIPESTATUS[0]} -eq 0 ]; then
+                echo "Build succeeded on attempt $attempt"
+                cp build-logs/build-attempt-$attempt.log build-logs/build.log
+                break
+              else
+                echo "Build failed on attempt $attempt"
+                if [ $attempt -eq $max_attempts ]; then
+                  echo "All build attempts failed"
+                  cp build-logs/build-attempt-$attempt.log build-logs/build.log
+                  exit 1
+                fi
+                attempt=$((attempt+1))
+                echo "Waiting 60 seconds before next attempt..."
+                sleep 60
+              fi
+            done
+      - run:
+          name: Trigger ArgoCD sync for MCP
+          no_output_timeout: 10m 
+          command: |
+            # Ensure the script is executable
+            chmod +x .circleci/scripts/trigger-argocd-sync.sh
+            
+            # Execute the script, passing the application name
+            .circleci/scripts/trigger-argocd-sync.sh posey-mcp
+
+      - store_artifacts:
+          path: build-logs
+          destination: build-logs 
