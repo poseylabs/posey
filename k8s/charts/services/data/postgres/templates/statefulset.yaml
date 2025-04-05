@@ -46,23 +46,23 @@ spec:
             - name: POSTGRES_PORT
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.envFromSecret.secretName }}
+                  name: {{ .Values.existingSecret }}
                   key: POSTGRES_PORT
                   optional: true
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.envFromSecret.secretName }}
+                  name: {{ .Values.existingSecret }}
                   key: POSTGRES_DB
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.envFromSecret.secretName }}
+                  name: {{ .Values.existingSecret }}
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.envFromSecret.secretName }}
+                  name: {{ .Values.existingSecret }}
                   key: POSTGRES_PASSWORD
           livenessProbe:
             tcpSocket:

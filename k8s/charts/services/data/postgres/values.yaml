@@ -10,11 +10,6 @@ service:
     - name: tcp-postgres
       port: 3333
 
-serviceAccount:
-  create: true
-  automount: true
-  name: "posey-postgres-svc"
-
 persistence:
   enabled: true
   storageClass: "standard-rwo"
