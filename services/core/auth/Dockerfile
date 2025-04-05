@@ -44,9 +44,8 @@ RUN set -x && yarn install --immutable 2>&1 | tee /tmp/yarn-install.log
 # Copy remaining files for the build
 COPY . .
 
-# Build the service
-WORKDIR /app/services/core/auth
-RUN set -x && yarn build 2>&1 | tee /tmp/yarn-build.log
+# Build the service - Run from root, targeting the workspace
+RUN set -x && yarn workspace @posey.ai/auth build 2>&1 | tee /tmp/yarn-build.log
 
 # Production stage
 FROM node:20-slim
