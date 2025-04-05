@@ -34,9 +34,9 @@ jobs:
             while [ $attempt -le $max_attempts ]; do
               echo "Build attempt $attempt of $max_attempts"
               
-              # Only build for amd64 to speed up build time
+              # Build for both amd64 and arm64
               set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
-                --platform linux/amd64 \
+                --platform linux/amd64,linux/arm64 \
                 --build-arg BUILDKIT_INLINE_CACHE=1 \
                 --build-arg NODE_ENV=production \
                 --progress=plain \
