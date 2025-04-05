@@ -8889,7 +8889,7 @@ const RAW_RUNTIME_STATE =
           ["pg", "virtual:21655e0edb82076bf3e9b6dcb6dd2f93544847e64eaeafcce0ffa25d9af9eb9b435bd5bb6e3620a3ad02356004ce5b557136cde4a0f8947b40519d1cb7fee10f#npm:8.14.1"],\
           ["react", "npm:19.0.0"],\
           ["react-dom", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:19.0.0"],\
-          ["supertokens-auth-react", "virtual:066905b55a9e0a645170bad4e195175f2b9aaacdb92e9a4efe18c7b2429bae92a8494ad768d549acc3ffdb552a74bf50b41497a1c254917904900caeaceba5f3#npm:0.48.0"],\
+          ["supertokens-auth-react", "virtual:066905b55a9e0a645170bad4e195175f2b9aaacdb92e9a4efe18c7b2429bae92a8494ad768d549acc3ffdb552a74bf50b41497a1c254917904900caeaceba5f3#npm:0.49.1"],\
           ["supertokens-node", "npm:16.7.6"],\
           ["supertokens-web-js", "npm:0.14.0"],\
           ["ts-node", "virtual:066905b55a9e0a645170bad4e195175f2b9aaacdb92e9a4efe18c7b2429bae92a8494ad768d549acc3ffdb552a74bf50b41497a1c254917904900caeaceba5f3#npm:10.9.2"],\
@@ -9485,7 +9485,7 @@ const RAW_RUNTIME_STATE =
           ["react-error-boundary", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:5.0.0"],\
           ["react-hook-form", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:7.54.2"],\
           ["react-markdown", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:9.1.0"],\
-          ["supertokens-auth-react", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:0.48.0"],\
+          ["supertokens-auth-react", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:0.49.1"],\
           ["tailwindcss", "npm:3.4.17"],\
           ["typescript", "patch:typescript@npm%3A5.8.2#optional!builtin<compat/typescript>::version=5.8.2&hash=5786d5"],\
           ["uuid", "npm:11.1.0"]\
@@ -9940,6 +9940,15 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./.yarn/cache/@sideway-pinpoint-npm-2.0.0-66d94e687e-d2ca75daca.zip/node_modules/@sideway/pinpoint/",\
         "packageDependencies": [\
           ["@sideway/pinpoint", "npm:2.0.0"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@simplewebauthn/types", [\
+      ["npm:12.0.0", {\
+        "packageLocation": "./.yarn/cache/@simplewebauthn-types-npm-12.0.0-055059fcf9-b7ce0ae692.zip/node_modules/@simplewebauthn/types/",\
+        "packageDependencies": [\
+          ["@simplewebauthn/types", "npm:12.0.0"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -17934,7 +17943,7 @@ const RAW_RUNTIME_STATE =
           ["qrcode.react", "virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:4.2.0"],\
           ["react", "npm:19.0.0"],\
           ["react-dom", "virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:19.0.0"],\
-          ["supertokens-auth-react", "virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:0.48.0"],\
+          ["supertokens-auth-react", "virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:0.49.1"],\
           ["supertokens-web-js", "npm:0.14.0"],\
           ["tailwindcss", "npm:4.0.14"],\
           ["ts-node", "virtual:21655e0edb82076bf3e9b6dcb6dd2f93544847e64eaeafcce0ffa25d9af9eb9b435bd5bb6e3620a3ad02356004ce5b557136cde4a0f8947b40519d1cb7fee10f#npm:10.9.2"],\
@@ -23840,10 +23849,10 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "SOFT"\
       }],\
-      ["virtual:18e244c8b5f43f125e750415d81122d18fdc9e3f166604ff775b300079021eb8ed9109f606e16caf757292bc8e239526254f6b88a04510ca8488e75369170af4#npm:2.0.15", {\
-        "packageLocation": "./.yarn/__virtual__/react-qr-code-virtual-bb241bdc90/0/cache/react-qr-code-npm-2.0.15-669b395b3b-6a9d739186.zip/node_modules/react-qr-code/",\
+      ["virtual:7b4c547577bca73156c65a309c760e5a1404ce7f21b374d0d07854ceeb22f8103fbc90b8ae44c6eab31dba35e468ae810375f01a96396eb5b1d10c17094525a8#npm:2.0.15", {\
+        "packageLocation": "./.yarn/__virtual__/react-qr-code-virtual-accd7eb835/0/cache/react-qr-code-npm-2.0.15-669b395b3b-6a9d739186.zip/node_modules/react-qr-code/",\
         "packageDependencies": [\
-          ["react-qr-code", "virtual:18e244c8b5f43f125e750415d81122d18fdc9e3f166604ff775b300079021eb8ed9109f606e16caf757292bc8e239526254f6b88a04510ca8488e75369170af4#npm:2.0.15"],\
+          ["react-qr-code", "virtual:7b4c547577bca73156c65a309c760e5a1404ce7f21b374d0d07854ceeb22f8103fbc90b8ae44c6eab31dba35e468ae810375f01a96396eb5b1d10c17094525a8#npm:2.0.15"],\
           ["@types/react", "npm:19.0.10"],\
           ["prop-types", "npm:15.8.1"],\
           ["qr.js", "npm:0.0.0"],\
@@ -23855,10 +23864,10 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "HARD"\
       }],\
-      ["virtual:22abd2170313d75c04e9a1284bd866c8312dc0f6e3ddb12e7281507832f7880381b2e43e9c4261322fbd8f8ef7ffa4ea876e9344e0e0cc4830da062f6b0f7812#npm:2.0.15", {\
-        "packageLocation": "./.yarn/__virtual__/react-qr-code-virtual-d2e61fb1a7/0/cache/react-qr-code-npm-2.0.15-669b395b3b-6a9d739186.zip/node_modules/react-qr-code/",\
+      ["virtual:b2913f91c545d96ecac8a5bfbe53552bcf83a43ad6698f6ed186b19c2f7d4d1952dc18a7fb31b5510a40fc47e7b01d2355d25b697bdfecb5a6f41a6e970acd2d#npm:2.0.15", {\
+        "packageLocation": "./.yarn/__virtual__/react-qr-code-virtual-09312c45be/0/cache/react-qr-code-npm-2.0.15-669b395b3b-6a9d739186.zip/node_modules/react-qr-code/",\
         "packageDependencies": [\
-          ["react-qr-code", "virtual:22abd2170313d75c04e9a1284bd866c8312dc0f6e3ddb12e7281507832f7880381b2e43e9c4261322fbd8f8ef7ffa4ea876e9344e0e0cc4830da062f6b0f7812#npm:2.0.15"],\
+          ["react-qr-code", "virtual:b2913f91c545d96ecac8a5bfbe53552bcf83a43ad6698f6ed186b19c2f7d4d1952dc18a7fb31b5510a40fc47e7b01d2355d25b697bdfecb5a6f41a6e970acd2d#npm:2.0.15"],\
           ["@types/react", "npm:18.3.18"],\
           ["prop-types", "npm:15.8.1"],\
           ["qr.js", "npm:0.0.0"],\
@@ -25461,17 +25470,18 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["supertokens-auth-react", [\
-      ["npm:0.48.0", {\
-        "packageLocation": "./.yarn/cache/supertokens-auth-react-npm-0.48.0-2ab77239c0-7b3c06ab6c.zip/node_modules/supertokens-auth-react/",\
+      ["npm:0.49.1", {\
+        "packageLocation": "./.yarn/cache/supertokens-auth-react-npm-0.49.1-136ac5df4c-ebefae4f24.zip/node_modules/supertokens-auth-react/",\
         "packageDependencies": [\
-          ["supertokens-auth-react", "npm:0.48.0"]\
+          ["supertokens-auth-react", "npm:0.49.1"]\
         ],\
         "linkType": "SOFT"\
       }],\
-      ["virtual:066905b55a9e0a645170bad4e195175f2b9aaacdb92e9a4efe18c7b2429bae92a8494ad768d549acc3ffdb552a74bf50b41497a1c254917904900caeaceba5f3#npm:0.48.0", {\
-        "packageLocation": "./.yarn/__virtual__/supertokens-auth-react-virtual-1eacc8643a/0/cache/supertokens-auth-react-npm-0.48.0-2ab77239c0-7b3c06ab6c.zip/node_modules/supertokens-auth-react/",\
+      ["virtual:066905b55a9e0a645170bad4e195175f2b9aaacdb92e9a4efe18c7b2429bae92a8494ad768d549acc3ffdb552a74bf50b41497a1c254917904900caeaceba5f3#npm:0.49.1", {\
+        "packageLocation": "./.yarn/__virtual__/supertokens-auth-react-virtual-955cde7d05/0/cache/supertokens-auth-react-npm-0.49.1-136ac5df4c-ebefae4f24.zip/node_modules/supertokens-auth-react/",\
         "packageDependencies": [\
-          ["supertokens-auth-react", "virtual:066905b55a9e0a645170bad4e195175f2b9aaacdb92e9a4efe18c7b2429bae92a8494ad768d549acc3ffdb552a74bf50b41497a1c254917904900caeaceba5f3#npm:0.48.0"],\
+          ["supertokens-auth-react", "virtual:066905b55a9e0a645170bad4e195175f2b9aaacdb92e9a4efe18c7b2429bae92a8494ad768d549acc3ffdb552a74bf50b41497a1c254917904900caeaceba5f3#npm:0.49.1"],\
+          ["@simplewebauthn/types", "npm:12.0.0"],\
           ["@types/react", "npm:19.0.10"],\
           ["@types/react-dom", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:19.0.4"],\
           ["@types/supertokens-web-js", null],\
@@ -25479,7 +25489,7 @@ const RAW_RUNTIME_STATE =
           ["prop-types", "npm:15.8.1"],\
           ["react", "npm:19.0.0"],\
           ["react-dom", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:19.0.0"],\
-          ["react-qr-code", "virtual:18e244c8b5f43f125e750415d81122d18fdc9e3f166604ff775b300079021eb8ed9109f606e16caf757292bc8e239526254f6b88a04510ca8488e75369170af4#npm:2.0.15"],\
+          ["react-qr-code", "virtual:7b4c547577bca73156c65a309c760e5a1404ce7f21b374d0d07854ceeb22f8103fbc90b8ae44c6eab31dba35e468ae810375f01a96396eb5b1d10c17094525a8#npm:2.0.15"],\
           ["supertokens-js-override", "npm:0.0.4"],\
           ["supertokens-web-js", "npm:0.14.0"]\
         ],\
@@ -25493,10 +25503,11 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "HARD"\
       }],\
-      ["virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:0.48.0", {\
-        "packageLocation": "./.yarn/__virtual__/supertokens-auth-react-virtual-22abd21703/0/cache/supertokens-auth-react-npm-0.48.0-2ab77239c0-7b3c06ab6c.zip/node_modules/supertokens-auth-react/",\
+      ["virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:0.49.1", {\
+        "packageLocation": "./.yarn/__virtual__/supertokens-auth-react-virtual-b2913f91c5/0/cache/supertokens-auth-react-npm-0.49.1-136ac5df4c-ebefae4f24.zip/node_modules/supertokens-auth-react/",\
         "packageDependencies": [\
-          ["supertokens-auth-react", "virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:0.48.0"],\
+          ["supertokens-auth-react", "virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:0.49.1"],\
+          ["@simplewebauthn/types", "npm:12.0.0"],\
           ["@types/react", "npm:18.3.18"],\
           ["@types/react-dom", "virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:18.3.5"],\
           ["@types/supertokens-web-js", null],\
@@ -25504,7 +25515,7 @@ const RAW_RUNTIME_STATE =
           ["prop-types", "npm:15.8.1"],\
           ["react", "npm:19.0.0"],\
           ["react-dom", "virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:19.0.0"],\
-          ["react-qr-code", "virtual:22abd2170313d75c04e9a1284bd866c8312dc0f6e3ddb12e7281507832f7880381b2e43e9c4261322fbd8f8ef7ffa4ea876e9344e0e0cc4830da062f6b0f7812#npm:2.0.15"],\
+          ["react-qr-code", "virtual:b2913f91c545d96ecac8a5bfbe53552bcf83a43ad6698f6ed186b19c2f7d4d1952dc18a7fb31b5510a40fc47e7b01d2355d25b697bdfecb5a6f41a6e970acd2d#npm:2.0.15"],\
           ["supertokens-js-override", "npm:0.0.4"],\
           ["supertokens-web-js", "npm:0.14.0"]\
         ],\
@@ -25518,10 +25529,11 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "HARD"\
       }],\
-      ["virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:0.48.0", {\
-        "packageLocation": "./.yarn/__virtual__/supertokens-auth-react-virtual-18e244c8b5/0/cache/supertokens-auth-react-npm-0.48.0-2ab77239c0-7b3c06ab6c.zip/node_modules/supertokens-auth-react/",\
+      ["virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:0.49.1", {\
+        "packageLocation": "./.yarn/__virtual__/supertokens-auth-react-virtual-7b4c547577/0/cache/supertokens-auth-react-npm-0.49.1-136ac5df4c-ebefae4f24.zip/node_modules/supertokens-auth-react/",\
         "packageDependencies": [\
-          ["supertokens-auth-react", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:0.48.0"],\
+          ["supertokens-auth-react", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:0.49.1"],\
+          ["@simplewebauthn/types", "npm:12.0.0"],\
           ["@types/react", "npm:19.0.10"],\
           ["@types/react-dom", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:19.0.4"],\
           ["@types/supertokens-web-js", null],\
@@ -25529,7 +25541,7 @@ const RAW_RUNTIME_STATE =
           ["prop-types", "npm:15.8.1"],\
           ["react", "npm:19.0.0"],\
           ["react-dom", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#npm:19.0.0"],\
-          ["react-qr-code", "virtual:18e244c8b5f43f125e750415d81122d18fdc9e3f166604ff775b300079021eb8ed9109f606e16caf757292bc8e239526254f6b88a04510ca8488e75369170af4#npm:2.0.15"],\
+          ["react-qr-code", "virtual:7b4c547577bca73156c65a309c760e5a1404ce7f21b374d0d07854ceeb22f8103fbc90b8ae44c6eab31dba35e468ae810375f01a96396eb5b1d10c17094525a8#npm:2.0.15"],\
           ["supertokens-js-override", "npm:0.0.4"],\
           ["supertokens-web-js", null]\
         ],\
