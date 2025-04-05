@@ -5607,17 +5607,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@posey.ai/agents@workspace:services/agents":
+"@posey.ai/agents@workspace:services/core/agents":
   version: 0.0.0-use.local
-  resolution: "@posey.ai/agents@workspace:services/agents"
+  resolution: "@posey.ai/agents@workspace:services/core/agents"
   dependencies:
     dotenv: "npm:^16.4.5"
   languageName: unknown
   linkType: soft
 
-"@posey.ai/auth@workspace:services/auth":
+"@posey.ai/auth@workspace:services/core/auth":
   version: 0.0.0-use.local
-  resolution: "@posey.ai/auth@workspace:services/auth"
+  resolution: "@posey.ai/auth@workspace:services/core/auth"
   dependencies:
     "@aws-sdk/client-s3": "npm:^3.744.0"
     "@types/cors": "npm:^2.8.17"
@@ -5671,17 +5671,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@posey.ai/couchbase@workspace:data/couchbase":
+"@posey.ai/couchbase@workspace:services/data/couchbase":
   version: 0.0.0-use.local
-  resolution: "@posey.ai/couchbase@workspace:data/couchbase"
+  resolution: "@posey.ai/couchbase@workspace:services/data/couchbase"
   dependencies:
     dotenv: "npm:^16.4.5"
   languageName: unknown
   linkType: soft
 
-"@posey.ai/cron@workspace:services/cron":
+"@posey.ai/cron@workspace:services/core/cron":
   version: 0.0.0-use.local
-  resolution: "@posey.ai/cron@workspace:services/cron"
+  resolution: "@posey.ai/cron@workspace:services/core/cron"
   dependencies:
     "@types/express": "npm:^5.0.1"
     "@types/node": "npm:^22.13.13"
@@ -5700,9 +5700,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@posey.ai/data@workspace:data":
+"@posey.ai/data@workspace:services/data":
   version: 0.0.0-use.local
-  resolution: "@posey.ai/data@workspace:data"
+  resolution: "@posey.ai/data@workspace:services/data"
   dependencies:
     "@types/node": "npm:^20.11.17"
     chalk: "npm:^5.3.0"
@@ -5728,9 +5728,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@posey.ai/mcp@workspace:services/mcp":
+"@posey.ai/mcp@workspace:services/core/mcp":
   version: 0.0.0-use.local
-  resolution: "@posey.ai/mcp@workspace:services/mcp"
+  resolution: "@posey.ai/mcp@workspace:services/core/mcp"
   dependencies:
     dotenv: "npm:^16.4.5"
   languageName: unknown
@@ -5753,9 +5753,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@posey.ai/postgres@workspace:data/postgres":
+"@posey.ai/postgres@workspace:services/data/postgres":
   version: 0.0.0-use.local
-  resolution: "@posey.ai/postgres@workspace:data/postgres"
+  resolution: "@posey.ai/postgres@workspace:services/data/postgres"
   dependencies:
     dotenv: "npm:^16.4.5"
   languageName: unknown
@@ -5767,9 +5767,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@posey.ai/services@workspace:services":
+"@posey.ai/qdrant@workspace:services/data/qdrant":
   version: 0.0.0-use.local
-  resolution: "@posey.ai/services@workspace:services"
+  resolution: "@posey.ai/qdrant@workspace:services/data/qdrant"
+  dependencies:
+    "@qdrant/js-client-rest": "npm:^1.12.0"
+    dotenv: "npm:^16.4.5"
+    ts-node: "npm:^10.9.2"
+    typescript: "npm:^5.3.3"
+  languageName: unknown
+  linkType: soft
+
+"@posey.ai/services@workspace:services/core":
+  version: 0.0.0-use.local
+  resolution: "@posey.ai/services@workspace:services/core"
   dependencies:
     "@types/node": "npm:^20.11.17"
     chalk: "npm:^5.4.1"
@@ -5801,9 +5812,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@posey.ai/supertokens@workspace:services/supertokens":
+"@posey.ai/supertokens@workspace:services/core/supertokens":
   version: 0.0.0-use.local
-  resolution: "@posey.ai/supertokens@workspace:services/supertokens"
+  resolution: "@posey.ai/supertokens@workspace:services/core/supertokens"
   dependencies:
     dotenv: "npm:^16.4.5"
   languageName: unknown
@@ -5894,20 +5905,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@posey.ai/vector.db@workspace:data/vector.db":
+"@posey.ai/voyager@workspace:services/core/voyager":
   version: 0.0.0-use.local
-  resolution: "@posey.ai/vector.db@workspace:data/vector.db"
-  dependencies:
-    "@qdrant/js-client-rest": "npm:^1.12.0"
-    dotenv: "npm:^16.4.5"
-    ts-node: "npm:^10.9.2"
-    typescript: "npm:^5.3.3"
-  languageName: unknown
-  linkType: soft
-
-"@posey.ai/voyager@workspace:services/voyager":
-  version: 0.0.0-use.local
-  resolution: "@posey.ai/voyager@workspace:services/voyager"
+  resolution: "@posey.ai/voyager@workspace:services/core/voyager"
   dependencies:
     dotenv: "npm:^16.4.5"
   languageName: unknown
