@@ -13,7 +13,7 @@ ENV YARN_ENABLE_PROGRESS_BARS=true
 ENV YARN_CACHE_FOLDER=/tmp/.yarn-cache
 ENV YARN_RC_FILENAME=.yarnrc.yml
 ENV YARN_INSTALL_STATE_PATH=/tmp/.yarn-state.gz
-ENV YARN_LOG_LEVEL="info"
+# ENV YARN_LOG_LEVEL="info" # Removed - Caused errors with Yarn Berry
 
 # Install only the minimal dependencies needed
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -67,7 +67,7 @@ ENV YARN_ENABLE_PROGRESS_BARS=true
 ENV YARN_CACHE_FOLDER=/tmp/.yarn-cache
 ENV YARN_RC_FILENAME=.yarnrc.yml
 ENV YARN_INSTALL_STATE_PATH=/tmp/.yarn-state.gz
-ENV YARN_LOG_LEVEL="info"
+# ENV YARN_LOG_LEVEL="info" # Removed - Caused errors with Yarn Berry
 
 # Copy necessary files from builder
 COPY --from=builder /app/services/core/auth/dist ./dist
