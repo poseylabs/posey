@@ -89,4 +89,4 @@ HEALTHCHECK --interval=30s --timeout=3s \
 
 # Set workdir and run the start script
 WORKDIR /app/services/core/auth
-CMD ["yarn", "start:container"]
+CMD ["node", "./dist/main.js"]
