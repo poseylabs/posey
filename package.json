@@ -61,10 +61,10 @@
   "packageManager": "yarn@4.7.0",
   "workspaces": [
     "apps/*",
-    "data",
-    "data/*",
+    "services/data",
+    "services/data/*",
     "packages/*",
-    "services",
-    "services/*"
+    "services/core",
+    "services/core/*"
   ]
 }
