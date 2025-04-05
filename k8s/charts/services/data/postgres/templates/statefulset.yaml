@@ -36,15 +36,6 @@ spec:
         - name: {{ .Chart.Name }}
           image: {{ include "common-helpers.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy | default .Values.global.image.pullPolicy | default "Always" }}
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              echo "--- Checking Environment Variables ---"
-              echo "POSTGRES_USER=${POSTGRES_USER}"
-              echo "POSTGRES_DB=${POSTGRES_DB}"
-              echo "POSTGRES_PORT=${POSTGRES_PORT}"
-              echo "--- End Environment Variables Check ---"
-              exec docker-entrypoint.sh postgres
           ports:
             - name: tcp-postgres
               containerPort: {{ (first .Values.service.ports).port }}
