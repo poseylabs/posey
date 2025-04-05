@@ -34,6 +34,9 @@ parameters:
   run-couchbase-workflow:
     type: boolean
     default: false
+  run-mcp-workflow:
+    type: boolean
+    default: false
 
 workflows:
   # Path-based filtering to determine what to build
@@ -72,6 +75,10 @@ workflows:
                   echo "export PARAM_ORB_VERSION_TYPE=$VERSION_TYPE" >> $BASH_ENV
           name: check-updated-files
           mapping: |
+            ############################################################
+            # DATA SERVICES
+            ############################################################
+
             # Postgres
             services/data/postgres/.* run-postgres-workflow true
             .circleci/orbs/data-postgres-orb.yml run-postgres-workflow true
@@ -83,6 +90,14 @@ workflows:
             # Couchbase
             services/data/couchbase/.* run-couchbase-workflow true
             .circleci/orbs/data-couchbase-orb.yml run-couchbase-workflow true
+
+            ############################################################
+            # CORE SERVICES
+            ############################################################
+
+            # MCP
+            services/core/mcp/.* run-mcp-workflow true
+            .circleci/orbs/core-mcp-orb.yml run-mcp-workflow true
             
             # Common orb change triggers the dedicated parameter
             .circleci/orbs/common-orb.yml run-common-change-workflow true
