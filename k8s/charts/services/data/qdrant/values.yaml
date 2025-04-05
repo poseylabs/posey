@@ -15,20 +15,11 @@ podAnnotations: {}
 podLabels: {}
 
 podSecurityContext: {}
-  # fsGroup: 2000
-
 securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
 service:
   type: ClusterIP
-  port: 6333 # Default Qdrant gRPC port (Standard)
-  httpPort: 1111 # Default Qdrant HTTP port (Matches PORTS.md / old config.yaml)
+  port: 6333
+  httpPort: 1111
 
 ingress:
     subdomain: qdrant.db
@@ -41,21 +32,9 @@ autoscaling:
   # targetMemoryUtilizationPercentage: 80
 
 volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
-
-# Additional volumeMounts on the output Deployment definition.
 volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
-
 nodeSelector: {}
-
 tolerations: []
-
 affinity: {}
 
 persistence:
