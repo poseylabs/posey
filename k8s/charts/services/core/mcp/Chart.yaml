@@ -3,12 +3,18 @@ name: posey-mcp
 description: A Helm chart for Posey MCP Service
 type: application
 version: 0.1.0
-appVersion: "1.0.0-alpha.3"
+appVersion: "latest"
+
 keywords:
   - posey
   - mcp
   - core
+
 maintainers:
   - name: Posey Labs
     email: dev@posey.ai
-dependencies: [] 
+
+dependencies:
+  - name: common-helpers
+    repository: "file://../../../library/common-helpers" 
+    version: "0.1.1"

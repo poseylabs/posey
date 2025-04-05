@@ -1,3 +1,6 @@
-dependencies: []
-digest: sha256:643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726
-generated: "2025-04-04T17:44:02.785768-07:00"
+dependencies:
+- name: common-helpers
+  repository: file://../../../library/common-helpers
+  version: 0.1.1
+digest: sha256:827262375a0815ffac40d215901ad0bd34a371403d1950ff28a78d2f32ba0416
+generated: "2025-04-04T17:56:05.167718-07:00"

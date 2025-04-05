@@ -2,9 +2,8 @@ apiVersion: v2
 name: qdrant
 description: A Helm chart for deploying the Posey Qdrant service
 type: application
-version: 0.1.1 # Chart version
-# Pin appVersion to match the Docker image tag if possible
-appVersion: "v1.9.0" # Corresponds to FROM qdrant/qdrant:v1.9.0
+version: 0.1.1
+appVersion: "latest"
 
 keywords:
   - qdrant
@@ -17,14 +16,7 @@ maintainers:
   - name: Posey AI Team
     email: dev@posey.ai
 
-# Declare dependency on the common helpers library chart
 dependencies:
   - name: common-helpers
     repository: "file://../../../library/common-helpers"
-    version: "0.1.1" # Should match the library chart's version
-
-# Dependencies (if any, e.g., a common library chart)
-# dependencies:
-#   - name: common
-#     version: "0.1.0"
-#     repository: "file://../../common" 
+    version: "0.1.1"
