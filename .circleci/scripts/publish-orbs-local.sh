@@ -123,6 +123,42 @@ else
   echo "No service orbs found to publish."
 fi
 
+# Now publish all service orbs (if any exist)
+echo "Publishing service orbs..."
+# Use nullglob to avoid processing pattern literally if no matches
+shopt -s nullglob
+SERVICE_ORBS=("$ORBS_DIR"/service-*-orb.yml)
+shopt -u nullglob
+
+if [ ${#SERVICE_ORBS[@]} -gt 0 ]; then
+  for ORB_FILE in "${SERVICE_ORBS[@]}"; do
+    ORB_BASENAME=$(basename "$ORB_FILE" .yml)
+    ORB_NAME="${ORB_BASENAME%-orb}"
+    
+    echo "Publishing $ORB_NAME orb..."
+    
+    # Create orb if needed
+    if ! circleci orb list posey | grep -q "^posey/$ORB_NAME "; then
+      echo "Creating orb: posey/$ORB_NAME"
+      circleci orb create posey/$ORB_NAME
+    fi
+    
+    # Publish as dev version first
+    DEV_VERSION="dev:$(date +%s)"
+    echo "Publishing $ORB_NAME orb as dev version $DEV_VERSION..."
+    circleci orb publish "$ORB_FILE" posey/$ORB_NAME@$DEV_VERSION
+    
+    # Promote to production version
+    echo "Promoting $ORB_NAME orb to $VERSION_TYPE version..."
+    CORE_VERSION=$(circleci orb publish promote posey/$ORB_NAME@$DEV_VERSION $VERSION_TYPE | grep -o "posey/$ORB_NAME@[0-9.]*" | cut -d@ -f2 | tr -d '\n')
+    echo "$ORB_NAME orb published as version $CORE_VERSION"
+    ORB_NAMES+=("$ORB_NAME")
+    ORB_VERSIONS+=("$CORE_VERSION")
+  done
+else
+  echo "No service orbs found to publish."
+fi
+
 # Now publish all data orbs (if any exist)
 echo "Publishing data orbs..."
 # Use nullglob to avoid processing pattern literally if no matches

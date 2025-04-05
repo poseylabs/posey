@@ -97,7 +97,7 @@ workflows:
 
             # MCP
             services/core/mcp/.* run-mcp-workflow true
-            .circleci/orbs/core-mcp-orb.yml run-mcp-workflow true
+            .circleci/orbs/services-mcp-orb.yml run-mcp-workflow true
             
             # Common orb change triggers the dedicated parameter
             .circleci/orbs/common-orb.yml run-common-change-workflow true
