@@ -17,6 +17,11 @@ persistence:
   accessModes:
     - ReadWriteOnce
 
+podSecurityContext:
+  fsGroup: 999
+  runAsUser: 999
+  runAsGroup: 999
+
 global:
   partOf: posey
   image:
