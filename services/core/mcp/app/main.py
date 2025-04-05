@@ -61,12 +61,10 @@ async def tool_handler(tool_name: str, **params) -> Dict[str, Any]:
                 "status": "error"
             }
 
-# Add health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
-# Add MCP endpoint
 @app.post("/mcp/run")
 async def run_tool(tool_name: str, params: Dict[str, Any]):
     """Endpoint to run MCP tools"""

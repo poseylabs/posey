@@ -1,13 +1,13 @@
 version: 2.1
 
-description: "Orb for building and deploying the Couchbase service"
+description: "Orb for building and deploying the SuperTokens service"
 
 # Use the common orb for shared executors and commands
 orbs:
   common: posey/common@0.4.2
 
 jobs:
-  build-couchbase:
+  build-supertokens:
     executor: common/docker-builder
     steps:
       - common/setup-common
@@ -15,14 +15,14 @@ jobs:
           name: Pull existing images for cache
           command: |
             echo "Pulling existing images for caching..."
-            docker pull docker.io/poseylabs/posey-couchbase:latest || echo "No latest image found"
-            docker pull docker.io/poseylabs/posey-couchbase:buildcache || echo "No buildcache image found"
-            docker pull docker.io/poseylabs/posey-couchbase:PRODUCTION || echo "No PRODUCTION image found"
+            docker pull docker.io/poseylabs/posey-supertokens:latest || echo "No latest image found"
+            docker pull docker.io/poseylabs/posey-supertokens:buildcache || echo "No buildcache image found"
+            docker pull docker.io/poseylabs/posey-supertokens:PRODUCTION || echo "No PRODUCTION image found"
       - run:
-          name: Build Couchbase Service
+          name: Build SuperTokens Service
           no_output_timeout: 30m
           command: |
-            echo "Building couchbase service..."
+            echo "Building supertokens service..."
             
             # Create logs directory
             mkdir -p build-logs
@@ -41,16 +41,16 @@ jobs:
                 --build-arg NODE_ENV=production \
                 --progress=plain \
                 --memory=8g \
-                --cache-from type=registry,ref=docker.io/poseylabs/posey-couchbase:buildcache \
-                --cache-from docker.io/poseylabs/posey-couchbase:latest \
-                --cache-from docker.io/poseylabs/posey-couchbase:PRODUCTION \
-                --cache-to type=registry,ref=docker.io/poseylabs/posey-couchbase:buildcache,mode=max \
-                -t docker.io/poseylabs/posey-couchbase:latest \
-                -t docker.io/poseylabs/posey-couchbase:PRODUCTION \
-                -t docker.io/poseylabs/posey-couchbase:$(echo $CIRCLE_SHA1 | cut -c1-7) \
-                -f services/data/couchbase/Dockerfile \
+                --cache-from type=registry,ref=docker.io/poseylabs/posey-supertokens:buildcache \
+                --cache-from docker.io/poseylabs/posey-supertokens:latest \
+                --cache-from docker.io/poseylabs/posey-supertokens:PRODUCTION \
+                --cache-to type=registry,ref=docker.io/poseylabs/posey-supertokens:buildcache,mode=max \
+                -t docker.io/poseylabs/posey-supertokens:latest \
+                -t docker.io/poseylabs/posey-supertokens:PRODUCTION \
+                -t docker.io/poseylabs/posey-supertokens:$(echo $CIRCLE_SHA1 | cut -c1-7) \
+                -f services/core/supertokens/Dockerfile \
                 --push \
-                ./services/data/couchbase 2>&1 | tee build-logs/build-attempt-$attempt.log
+                ./services/core/supertokens 2>&1 | tee build-logs/build-attempt-$attempt.log
                 
               if [ ${PIPESTATUS[0]} -eq 0 ]; then
                 echo "Build succeeded on attempt $attempt"
@@ -69,15 +69,14 @@ jobs:
               fi
             done
       - run:
-          name: Trigger ArgoCD sync for Couchbase
-          # Increased timeout for the whole step to accommodate script execution + wait time
+          name: Trigger ArgoCD sync for SuperTokens
           no_output_timeout: 10m 
           command: |
             # Ensure the script is executable
             chmod +x .circleci/scripts/trigger-argocd-sync.sh
             
             # Execute the script, passing the application name
-            .circleci/scripts/trigger-argocd-sync.sh posey-couchbase
+            .circleci/scripts/trigger-argocd-sync.sh posey-supertokens
 
       - store_artifacts:
           path: build-logs

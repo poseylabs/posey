@@ -1,0 +1,18 @@
+apiVersion: v2
+name: posey-auth
+description: A Helm chart for Posey Auth Service
+type: application
+version: 0.1.0
+appVersion: "0.0.1" # Placeholder, update based on actual package.json
+keywords:
+  - posey
+  - auth
+  - core
+  - supertokens
+maintainers:
+  - name: Posey Labs
+    email: dev@posey.ai
+dependencies:
+  - name: common-helpers
+    version: "0.1.0"
+    repository: "file://../../../library/common-helpers" 

@@ -1,0 +1,66 @@
+image:
+  repository: poseylabs/posey-supertokens
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: "posey-supertokens"
+
+serviceAccount:
+  create: true
+  automount: true
+  name: "posey-supertokens"
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 3567 # Standard SuperTokens port
+
+ingress:
+  # SuperTokens core typically doesn't need direct ingress
+  enabled: false 
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+volumes: []
+volumeMounts: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+persistence:
+  enabled: false # SuperTokens core is stateless
+
+configOverrides:
+  logLevel: INFO
+  telemetryDisabled: true
+
+envFromSecret:
+  enabled: true
+  secretName: "posey-prod-services-env-vars" # Assuming secrets are here
+
+global:
+  partOf: posey
+  image:
+    registry: docker.io
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+  replicaCount: 1 

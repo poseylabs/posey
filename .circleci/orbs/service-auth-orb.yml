@@ -1,13 +1,13 @@
 version: 2.1
 
-description: "Orb for building and deploying the Couchbase service"
+description: "Orb for building and deploying the Auth service"
 
 # Use the common orb for shared executors and commands
 orbs:
   common: posey/common@0.4.2
 
 jobs:
-  build-couchbase:
+  build-auth:
     executor: common/docker-builder
     steps:
       - common/setup-common
@@ -15,14 +15,14 @@ jobs:
           name: Pull existing images for cache
           command: |
             echo "Pulling existing images for caching..."
-            docker pull docker.io/poseylabs/posey-couchbase:latest || echo "No latest image found"
-            docker pull docker.io/poseylabs/posey-couchbase:buildcache || echo "No buildcache image found"
-            docker pull docker.io/poseylabs/posey-couchbase:PRODUCTION || echo "No PRODUCTION image found"
+            docker pull docker.io/poseylabs/posey-auth:latest || echo "No latest image found"
+            docker pull docker.io/poseylabs/posey-auth:buildcache || echo "No buildcache image found"
+            docker pull docker.io/poseylabs/posey-auth:PRODUCTION || echo "No PRODUCTION image found"
       - run:
-          name: Build Couchbase Service
+          name: Build Auth Service
           no_output_timeout: 30m
           command: |
-            echo "Building couchbase service..."
+            echo "Building auth service..."
             
             # Create logs directory
             mkdir -p build-logs
@@ -41,16 +41,16 @@ jobs:
                 --build-arg NODE_ENV=production \
                 --progress=plain \
                 --memory=8g \
-                --cache-from type=registry,ref=docker.io/poseylabs/posey-couchbase:buildcache \
-                --cache-from docker.io/poseylabs/posey-couchbase:latest \
-                --cache-from docker.io/poseylabs/posey-couchbase:PRODUCTION \
-                --cache-to type=registry,ref=docker.io/poseylabs/posey-couchbase:buildcache,mode=max \
-                -t docker.io/poseylabs/posey-couchbase:latest \
-                -t docker.io/poseylabs/posey-couchbase:PRODUCTION \
-                -t docker.io/poseylabs/posey-couchbase:$(echo $CIRCLE_SHA1 | cut -c1-7) \
-                -f services/data/couchbase/Dockerfile \
+                --cache-from type=registry,ref=docker.io/poseylabs/posey-auth:buildcache \
+                --cache-from docker.io/poseylabs/posey-auth:latest \
+                --cache-from docker.io/poseylabs/posey-auth:PRODUCTION \
+                --cache-to type=registry,ref=docker.io/poseylabs/posey-auth:buildcache,mode=max \
+                -t docker.io/poseylabs/posey-auth:latest \
+                -t docker.io/poseylabs/posey-auth:PRODUCTION \
+                -t docker.io/poseylabs/posey-auth:$(echo $CIRCLE_SHA1 | cut -c1-7) \
+                -f services/core/auth/Dockerfile \
                 --push \
-                ./services/data/couchbase 2>&1 | tee build-logs/build-attempt-$attempt.log
+                ./services/core/auth 2>&1 | tee build-logs/build-attempt-$attempt.log
                 
               if [ ${PIPESTATUS[0]} -eq 0 ]; then
                 echo "Build succeeded on attempt $attempt"
@@ -69,15 +69,14 @@ jobs:
               fi
             done
       - run:
-          name: Trigger ArgoCD sync for Couchbase
-          # Increased timeout for the whole step to accommodate script execution + wait time
+          name: Trigger ArgoCD sync for Auth
           no_output_timeout: 10m 
           command: |
             # Ensure the script is executable
             chmod +x .circleci/scripts/trigger-argocd-sync.sh
             
             # Execute the script, passing the application name
-            .circleci/scripts/trigger-argocd-sync.sh posey-couchbase
+            .circleci/scripts/trigger-argocd-sync.sh posey-auth
 
       - store_artifacts:
           path: build-logs

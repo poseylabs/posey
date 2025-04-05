@@ -1,0 +1,18 @@
+apiVersion: v2
+name: posey-supertokens
+description: A Helm chart for Posey SuperTokens Core Service
+type: application
+version: 0.1.0
+appVersion: "0.0.1" # Placeholder, check actual supertokens version/tag used
+keywords:
+  - posey
+  - supertokens
+  - auth
+  - core
+maintainers:
+  - name: Posey Labs
+    email: dev@posey.ai
+dependencies:
+  - name: common-helpers
+    version: "0.1.0"
+    repository: "file://../../../library/common-helpers" 

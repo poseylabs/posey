@@ -5,11 +5,13 @@ orbs:
   path-filtering: circleci/path-filtering@1.0.0
   cli: circleci/circleci-cli@0.1.9
   
-  common: posey/common@0.4.1
-  data-postgres: posey/data-postgres@0.4.1
-  data-qdrant: posey/data-qdrant@0.3.1
-  data-couchbase: posey/data-couchbase@0.4.1
-  service-mcp: posey/service-mcp@0.5.2
+  common: posey/common@0.4.2
+  data-postgres: posey/data-postgres@0.4.2
+  data-qdrant: posey/data-qdrant@0.3.2
+  data-couchbase: posey/data-couchbase@0.4.2
+  service-mcp: posey/service-mcp@0.5.4
+  service-auth: posey/service-auth@0.1.5
+  service-supertokens: posey/service-supertokens@0.1.5
 
 parameters:
   run-postgres-workflow:
@@ -22,6 +24,12 @@ parameters:
     type: boolean
     default: false
   run-mcp-workflow:
+    type: boolean
+    default: false
+  run-auth-workflow:
+    type: boolean
+    default: false
+  run-supertokens-workflow:
     type: boolean
     default: false
   run-common-change-workflow:
@@ -105,6 +113,36 @@ workflows:
             tags:
               only: /^v.*/
 
+  auth:
+    when: << pipeline.parameters.run-auth-workflow >>
+    jobs:
+      - service-auth/build-auth:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  supertokens:
+    when: << pipeline.parameters.run-supertokens-workflow >>
+    jobs:
+      - service-supertokens/build-supertokens:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
   all-services:
     when: << pipeline.parameters.run-common-change-workflow >>
     jobs:
@@ -123,3 +161,12 @@ workflows:
       - service-mcp/build-mcp:
           context:
             - posey-prod-core
+            - posey-prod-services
+      - service-auth/build-auth:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - service-supertokens/build-supertokens:
+          context:
+            - posey-prod-core
+            - posey-prod-services
