@@ -5,10 +5,10 @@ orbs:
   path-filtering: circleci/path-filtering@1.0.0
   cli: circleci/circleci-cli@0.1.9
   
-  common: posey/common@0.1.18
-  data-postgres: posey/data-postgres@0.1.16
-  data-qdrant: posey/data-qdrant@0.0.7
-  data-couchbase: posey/data-couchbase@0.1.10
+  common: posey/common@0.1.19
+  data-postgres: posey/data-postgres@0.1.17
+  data-qdrant: posey/data-qdrant@0.0.8
+  data-couchbase: posey/data-couchbase@0.1.11
   core-mcp: posey/core-mcp@0.0.1
 
 parameters:
