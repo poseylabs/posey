@@ -1,16 +1,16 @@
 image:
-  repository: poseylabs/posey-qdrant
+  repository: poseylabs/posey-mcp
   pullPolicy: IfNotPresent
-  tag: "v1.9.0"
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
-fullnameOverride: "posey-qdrant"
+fullnameOverride: "posey-mcp"
 
 serviceAccount:
   create: true
   automount: true
-  name: "posey-qdrant"
+  name: "posey-mcp"
 
 podAnnotations: {}
 podLabels: {}
@@ -28,11 +28,10 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 6333 # Default Qdrant gRPC port (Standard)
-  httpPort: 1111 # Default Qdrant HTTP port (Matches PORTS.md / old config.yaml)
+  port: 5050
 
 ingress:
-    subdomain: qdrant.db
+  subdomain: mcp
 
 autoscaling:
   enabled: false
@@ -47,7 +46,6 @@ volumes: []
 #     secretName: mysecret
 #     optional: false
 
-# Additional volumeMounts on the output Deployment definition.
 volumeMounts: []
 # - name: foo
 #   mountPath: "/etc/foo"
@@ -63,8 +61,8 @@ persistence:
   enabled: true
   storageClassName: "standard"
   accessMode: ReadWriteOnce
-  size: 10Gi
-  mountPath: /qdrant/storage
+  size: 1Gi
+  mountPath: /mcp/data
 
 configOverrides:
   logLevel: INFO
@@ -72,7 +70,7 @@ configOverrides:
 
 envFromSecret:
   enabled: false
-  secretName: "posey-qdrant-config"
+  secretName: "posey-mcp-config"
 
 global:
   partOf: posey
@@ -82,9 +80,8 @@ global:
   resources:
     limits:
       cpu: "1"
-      memory: "2Gi"
+      memory: "1Gi"
     requests:
       cpu: "500m"
-      memory: "1Gi"
-  replicaCount: 1
-
+      memory: "512Mi"
+  replicaCount: 1 

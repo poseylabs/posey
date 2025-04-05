@@ -5,7 +5,7 @@ Minimum required values:
 
 Optional overrides/settings:
   .Values.ingress.enabled (defaults to true if hostname/subdomain is set, otherwise false. Set explicitly to false to disable.)
-  .Values.ingress.baseDomain (defaults to db.posey.ai)
+  .Values.ingress.baseDomain (defaults to posey.ai)
   .Values.ingress.className (defaults to nginx)
   .Values.ingress.annotations (merged with defaults)
   .Values.ingress.paths (defaults to path: /, pathType: ImplementationSpecific)
@@ -24,7 +24,7 @@ Optional overrides/settings:
 {{- if .Values.ingress.hostname -}}
 {{-   $hostname = .Values.ingress.hostname -}}
 {{- else if .Values.ingress.subdomain -}}
-{{-   $baseDomain := .Values.ingress.baseDomain | default "db.posey.ai" -}}
+{{-   $baseDomain := .Values.ingress.baseDomain | default "posey.ai" -}}
 {{-   $hostname = printf "%s.%s" .Values.ingress.subdomain $baseDomain -}}
 {{- end -}}
 

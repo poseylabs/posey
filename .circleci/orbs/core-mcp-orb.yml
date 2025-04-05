@@ -1,13 +1,13 @@
 version: 2.1
 
-description: "Orb for building and deploying the Postgres service"
+description: "Orb for building and deploying the MCP service"
 
 # Use the common orb for shared executors and commands
 orbs:
   common: posey/common@0.1.17
 
 jobs:
-  build-postgres:
+  build-mcp:
     executor: common/docker-builder
     steps:
       - common/setup-common
@@ -15,14 +15,14 @@ jobs:
           name: Pull existing images for cache
           command: |
             echo "Pulling existing images for caching..."
-            docker pull docker.io/poseylabs/posey-postgres:latest || echo "No latest image found"
-            docker pull docker.io/poseylabs/posey-postgres:buildcache || echo "No buildcache image found"
-            docker pull docker.io/poseylabs/posey-postgres:PRODUCTION || echo "No PRODUCTION image found"
+            docker pull docker.io/poseylabs/posey-mcp:latest || echo "No latest image found"
+            docker pull docker.io/poseylabs/posey-mcp:buildcache || echo "No buildcache image found"
+            docker pull docker.io/poseylabs/posey-mcp:PRODUCTION || echo "No PRODUCTION image found"
       - run:
-          name: Build Postgres Service
+          name: Build MCP Service
           no_output_timeout: 30m
           command: |
-            echo "Building postgres service..."
+            echo "Building mcp service..."
             
             # Create logs directory
             mkdir -p build-logs
@@ -41,16 +41,16 @@ jobs:
                 --build-arg NODE_ENV=production \
                 --progress=plain \
                 --memory=8g \
-                --cache-from type=registry,ref=docker.io/poseylabs/posey-postgres:buildcache \
-                --cache-from docker.io/poseylabs/posey-postgres:latest \
-                --cache-from docker.io/poseylabs/posey-postgres:PRODUCTION \
-                --cache-to type=registry,ref=docker.io/poseylabs/posey-postgres:buildcache,mode=max \
-                -t docker.io/poseylabs/posey-postgres:latest \
-                -t docker.io/poseylabs/posey-postgres:PRODUCTION \
-                -t docker.io/poseylabs/posey-postgres:$(echo $CIRCLE_SHA1 | cut -c1-7) \
-                -f services/data/postgres/Dockerfile \
+                --cache-from type=registry,ref=docker.io/poseylabs/posey-mcp:buildcache \
+                --cache-from docker.io/poseylabs/posey-mcp:latest \
+                --cache-from docker.io/poseylabs/posey-mcp:PRODUCTION \
+                --cache-to type=registry,ref=docker.io/poseylabs/posey-mcp:buildcache,mode=max \
+                -t docker.io/poseylabs/posey-mcp:latest \
+                -t docker.io/poseylabs/posey-mcp:PRODUCTION \
+                -t docker.io/poseylabs/posey-mcp:$(echo $CIRCLE_SHA1 | cut -c1-7) \
+                -f services/core/mcp/Dockerfile \
                 --push \
-                ./services/data/postgres 2>&1 | tee build-logs/build-attempt-$attempt.log
+                ./services/core/mcp 2>&1 | tee build-logs/build-attempt-$attempt.log
                 
               if [ ${PIPESTATUS[0]} -eq 0 ]; then
                 echo "Build succeeded on attempt $attempt"
@@ -69,15 +69,14 @@ jobs:
               fi
             done
       - run:
-          name: Trigger ArgoCD sync for Postgres
-          # Increased timeout for the whole step to accommodate script execution + wait time
+          name: Trigger ArgoCD sync for MCP
           no_output_timeout: 10m 
           command: |
             # Ensure the script is executable
             chmod +x .circleci/scripts/trigger-argocd-sync.sh
             
             # Execute the script, passing the application name
-            .circleci/scripts/trigger-argocd-sync.sh posey-postgres
+            .circleci/scripts/trigger-argocd-sync.sh posey-mcp
 
       - store_artifacts:
           path: build-logs

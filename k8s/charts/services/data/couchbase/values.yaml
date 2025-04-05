@@ -35,7 +35,7 @@ service:
 
 # Port name for the ingress controller to target for UI/API access
 ingress:
-  subdomain: couchbase # Will use default baseDomain (db.posey.ai) and default issuer/paths/tls
+  subdomain: couchbase.db # Will use default baseDomain (db.posey.ai) and default issuer/paths/tls
 
 resources: {}
   # limits:
