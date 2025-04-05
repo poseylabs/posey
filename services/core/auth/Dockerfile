@@ -10,7 +10,6 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Yarn 4 specific environment variables
 ENV YARN_ENABLE_PROGRESS_BARS=true
-ENV YARN_VERBOSE=true
 ENV YARN_CACHE_FOLDER=/tmp/.yarn-cache
 ENV YARN_RC_FILENAME=.yarnrc.yml
 ENV YARN_INSTALL_STATE_PATH=/tmp/.yarn-state.gz
@@ -65,7 +64,10 @@ RUN corepack enable
 ENV NODE_ENV=production
 ENV YARN_ENABLE_TELEMETRY=false
 ENV YARN_ENABLE_PROGRESS_BARS=true
-ENV YARN_VERBOSE=true
+ENV YARN_CACHE_FOLDER=/tmp/.yarn-cache
+ENV YARN_RC_FILENAME=.yarnrc.yml
+ENV YARN_INSTALL_STATE_PATH=/tmp/.yarn-state.gz
+ENV YARN_LOG_LEVEL="info"
 
 # Copy necessary files from builder
 COPY --from=builder /app/services/core/auth/dist ./dist
