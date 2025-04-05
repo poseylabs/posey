@@ -26,8 +26,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      # Hardcoding service account name for testing
-      serviceAccountName: posey-qdrant
+      serviceAccountName: {{ include "common-helpers.serviceAccountName" . }}
       terminationGracePeriodSeconds: 10
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
