@@ -2,9 +2,7 @@ image:
   repository: poseylabs/posey-postgres
   pullPolicy: Always
 
-envFromSecret:
-  enabled: false
-  secretName: "posey-postgres-config"
+existingSecret: postgres-secrets
 
 service:
   type: LoadBalancer
