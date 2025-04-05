@@ -4,6 +4,11 @@ image:
 
 existingSecret: postgres-secrets
 
+serviceAccount:
+  create: true
+  automount: true
+  name: "posey-postgres-svc"
+
 service:
   type: LoadBalancer
   ports:
