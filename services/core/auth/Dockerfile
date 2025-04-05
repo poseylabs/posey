@@ -32,17 +32,11 @@ RUN corepack enable
 # Setup working directory
 WORKDIR /app
 
-# Copy only the files needed for dependency installation first
-# This improves caching and reduces build time
-COPY package.json .yarnrc.yml yarn.lock ./
-COPY .yarn ./.yarn
-COPY services/core/auth/package.json ./services/core/auth/
-
-# Install dependencies - Use full install for build stage
-RUN set -x && yarn install 2>&1 | tee /tmp/yarn-install.log
-
-# Copy remaining files for the build
+# Copy ALL source code and configuration first
 COPY . .
+
+# Install dependencies AFTER all code is present
+RUN set -x && yarn install 2>&1 | tee /tmp/yarn-install.log
 
 # Build the service - Run from root, targeting the workspace
 RUN set -x && yarn workspace @posey.ai/auth build 2>&1 | tee /tmp/yarn-build.log
@@ -68,13 +62,18 @@ ENV YARN_RC_FILENAME=.yarnrc.yml
 ENV YARN_INSTALL_STATE_PATH=/tmp/.yarn-state.gz
 # ENV YARN_LOG_LEVEL="info" # Removed - Caused errors with Yarn Berry
 
-# Copy necessary files from builder
-COPY --from=builder /app/services/core/auth/dist ./dist
-COPY --from=builder /app/services/core/auth/package.json ./
-COPY --from=builder /app/.pnp.cjs /app/.pnp.loader.mjs ./
-COPY --from=builder /app/.yarn ./.yarn
-COPY --from=builder /app/services/core/auth/scripts ./scripts
-COPY --from=builder /app/.yarnrc.yml ./
+# Copy necessary production artifacts from builder stage
+COPY --from=builder /app/.yarnrc.yml ./ 
+COPY --from=builder /app/yarn.lock ./ 
+COPY --from=builder /app/.pnp.cjs ./ 
+COPY --from=builder /app/.pnp.loader.mjs ./ 
+COPY --from=builder /app/.yarn/releases ./.yarn/releases 
+# Add this line if you use Yarn plugins
+# COPY --from=builder /app/.yarn/plugins ./.yarn/plugins 
+COPY --from=builder /app/package.json ./ 
+COPY --from=builder /app/services/core/auth/package.json ./services/core/auth/ 
+COPY --from=builder /app/services/core/auth/dist ./services/core/auth/dist 
+COPY --from=builder /app/services/core/auth/scripts ./services/core/auth/scripts 
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs && \
@@ -88,5 +87,6 @@ EXPOSE 9999
 HEALTHCHECK --interval=30s --timeout=3s \
   CMD curl -f http://localhost:9999/health || exit 1
 
-# Use the start:container script instead of directly running main.js
+# Set workdir and run the start script
+WORKDIR /app/services/core/auth
 CMD ["yarn", "start:container"]
