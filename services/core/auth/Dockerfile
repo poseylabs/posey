@@ -39,8 +39,8 @@ COPY package.json .yarnrc.yml yarn.lock ./
 COPY .yarn ./.yarn
 COPY services/core/auth/package.json ./services/core/auth/
 
-# Install dependencies with proper focus on auth service - with verbose logging
-RUN set -x && yarn workspaces focus @posey.ai/auth --verbose 2>&1 | tee /tmp/yarn-install.log
+# Install dependencies - Use full install for build stage
+RUN set -x && yarn install --immutable --verbose 2>&1 | tee /tmp/yarn-install.log
 
 # Copy remaining files for the build
 COPY . .
