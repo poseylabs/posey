@@ -9464,7 +9464,7 @@ const RAW_RUNTIME_STATE =
           ["autoprefixer", "virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#npm:10.4.21"],\
           ["aws-sdk", "npm:2.1692.0"],\
           ["axios", "npm:1.8.3"],\
-          ["bcryptjs", "npm:2.4.3"],\
+          ["bcryptjs", "npm:3.0.2"],\
           ["clsx", "npm:2.1.1"],\
           ["daisyui", "npm:4.12.24"],\
           ["elevenlabs", "npm:0.18.2"],\
@@ -13396,10 +13396,10 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["bcryptjs", [\
-      ["npm:2.4.3", {\
-        "packageLocation": "./.yarn/cache/bcryptjs-npm-2.4.3-32de4957eb-b969467087.zip/node_modules/bcryptjs/",\
+      ["npm:3.0.2", {\
+        "packageLocation": "./.yarn/cache/bcryptjs-npm-3.0.2-14895420d7-a0923cac99.zip/node_modules/bcryptjs/",\
         "packageDependencies": [\
-          ["bcryptjs", "npm:2.4.3"]\
+          ["bcryptjs", "npm:3.0.2"]\
         ],\
         "linkType": "HARD"\
       }]\
