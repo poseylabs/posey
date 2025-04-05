@@ -48,8 +48,8 @@ configOverrides:
   telemetryDisabled: true
 
 envFromSecret:
-  enabled: true
-  secretName: "posey-prod-services-env-vars" # Assuming secrets are here
+  enabled: false
+  secretName: posey-prod-data-env-vars
 
 global:
   partOf: posey
