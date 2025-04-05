@@ -4,7 +4,7 @@ description: "Orb for building and deploying the Qdrant service"
 
 # Use the common orb for shared executors and commands
 orbs:
-  common: posey/common@0.4.5
+  common: posey/common@0.4.6
 
 jobs:
   build-qdrant:
