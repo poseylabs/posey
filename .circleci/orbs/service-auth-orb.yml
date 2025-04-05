@@ -50,7 +50,7 @@ jobs:
                 -t docker.io/poseylabs/posey-auth:$(echo $CIRCLE_SHA1 | cut -c1-7) \
                 -f services/core/auth/Dockerfile \
                 --push \
-                ./services/core/auth 2>&1 | tee build-logs/build-attempt-$attempt.log
+                . 2>&1 | tee build-logs/build-attempt-$attempt.log
                 
               if [ ${PIPESTATUS[0]} -eq 0 ]; then
                 echo "Build succeeded on attempt $attempt"
