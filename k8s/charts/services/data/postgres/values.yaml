@@ -2,7 +2,7 @@ image:
   repository: poseylabs/posey-postgres
   pullPolicy: Always
 
-existingSecret: postgres-secrets
+existingSecret: sealed-secrets
 
 serviceAccount:
   create: true
