@@ -37,7 +37,7 @@ WORKDIR /app
 # This improves caching and reduces build time
 COPY package.json .yarnrc.yml yarn.lock ./
 COPY .yarn ./.yarn
-COPY services/auth/package.json ./services/auth/
+COPY services/core/auth/package.json ./services/core/auth/
 
 # Install dependencies with proper focus on auth service - with verbose logging
 RUN set -x && yarn workspaces focus @posey.ai/auth --verbose 2>&1 | tee /tmp/yarn-install.log
@@ -46,7 +46,7 @@ RUN set -x && yarn workspaces focus @posey.ai/auth --verbose 2>&1 | tee /tmp/yar
 COPY . .
 
 # Build the service
-WORKDIR /app/services/auth
+WORKDIR /app/services/core/auth
 RUN set -x && yarn build --verbose 2>&1 | tee /tmp/yarn-build.log
 
 # Production stage
@@ -68,11 +68,11 @@ ENV YARN_ENABLE_PROGRESS_BARS=true
 ENV YARN_VERBOSE=true
 
 # Copy necessary files from builder
-COPY --from=builder /app/services/auth/dist ./dist
-COPY --from=builder /app/services/auth/package.json ./
+COPY --from=builder /app/services/core/auth/dist ./dist
+COPY --from=builder /app/services/core/auth/package.json ./
 COPY --from=builder /app/.pnp.cjs /app/.pnp.loader.mjs ./
 COPY --from=builder /app/.yarn ./.yarn
-COPY --from=builder /app/services/auth/scripts ./scripts
+COPY --from=builder /app/services/core/auth/scripts ./scripts
 COPY --from=builder /app/.yarnrc.yml ./
 
 # Create necessary directories with proper permissions
