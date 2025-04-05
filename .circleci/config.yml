@@ -37,6 +37,12 @@ parameters:
   run-mcp-workflow:
     type: boolean
     default: false
+  run-auth-workflow:
+    type: boolean
+    default: false
+  run-supertokens-workflow:
+    type: boolean
+    default: false
 
 workflows:
   # Path-based filtering to determine what to build
@@ -98,6 +104,14 @@ workflows:
             # MCP
             services/core/mcp/.* run-mcp-workflow true
             .circleci/orbs/service-mcp-orb.yml run-mcp-workflow true
+            
+            # Auth
+            services/core/auth/.* run-auth-workflow true
+            .circleci/orbs/service-auth-orb.yml run-auth-workflow true
+            
+            # SuperTokens
+            services/core/supertokens/.* run-supertokens-workflow true
+            .circleci/orbs/service-supertokens-orb.yml run-supertokens-workflow true
             
             # Common orb change triggers the dedicated parameter
             .circleci/orbs/common-orb.yml run-common-change-workflow true
