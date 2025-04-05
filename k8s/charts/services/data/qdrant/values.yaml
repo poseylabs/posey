@@ -70,8 +70,8 @@ configOverrides:
   telemetryDisabled: true
 
 envFromSecret:
-  enabled: false
-  secretName: "posey-qdrant-config"
+  enabled: true
+  secretName: posey-prod-data-env-vars
 
 global:
   partOf: posey

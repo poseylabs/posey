@@ -2,7 +2,9 @@ image:
   repository: poseylabs/posey-postgres
   pullPolicy: Always
 
-existingSecret: posey-prod-data-env-vars
+envFromSecret:
+  enabled: true
+  secretName: posey-prod-data-env-vars
 
 serviceAccount:
   create: true
