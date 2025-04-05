@@ -90,4 +90,4 @@ HEALTHCHECK --interval=30s --timeout=3s \
 # Set workdir and run the start script
 WORKDIR /app/services/core/auth
 # CMD ["node", "./dist/main.js"]
-CMD ["sleep", "infinity"]  # Keep container alive for debugging
+CMD sleep infinity
