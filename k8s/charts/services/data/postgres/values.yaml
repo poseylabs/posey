@@ -10,6 +10,9 @@ service:
     - name: tcp-postgres
       port: 3333
 
+serviceAccount:
+  name: "posey-postgres"
+
 persistence:
   enabled: true
   storageClass: "standard-rwo"
