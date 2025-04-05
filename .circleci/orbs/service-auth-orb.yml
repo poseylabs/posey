@@ -37,6 +37,7 @@ jobs:
               # Only build for amd64 to speed up build time
               set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
                 --platform linux/amd64 \
+                --no-cache \
                 --build-arg BUILDKIT_INLINE_CACHE=1 \
                 --build-arg NODE_ENV=production \
                 --progress=plain \
