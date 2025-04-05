@@ -10,7 +10,7 @@ fullnameOverride: "posey-mcp"
 serviceAccount:
   create: true
   automount: true
-  name: "posey-mcp"
+  name: "posey-mcp-svc"
 
 podAnnotations: {}
 podLabels: {}

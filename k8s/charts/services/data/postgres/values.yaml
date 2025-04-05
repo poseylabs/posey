@@ -13,7 +13,7 @@ service:
 serviceAccount:
   create: true
   automount: true
-  name: "posey-postgres"
+  name: "posey-postgres-svc"
 
 persistence:
   enabled: true

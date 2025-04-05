@@ -9,7 +9,7 @@ fullnameOverride: "posey-qdrant"
 serviceAccount:
   create: true
   automount: true
-  name: "posey-qdrant"
+  name: "posey-qdrant-svc"
 
 podAnnotations: {}
 podLabels: {}
