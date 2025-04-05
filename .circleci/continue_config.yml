@@ -9,7 +9,7 @@ orbs:
   data-postgres: posey/data-postgres@0.3.0
   data-qdrant: posey/data-qdrant@0.2.0
   data-couchbase: posey/data-couchbase@0.3.0
-  services-mcp: posey/services-mcp@0.3.0
+  service-mcp: posey/service-mcp@0.3.0
 
 parameters:
   run-postgres-workflow:
@@ -93,7 +93,7 @@ workflows:
   mcp:
     when: << pipeline.parameters.run-mcp-workflow >>
     jobs:
-      - services-mcp/build-mcp:
+      - service-mcp/build-mcp:
           context:
             - posey-prod-core
             - posey-prod-services
@@ -120,6 +120,6 @@ workflows:
           context:
             - posey-prod-core
             - posey-prod-data
-      - services-mcp/build-mcp:
+      - service-mcp/build-mcp:
           context:
             - posey-prod-core
