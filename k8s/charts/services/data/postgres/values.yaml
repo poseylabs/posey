@@ -11,6 +11,8 @@ service:
       port: 3333
 
 serviceAccount:
+  create: true
+  automount: true
   name: "posey-postgres"
 
 persistence:
