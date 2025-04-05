@@ -75,6 +75,9 @@ COPY --from=builder /app/services/core/auth/package.json ./services/core/auth/
 COPY --from=builder /app/services/core/auth/dist ./services/core/auth/dist 
 COPY --from=builder /app/services/core/auth/scripts ./services/core/auth/scripts 
 
+# Make startup script executable
+RUN chmod +x ./services/core/auth/scripts/start.sh
+
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs && \
   chown -R node:node /app/logs
@@ -89,5 +92,6 @@ HEALTHCHECK --interval=30s --timeout=3s \
 
 # Set workdir and run the start script
 WORKDIR /app/services/core/auth
-# CMD ["node", "./dist/main.js"]
-CMD sleep infinity
+
+ENTRYPOINT ["./scripts/start.sh"]
+CMD []
