@@ -105,7 +105,6 @@ workflows:
             tags:
               only: /^v.*/
 
-  # Combined workflow for when common orb changes
   all-services:
     when: << pipeline.parameters.run-common-change-workflow >>
     jobs:
@@ -121,6 +120,6 @@ workflows:
           context:
             - posey-prod-core
             - posey-prod-data
-      - core-mcp/build-mcp: # Added MCP job
+      - core-mcp/build-mcp:
           context:
             - posey-prod-core
