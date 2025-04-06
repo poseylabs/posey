@@ -120,8 +120,9 @@ workflows:
             services/core/supertokens/.* run-supertokens-workflow true
             .circleci/orbs/service-supertokens-orb.yml run-supertokens-workflow true
             
-            # Cron # Added for cron service
+            # Cron 
             services/core/cron/.* run-cron-workflow true
+            .circleci/orbs/service-cron-orb.yml run-cron-workflow true
 
             # Common orb change triggers the dedicated parameter
             .circleci/orbs/common-orb.yml run-common-change-workflow true

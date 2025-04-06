@@ -1,0 +1,86 @@
+version: 2.1
+
+description: "Orb for building and deploying the Core Cron service"
+
+# Use the common orb for shared executors and commands
+orbs:
+  common: posey/common@0.4.9 # Ensure this version is correct or use a dynamic var
+
+jobs:
+  build-cron:
+    executor: common/docker-builder
+    steps:
+      - common/setup-common
+      - run:
+          name: Pull existing images for cache (cron)
+          command: |
+            echo "Pulling existing cron images for caching..."
+            # Use the correct image name for the cron service
+            docker pull docker.io/posey/core-cron:latest || echo "No latest image found for cron"
+            docker pull docker.io/posey/core-cron:buildcache || echo "No buildcache image found for cron"
+            docker pull docker.io/posey/core-cron:PRODUCTION || echo "No PRODUCTION image found for cron"
+      - run:
+          name: Build Core Cron Service
+          no_output_timeout: 30m
+          command: |
+            echo "Building core cron service..."
+            
+            # Create logs directory
+            mkdir -p build-logs
+            
+            # Try the build up to 3 times to handle network failures
+            max_attempts=3
+            attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "Build attempt $attempt of $max_attempts for cron"
+              
+              # Build for both amd64 and arm64
+              # Adjust image names and Dockerfile path
+              set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
+                --platform linux/amd64,linux/arm64 \
+                --no-cache \
+                --build-arg BUILDKIT_INLINE_CACHE=1 \
+                --build-arg NODE_ENV=production \
+                --progress=plain \
+                --memory=8g \
+                --cache-from type=registry,ref=docker.io/posey/core-cron:buildcache \
+                --cache-from docker.io/posey/core-cron:latest \
+                --cache-from docker.io/posey/core-cron:PRODUCTION \
+                --cache-to type=registry,ref=docker.io/posey/core-cron:buildcache,mode=max \
+                -t docker.io/posey/core-cron:latest \
+                -t docker.io/posey/core-cron:PRODUCTION \
+                -t docker.io/posey/core-cron:$(echo $CIRCLE_SHA1 | cut -c1-7) \
+                -f services/core/cron/Dockerfile \
+                --push \
+                . 2>&1 | tee build-logs/build-attempt-$attempt.log
+                
+              if [ ${PIPESTATUS[0]} -eq 0 ]; then
+                echo "Cron build succeeded on attempt $attempt"
+                cp build-logs/build-attempt-$attempt.log build-logs/build.log
+                break
+              else
+                echo "Cron build failed on attempt $attempt"
+                if [ $attempt -eq $max_attempts ]; then
+                  echo "All cron build attempts failed"
+                  cp build-logs/build-attempt-$attempt.log build-logs/build.log
+                  exit 1
+                fi
+                attempt=$((attempt+1))
+                echo "Waiting 60 seconds before next attempt..."
+                sleep 60
+              fi
+            done
+      - run:
+          name: Trigger ArgoCD sync for Cron
+          no_output_timeout: 10m 
+          command: |
+            # Ensure the script is executable
+            chmod +x .circleci/scripts/trigger-argocd-sync.sh
+            
+            # Execute the script, passing the Argo CD application name for cron
+            .circleci/scripts/trigger-argocd-sync.sh cron-service # Match ArgoCD Application name
+
+      - store_artifacts:
+          path: build-logs
+          destination: build-logs-cron 
