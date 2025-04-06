@@ -16,9 +16,9 @@ jobs:
           command: |
             echo "Pulling existing cron images for caching..."
             # Use the correct image name for the cron service
-            docker pull docker.io/posey/core-cron:latest || echo "No latest image found for cron"
-            docker pull docker.io/posey/core-cron:buildcache || echo "No buildcache image found for cron"
-            docker pull docker.io/posey/core-cron:PRODUCTION || echo "No PRODUCTION image found for cron"
+            docker pull docker.io/posey/posey-cron:latest || echo "No latest image found for cron"
+            docker pull docker.io/posey/posey-cron:buildcache || echo "No buildcache image found for cron"
+            docker pull docker.io/posey/posey-cron:PRODUCTION || echo "No PRODUCTION image found for cron"
       - run:
           name: Build Core Cron Service
           no_output_timeout: 30m
@@ -44,13 +44,13 @@ jobs:
                 --build-arg NODE_ENV=production \
                 --progress=plain \
                 --memory=8g \
-                --cache-from type=registry,ref=docker.io/posey/core-cron:buildcache \
-                --cache-from docker.io/posey/core-cron:latest \
-                --cache-from docker.io/posey/core-cron:PRODUCTION \
-                --cache-to type=registry,ref=docker.io/posey/core-cron:buildcache,mode=max \
-                -t docker.io/posey/core-cron:latest \
-                -t docker.io/posey/core-cron:PRODUCTION \
-                -t docker.io/posey/core-cron:$(echo $CIRCLE_SHA1 | cut -c1-7) \
+                --cache-from type=registry,ref=docker.io/posey/posey-cron:buildcache \
+                --cache-from docker.io/posey/posey-cron:latest \
+                --cache-from docker.io/posey/posey-cron:PRODUCTION \
+                --cache-to type=registry,ref=docker.io/posey/posey-cron:buildcache,mode=max \
+                -t docker.io/posey/posey-cron:latest \
+                -t docker.io/posey/posey-cron:PRODUCTION \
+                -t docker.io/posey/posey-cron:$(echo $CIRCLE_SHA1 | cut -c1-7) \
                 -f services/core/cron/Dockerfile \
                 --push \
                 . 2>&1 | tee build-logs/build-attempt-$attempt.log

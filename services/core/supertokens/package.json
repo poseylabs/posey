@@ -12,8 +12,8 @@
     "connect": "echo 'Supertokens service is available at: http://localhost:3567 (when port-forwarded)' && echo 'To port-forward: kubectl port-forward service/posey-supertokens 3567:3567 -n posey'",
     "port-forward": "kubectl port-forward service/posey-supertokens 3567:3567 -n posey",
     "redeploy": "yarn clean && yarn deploy:local",
-    "docker:build": "docker build -t registry.digitalocean.com/posey/supertokens:latest -f Dockerfile ../..",
-    "docker:push": "docker push registry.digitalocean.com/posey/supertokens:latest",
+    "docker:build": "docker build -t registry.digitalocean.com/poseylabs/supertokens:latest -f Dockerfile ../..",
+    "docker:push": "docker push registry.digitalocean.com/poseylabs/supertokens:latest",
     "build:docker": "yarn docker:build && yarn docker:push",
     "build:local": "echo '🔨 Building Docker image supertokens:latest...' && docker build -t supertokens:latest -f Dockerfile ../.. && docker images supertokens:latest"
   },

@@ -3,9 +3,9 @@
   "version": "1.0.0-beta.1",
   "type": "module",
   "scripts": {
-    "docker:build": "docker build -t registry.digitalocean.com/posey/posey-couchbase:latest .",
-    "docker:push": "docker push registry.digitalocean.com/posey/posey-couchbase:latest",
-    "docker:start": "docker run -p 8091:8091 -p 8092:8092 -p 8093:8093 -p 8094:8094 -p 11210:11210 registry.digitalocean.com/posey/posey-couchbase:latest",
+    "docker:build": "docker build -t registry.digitalocean.com/poseylabs/posey-couchbase:latest .",
+    "docker:push": "docker push registry.digitalocean.com/poseylabs/posey-couchbase:latest",
+    "docker:start": "docker run -p 8091:8091 -p 8092:8092 -p 8093:8093 -p 8094:8094 -p 11210:11210 registry.digitalocean.com/poseylabs/posey-couchbase:latest",
     "docker:stop": "docker stop $(docker ps -q)",
     "build": "yarn docker:build && yarn docker:push",
     "build:local": "echo '🔨 Building Docker image posey-couchbase:latest...' && docker build --no-cache -t posey-couchbase:latest . && docker images posey-couchbase:latest",

@@ -198,7 +198,7 @@ async function buildService(service: string): Promise<void> {
       }
     } else {
       // For production
-      const tagName = `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`;
+      const tagName = `registry.digitalocean.com/poseylabs/posey-${service.replace('.', '-')}:latest`;
 
       if (hasBuildxAdvancedFeatures) {
         try {
@@ -313,7 +313,7 @@ async function build(): Promise<void> {
 
           const tagName = isLocal
             ? `posey-${serviceArg.replace('.', '-')}:latest`
-            : `registry.digitalocean.com/posey/posey-${serviceArg.replace('.', '-')}:latest`;
+            : `registry.digitalocean.com/poseylabs/posey-${serviceArg.replace('.', '-')}:latest`;
 
           await runCommand('docker', [
             'build',
@@ -372,7 +372,7 @@ async function build(): Promise<void> {
 
             const tagName = isLocal
               ? `posey-${service.replace('.', '-')}:latest`
-              : `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`;
+              : `registry.digitalocean.com/poseylabs/posey-${service.replace('.', '-')}:latest`;
 
             await runCommand('docker', [
               'build',
@@ -427,7 +427,7 @@ async function build(): Promise<void> {
 
             const tagName = isLocal
               ? `posey-${service.replace('.', '-')}:latest`
-              : `registry.digitalocean.com/posey/posey-${service.replace('.', '-')}:latest`;
+              : `registry.digitalocean.com/poseylabs/posey-${service.replace('.', '-')}:latest`;
 
             await runCommand('docker', [
               'build',

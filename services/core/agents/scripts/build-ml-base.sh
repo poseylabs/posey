@@ -8,7 +8,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 SERVICE_DIR="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$SERVICE_DIR/docker/ml-base"
-IMAGE_NAME="registry.digitalocean.com/posey/agents-ml-base"
+IMAGE_NAME="registry.digitalocean.com/poseylabs/posey-agents-ml-base"
 
 echo "=== Building ML base image for agents service ==="
 echo "⚙️  Using Docker directory: $DOCKER_DIR"
