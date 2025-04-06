@@ -30,7 +30,7 @@
     "publish:orbs": "bash .circleci/scripts/publish-orbs-local.sh patch",
     "publish:orbs:patch": "bash .circleci/scripts/publish-orbs-local.sh patch",
     "publish:orbs:minor": "bash .circleci/scripts/publish-orbs-local.sh minor",
-    "publish:orbs:major": "bash .circleci/scripts/publish-orbs-local.sh major",
+    "publish:orbs:major": "bash .circleci/scripts/publish-orbs-local.sh major"
   },
   "devDependencies": {
     "@nrwl/nx-cloud": "19.1.0",
