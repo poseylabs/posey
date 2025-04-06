@@ -8,7 +8,7 @@ CIRCLECI_ORG_ID="4429f510-386b-4120-8059-6ba7c5f694e2"
 PREFIX="posey-prod"
 
 # Files to process with priority order (higher priority files will override earlier ones)
-FILES=(".env" "services/data/.env" "services/.env" "apps/www/.env")
+FILES=(".env" "services/data/.env" "services/core/.env" "apps/www/.env")
 
 # Context names corresponding to each file (same order as FILES)
 CONTEXTS=("$PREFIX-core" "$PREFIX-data" "$PREFIX-services" "$PREFIX-apps-www")

@@ -5,7 +5,7 @@ set -e
 # --- Configuration ---
 
 # Files to process with priority order (defines variables included in each secret)
-FILES=(".env" "services/data/.env" "services/.env" "apps/www/.env")
+FILES=(".env" "services/data/.env" "services/core/.env" "apps/www/.env")
 
 # Context names corresponding to each file (used for naming the output secrets)
 # Ensure this matches the order and count of FILES
