@@ -25,7 +25,7 @@ service:
   ingressPortName: http # Explicitly setting ingress port name
 
 ingress:
-  subdomain: auth # Exposing via auth subdomain
+  subdomain: auth.api # Exposing via auth subdomain
 
 autoscaling:
   enabled: false
