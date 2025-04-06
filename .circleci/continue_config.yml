@@ -32,6 +32,9 @@ parameters:
   run-supertokens-workflow:
     type: boolean
     default: false
+  run-cron-workflow:
+    type: boolean
+    default: false
   run-common-change-workflow:
     description: "Run the combined workflow when the common orb changes"
     type: boolean
@@ -143,6 +146,25 @@ workflows:
             tags:
               only: /^v.*/
 
+  cron:
+    when: << pipeline.parameters.run-cron-workflow >>
+    jobs:
+      - common/build-docker:
+          name: build-cron
+          context:
+            - posey-prod-core
+            - posey-prod-services
+          dockerfile: services/core/cron/Dockerfile
+          image-name: core-cron
+          path: services/core/cron
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
   all-services:
     when: << pipeline.parameters.run-common-change-workflow >>
     jobs:
@@ -170,3 +192,11 @@ workflows:
           context:
             - posey-prod-core
             - posey-prod-services
+      - common/build-docker:
+          name: build-cron-common
+          context:
+            - posey-prod-core
+            - posey-prod-services
+          dockerfile: services/core/cron/Dockerfile
+          image-name: core-cron
+          path: services/core/cron

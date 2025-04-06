@@ -16,7 +16,7 @@ Primary development languages: TypeScript and Python.
 ### Infrastructure
 - NX: Monorepo management
 - Docker: Containerization and deployment
-- GitHub Actions: CI/CD pipelines
+- CircleCI/ArgoCD: CI/CD pipelines
 - Supertokens: Authentication & authorization
 - Qdrant: Vector search & memory management
 
@@ -53,7 +53,7 @@ Primary development languages: TypeScript and Python.
 ## Development Practices
 - Follow a modular and reusable code structure to facilitate easy maintenance and expansion.
 - Use NX for monorepo management to share configurations and dependencies efficiently.
-- Implement continuous integration and deployment pipelines using GitHub Actions.
+- Implement continuous integration and deployment pipelines using CircleCI/ArgoCD.
 - Ensure all code is written in TypeScript and follows functional and declarative programming patterns.
 
 ## AI and Agents

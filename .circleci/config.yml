@@ -16,6 +16,10 @@ parameters:
   run-workflow:
     default: true
     type: boolean
+  # Optional: Specify a GHA release tag or branch override, default is latest
+  gha_release_tag:
+    type: string
+    default: "latest"
   orb-version-type:
     description: "Version type for orb publishing (patch, minor, major)"
     type: enum
@@ -41,6 +45,9 @@ parameters:
     type: boolean
     default: false
   run-supertokens-workflow:
+    type: boolean
+    default: false
+  run-cron-workflow: # Added for cron service
     type: boolean
     default: false
 
@@ -113,6 +120,9 @@ workflows:
             services/core/supertokens/.* run-supertokens-workflow true
             .circleci/orbs/service-supertokens-orb.yml run-supertokens-workflow true
             
+            # Cron # Added for cron service
+            services/core/cron/.* run-cron-workflow true
+
             # Common orb change triggers the dedicated parameter
             .circleci/orbs/common-orb.yml run-common-change-workflow true
           base-revision: main
