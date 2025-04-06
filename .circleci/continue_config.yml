@@ -12,7 +12,7 @@ orbs:
   service-mcp: posey/service-mcp@0.5.18
   service-auth: posey/service-auth@0.1.19
   service-supertokens: posey/service-supertokens@0.1.19
-  service-cron: posey/service-cron@0.1.5dev:alpha
+  service-cron: posey/service-cron@0.1.5
 
 parameters:
   run-postgres-workflow:
