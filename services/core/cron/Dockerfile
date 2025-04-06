@@ -1,85 +1,85 @@
 # Build stage
-FROM node:20 AS builder
+FROM node:20-slim AS builder
 
-# Set up environment
-ENV NODE_ENV=production
-ENV YARN_ENABLE_TELEMETRY=false
-ENV NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
-ENV NPM_CONFIG_STRICT_SSL=false
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-ENV COREPACK_ENABLE=1
-
-# Install only the minimal dependencies needed
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-  ca-certificates \
-  curl \
-  git \
+# Install necessary build dependencies (like auth)
+RUN apt-get update && apt-get install -y \
+  python3 \
+  build-essential \
   && rm -rf /var/lib/apt/lists/*
 
-# Set git to use HTTPS instead of SSH for GitHub
-RUN git config --global url."https://github.com/".insteadOf git@github.com: \
-  && git config --global url."https://github.com/".insteadOf ssh://git@github.com/
-
-# Enable Corepack and set up Yarn
-RUN corepack enable
-
-# Setup working directory
 WORKDIR /app
 
-# Configure Yarn network settings to prevent hanging
-RUN yarn config set networkTimeout 600000 && \
-  yarn config set httpRetry 5 && \
-  yarn config set networkConcurrency 4 && \
-  npm config set registry https://registry.npmjs.org/
+# Copy workspace configuration files first (like auth)
+COPY .yarn ./.yarn/
+COPY .yarnrc.yml ./
+COPY package.json ./
+COPY yarn.lock ./
+COPY .pnp.cjs ./
+COPY tsconfig.json ./
 
-# Copy the entire monorepo to ensure workspace structure is intact
-COPY . .
+# Copy the service files (adjust path for cron)
+COPY services/core/cron ./services/core/cron/
+COPY packages ./packages/
 
-# Temporarily set NODE_ENV to development to ensure devDependencies are installed
-ENV NODE_ENV=development
+# Enable Yarn Berry (like auth)
+RUN corepack enable && corepack prepare yarn@4.7.0 --activate
 
-# Install dependencies focused on cron service with development dependencies
-RUN yarn workspaces focus @posey.ai/cron
-# RUN yarn cache clean
+# Install dependencies and build (like auth, install all needed deps)
+RUN YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install
+# Run build from root, targeting the cron workspace (like auth)
+RUN yarn workspace @posey.ai/cron build 
 
-# Build the service
-WORKDIR /app/services/cron
-RUN yarn build
-
-# Set NODE_ENV back to production for the remainder of the build
-ENV NODE_ENV=production
-
-# Production stage
+# Production stage (Seems okay, but let's align WORKDIR and copies)
 FROM node:20-slim
 
-WORKDIR /app
-
-# Install postgres client
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+# Install PostgreSQL client (assuming cron might need it like auth)
+# If not, this can be removed
+RUN apt-get update && apt-get install -y --no-install-recommends \
   postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
-# Enable Corepack
-RUN corepack enable
+WORKDIR /app
 
+# Copy necessary files from builder (aligning with auth)
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/.yarnrc.yml ./
+COPY --from=builder /app/yarn.lock ./
+COPY --from=builder /app/.yarn ./.yarn/
+COPY --from=builder /app/.pnp.cjs ./
+COPY --from=builder /app/services/core/cron/package.json ./services/core/cron/
+# Add copies for any direct workspace dependencies of cron if needed
+# COPY --from=builder /app/packages/some-dep/package.json ./packages/some-dep/
+
+# Install production dependencies for the cron workspace ONLY (like auth)
+# Run from /app context
+RUN corepack enable && corepack prepare yarn@4.7.0 --activate && \
+  YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn workspaces focus @posey.ai/cron --production
+
+# Copy dist AFTER focusing dependencies (aligning with auth)
+COPY --from=builder /app/services/core/cron/dist ./services/core/cron/dist/
+# Copy any other dependent workspace builds if needed
+# COPY --from=builder /app/packages/some-dep/dist ./packages/some-dep/dist/
+
+# Create necessary directories (logs)
+RUN mkdir -p /app/logs
+
+# Set environment variables
 ENV NODE_ENV=production
+# Adjust NODE_PATH if necessary based on final structure
+ENV NODE_PATH=./services/core/cron/dist 
 
-# Copy necessary files from builder
-COPY --from=builder /app/services/cron/dist ./dist
-COPY --from=builder /app/services/cron/package.json ./
-COPY --from=builder /app/.pnp.cjs /app/.pnp.loader.mjs ./
-COPY --from=builder /app/.yarn ./.yarn
+# Expose the port the app runs on (use the correct port for cron)
+EXPOSE 2222 
 
-# Create necessary directories with proper permissions
-RUN mkdir -p /app/logs && \
-  chown -R node:node /app/logs
-
-# Switch to non-root user
-USER node
-
-EXPOSE 5000
-
+# HEALTHCHECK (Keep if needed, ensure port matches EXPOSE)
 HEALTHCHECK --interval=30s --timeout=3s \
-  CMD curl -f http://localhost:5000/health || exit 1
+  CMD curl -f http://localhost:2222/health || exit 1
 
-CMD ["node", "dist/main.js"]
+# Start the application (Adjust path)
+# Ensure the entry point is correct, maybe use a start script like auth?
+# Assuming dist/index.js is the entry point for now
+CMD ["node", "services/core/cron/dist/index.js"]
+
+# Consider adding USER node and chown for logs like in auth if applicable
+# USER node
+# RUN chown -R node:node /app/logs
