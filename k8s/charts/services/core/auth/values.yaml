@@ -49,7 +49,7 @@ configOverrides:
 
 envFromSecret:
   enabled: false
-  secretName: posey-prod-data-env-vars
+  secretName: posey-prod-services-env-vars
 
 global:
   partOf: posey
