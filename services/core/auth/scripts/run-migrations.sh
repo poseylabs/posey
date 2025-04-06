@@ -4,6 +4,14 @@ set -e
 export PATH="/usr/lib/postgresql/15/bin:${PATH}"
 export PGPASSWORD="${POSTGRES_PASSWORD}"
 
+# Print connection variables for debugging
+echo "--- PostgreSQL Connection Info (run-migrations.sh) ---"
+echo "POSTGRES_HOST: ${POSTGRES_HOST}"
+echo "POSTGRES_PORT: ${POSTGRES_PORT}"
+echo "POSTGRES_USER: ${POSTGRES_USER}"
+# Avoid printing password: echo "POSTGRES_PASSWORD: [set]"
+echo "-----------------------------------------------------"
+
 DB_SCRIPTS_DIR="/app/services/auth/src/migrations/000_create_databases.sql"
 
 # Wait for PostgreSQL to be ready
