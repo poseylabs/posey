@@ -45,6 +45,8 @@ spec:
           {{- if .Values.envFromSecret.enabled }}
           envFrom:
             - secretRef:
+                name: posey-prod-core-env-vars
+            - secretRef:
                 name: {{ .Values.envFromSecret.secretName }}
           {{- end }}
           resources:

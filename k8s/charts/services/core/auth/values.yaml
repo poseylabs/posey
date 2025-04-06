@@ -48,7 +48,7 @@ configOverrides:
   telemetryDisabled: true
 
 envFromSecret:
-  enabled: false
+  enabled: true
   secretName: posey-prod-services-env-vars
 
 global:
