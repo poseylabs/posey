@@ -4,7 +4,7 @@ description: "Orb for building and deploying the Postgres service"
 
 # Use the common orb for shared executors and commands
 orbs:
-  common: posey/common@0.4.9
+  common: posey/common@0.4.10
 
 jobs:
   build-postgres:
