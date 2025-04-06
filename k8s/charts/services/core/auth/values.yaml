@@ -21,7 +21,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 3000 # Assuming port 3000 for auth service
+  port: 9999 # Align with the application's AUTH_PORT
   ingressPortName: http # Explicitly setting ingress port name
 
 ingress:
