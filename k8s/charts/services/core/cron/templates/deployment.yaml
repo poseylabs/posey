@@ -61,16 +61,13 @@ spec:
                 {{- end }}
               {{- end }}
             {{- end }}
-          # envFrom is for importing *all* keys from a secret.
-          # If you have secrets listed in envFromSecrets that DON'T have a .values map,
-          # they can be processed here. Otherwise, this block might be empty.
           envFrom:
-          {{- range .Values.envFromSecrets }}
-            {{- if not .values }} # Only process if there's no specific .values map
-            - secretRef:
-                name: {{ .secretName }}
+            {{- range .Values.envFromSecrets }}
+              {{- if not .values }} # Only process if there's no specific .values map
+              - secretRef:
+                  name: {{ .secretName }}
+              {{- end }}
             {{- end }}
-          {{- end }}
           livenessProbe:
             httpGet:
               path: /health
