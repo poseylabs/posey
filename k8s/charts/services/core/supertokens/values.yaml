@@ -56,11 +56,3 @@ global:
   image:
     registry: docker.io
     pullPolicy: Always
-  resources:
-    limits:
-      cpu: "1"
-      memory: "1Gi"
-    requests:
-      cpu: "500m"
-      memory: "512Mi"
-  replicaCount: 1 

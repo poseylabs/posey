@@ -7,11 +7,11 @@ global:
     pullPolicy: Always
   resources:
     limits:
-      cpu: "0.5"
-      memory: "0.1Gi"
+      cpu: "250m"
+      memory: "128Mi"
     requests:
       cpu: "100m"
-      memory: "128Mi"
+      memory: "64Mi"
 
 replicaCount: 1
 

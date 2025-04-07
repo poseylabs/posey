@@ -37,14 +37,6 @@ service:
 ingress:
   subdomain: couchbase.db # Will use default baseDomain (db.posey.ai) and default issuer/paths/tls
 
-resources: {}
-  # limits:
-  #   cpu: 2000m
-  #   memory: 4Gi
-  # requests:
-  #   cpu: 1000m
-  #   memory: 2Gi
-
 autoscaling:
   enabled: false
 
