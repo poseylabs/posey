@@ -195,6 +195,43 @@ else
   echo "No data orbs found to publish."
 fi
 
+# Now publish the ml-base orb (if it exists)
+# Added section for ml-base orb
+echo "Publishing ml-base orb..."
+# Use nullglob to avoid processing pattern literally if no matches
+shopt -s nullglob
+ML_BASE_ORBS=("$ORBS_DIR"/ml-base-orb.yml)
+shopt -u nullglob
+
+if [ ${#ML_BASE_ORBS[@]} -gt 0 ]; then
+  for ORB_FILE in "${ML_BASE_ORBS[@]}"; do
+    ORB_BASENAME=$(basename "$ORB_FILE" .yml)
+    ORB_NAME="${ORB_BASENAME%-orb}" # Should be 'ml-base'
+    
+    echo "Publishing $ORB_NAME orb..."
+    
+    # Create orb if needed
+    if ! circleci orb list posey | grep -q "^posey/$ORB_NAME "; then
+      echo "Creating orb: posey/$ORB_NAME"
+      circleci orb create posey/$ORB_NAME
+    fi
+    
+    # Publish as dev version first
+    DEV_VERSION="dev:$(date +%s)"
+    echo "Publishing $ORB_NAME orb as dev version $DEV_VERSION..."
+    circleci orb publish "$ORB_FILE" posey/$ORB_NAME@$DEV_VERSION
+    
+    # Promote to production version
+    echo "Promoting $ORB_NAME orb to $VERSION_TYPE version..."
+    ML_BASE_VERSION=$(circleci orb publish promote posey/$ORB_NAME@$DEV_VERSION $VERSION_TYPE | grep -o "posey/$ORB_NAME@[0-9.]*" | cut -d@ -f2 | tr -d '\n')
+    echo "$ORB_NAME orb published as version $ML_BASE_VERSION"
+    ORB_NAMES+=("$ORB_NAME")
+    ORB_VERSIONS+=("$ML_BASE_VERSION")
+  done
+else
+  echo "ml-base orb not found to publish."
+fi
+
 # Update continue_config.yml with all new versions
 echo "Updating continue_config.yml with new versions..."
 for i in "${!ORB_NAMES[@]}"; do

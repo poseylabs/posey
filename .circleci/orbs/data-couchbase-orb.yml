@@ -4,7 +4,7 @@ description: "Orb for building and deploying the Couchbase service"
 
 # Use the common orb for shared executors and commands
 orbs:
-  common: posey/common@0.4.15
+  common: posey/common@0.5.0
 
 jobs:
   build-couchbase:
