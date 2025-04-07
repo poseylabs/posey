@@ -5,11 +5,11 @@ set -e
 # --- Configuration ---
 
 # Files to process with priority order (defines variables included in each secret)
-FILES=(".env" "services/data/.env" "services/core/.env" "apps/www/.env")
+FILES=(".env" "services/data/.env" "services/core/.env" "services/core/cron/.env" "apps/www/.env")
 
 # Context names corresponding to each file (used for naming the output secrets)
 # Ensure this matches the order and count of FILES
-CONTEXTS=("posey-prod-core" "posey-prod-data" "posey-prod-services" "posey-prod-apps-www")
+CONTEXTS=("posey-prod-core" "posey-prod-data" "posey-prod-services" "posey-prod-cron" "posey-prod-www")
 
 # Kubernetes namespace where the final *unsealed* secrets should reside
 TARGET_NAMESPACE="posey"

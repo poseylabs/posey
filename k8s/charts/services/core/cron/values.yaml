@@ -5,23 +5,18 @@
 replicaCount: 1
 
 image:
-  repository: posey/posey-cron # Make sure this matches your image repository
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  repository: poseylabs/posey-cron # Make sure this matches your image repository
+  pullPolicy: Always
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
+  automount: true
+  name: "posey-cron"
 
 podAnnotations: {}
 podLabels: {}
@@ -44,18 +39,6 @@ service:
 ingress:
   subdomain: cron.api
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
 autoscaling:
   enabled: false
   # minReplicas: 1
@@ -72,10 +55,7 @@ affinity: {}
 # Environment variables for the cron container
 # Values taken from services/core/cron/.env or defaults suitable for production
 env:
-  # CRON_PORT is derived from service.port above
   NODE_ENV: production
-  # Update this to the correct internal service name and port for the agents service
-  AGENTS_SERVICE_URL: http://agents-service.posey:5555
   MEMORY_PRUNING_SCHEDULE: "0 0 * * *"
   MEMORY_CONSOLIDATION_SCHEDULE: "0 4 * * *"
   CACHE_CLEANUP_SCHEDULE: "0 */6 * * *"
@@ -84,7 +64,7 @@ env:
   MAX_MEMORY_AGE: "90"
   MEMORY_CACHE_TTL: "30000"
   LOG_LEVEL: info
-  LOG_FILE_PATH: "" # Logging to stdout/stderr is preferred in containers
+  LOG_FILE_PATH: ""
 
 # Define environment variables that should come from secrets
 envFromSecrets:
