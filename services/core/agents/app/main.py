@@ -99,11 +99,8 @@ app.add_middleware(AuthMiddleware)
 # Then configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:*",
-        "http://127.0.0.1:*"
-    ],
-    allow_origin_regex="http://(localhost|127\.0\.0\.1)(:[0-9]+)?",  # Regex for localhost with any port
+    # allow_origins=[] # Prefer regex for wildcard domains
+    allow_origin_regex=r"https?://((localhost|127\.0\.0\.1)|[a-zA-Z0-9-]+\.posey\.ai)(:[0-9]+)?",  # Allow localhost, 127.0.0.1, and *.posey.ai (http/https)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
