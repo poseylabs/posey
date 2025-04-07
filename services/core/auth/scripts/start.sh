@@ -14,4 +14,4 @@ echo "Migrations finished."
 echo "Starting Node application: yarn node ./dist/main.js"
 exec yarn node /app/services/core/auth/dist/main.js
 
-echo "start.sh finished (should not be reached if exec worked)" 
+echo "start.sh finished (should not be reached if exec worked)"

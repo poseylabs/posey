@@ -19,4 +19,4 @@ echo "Running Docker build..."
 DOCKER_BUILDKIT=1 docker build -t posey-auth:latest -f "$DOCKERFILE_PATH" "$WORKSPACE_ROOT"
 
 echo '✅ Build complete. Displaying image:'
-docker images posey-auth:latest 
+docker images posey-auth:latest
