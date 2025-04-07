@@ -1,7 +1,11 @@
+# Default values for voyager.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
 replicaCount: 1
 
 image:
-  repository: poseylabs/posey-voyager # Assuming image will be pushed to Docker Hub under posey org
+  repository: docker.io/poseylabs/posey-voyager
   pullPolicy: Always
   tag: "latest"
 
@@ -20,15 +24,19 @@ podSecurityContext: {}
   # fsGroup: 2000
 
 securityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
+  runAsNonRoot: true # Match Dockerfile user
+  runAsUser: 1000    # Match Dockerfile user
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
 
 service:
   type: ClusterIP
   port: 7777
 
 ingress:
-  subdomain: voyager.api.
+  subdomain: voyager.api. # Example: voyager.api.yourdomain.com
 
 autoscaling:
   enabled: false
@@ -43,6 +51,31 @@ tolerations: []
 
 affinity: {}
 
-envFromSecret:
+persistence:
   enabled: true
-  secretName: posey-prod-services-env-vars
+  storageClassName: "standard"
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  mountPath: /voyager/data
+
+envFromSecret:
+  enabled: true # Assuming secrets are needed, adjust as necessary
+  secretName: posey-prod-core-env-vars # Match the context used in the orb
+
+volumes: []
+volumeMounts: []
+
+
+global:
+  partOf: posey
+  image:
+    registry: docker.io
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+  replicaCount: 1 

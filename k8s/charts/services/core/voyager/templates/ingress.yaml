@@ -1,1 +1,2 @@
+{{- /* Call the common ingress template */ -}}
 {{ include "common-helpers.ingress" . }} 

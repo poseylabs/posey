@@ -6,14 +6,8 @@ version: 2.1
 
 # Define organization-level orbs
 orbs:
-  common: posey/common@0.1.0 # Replace with actual version
+  common: posey/common@0.4.14 # Replace with actual version
   docker: posey/docker@0.1.0 # Replace with actual version
-  # Add service/app specific orbs if they exist
-  # service-core: posey/service-core@0.1.0
-  # service-data: posey/service-data@0.1.0
-  # app-frontend: posey/app-frontend@0.1.0
-  # pkg-ui: posey/pkg-ui@0.1.0
-  # service-voyager: posey/service-voyager@0.1.0 # If a specific orb is created
 
 parameters:
   # Control parameters (set by path-filtering job)
@@ -30,12 +24,6 @@ parameters:
     type: boolean
     default: false
   run-core-service-workflow:
-    type: boolean
-    default: false
-  run-voyager-service-orb-publish: # Parameter for voyager orb publish (if created)
-    type: boolean
-    default: false
-  run-voyager-service-workflow: # Parameter for voyager service workflow
     type: boolean
     default: false
   run-data-service-orb-publish:
@@ -101,42 +89,6 @@ workflows:
           filters:
             branches:
               only: main # Only build/push from main
-      # Add deployment job if desired, e.g., triggering ArgoCD sync or updating image tag
-      # - common/update-argocd-image-tag:
-      #     application-name: core-service
-      #     image-tag: << pipeline.git.revision >> # Use commit SHA as tag
-      #     context: posey-prod-argocd # Context with ArgoCD credentials/token
-      #     requires:
-      #       - docker/build-push
-      #     filters:
-      #       branches:
-      #         only: main
-
-  # Workflow for the Voyager Service
-  voyager-service:
-    when:
-      or:
-        - << pipeline.parameters.run-all-workflows >>
-        - << pipeline.parameters.run-voyager-service-workflow >>
-    jobs:
-      - docker/build-push:
-          dockerfile-path: services/core/voyager/Dockerfile
-          image-name: posey/voyager # Match repository in Helm chart/ArgoCD
-          context:
-            - posey-prod-core # Assuming core context has relevant secrets
-          filters:
-            branches:
-              only: main # Only build/push from main
-      # Optional: Add deployment job similar to the core-service example
-      # - common/update-argocd-image-tag:
-      #     application-name: voyager
-      #     image-tag: << pipeline.git.revision >>
-      #     context: posey-prod-argocd
-      #     requires:
-      #       - docker/build-push
-      #     filters:
-      #       branches:
-      #         only: main
 
   # Workflow for the Data Service
   data-service:
@@ -186,20 +138,3 @@ workflows:
           filters:
             branches:
               ignore: /.*/ # Typically only run on PRs or specific triggers, not push to main
-
-  # Add workflows for publishing service/app/package specific orbs if they exist
-  # publish-core-service-orb:
-  #   when:
-  #     or:
-  #       - << pipeline.parameters.run-all-workflows >>
-  #       - << pipeline.parameters.run-core-service-orb-publish >>
-  #   jobs:
-  #     - common/publish-orb:
-  #         orb-path: .circleci/orbs/service-core-orb.yml
-  #         orb-name: posey/service-core
-  #         context: posey-secrets
-  #         filters:
-  #           branches:
-  #             only: main
-
-  # Add other workflows following the pattern

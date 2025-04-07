@@ -50,6 +50,9 @@ parameters:
   run-cron-workflow: # Added for cron service
     type: boolean
     default: false
+  run-voyager-workflow:
+    type: boolean
+    default: false
   GHA_Actor:
     type: string
     default: ""
@@ -122,22 +125,26 @@ workflows:
             ############################################################
             # CORE SERVICES
             ############################################################
-
-            # MCP
-            services/core/mcp/.* run-mcp-workflow true
-            .circleci/orbs/service-mcp-orb.yml run-mcp-workflow true
             
             # Auth
             services/core/auth/.* run-auth-workflow true
             .circleci/orbs/service-auth-orb.yml run-auth-workflow true
             
-            # SuperTokens
-            services/core/supertokens/.* run-supertokens-workflow true
-            .circleci/orbs/service-supertokens-orb.yml run-supertokens-workflow true
-            
             # Cron 
             services/core/cron/.* run-cron-workflow true
             .circleci/orbs/service-cron-orb.yml run-cron-workflow true
+
+            # MCP
+            services/core/mcp/.* run-mcp-workflow true
+            .circleci/orbs/service-mcp-orb.yml run-mcp-workflow true
+
+            # SuperTokens
+            services/core/supertokens/.* run-supertokens-workflow true
+            .circleci/orbs/service-supertokens-orb.yml run-supertokens-workflow true
+
+            # Voyager
+            services/core/voyager/.* run-voyager-workflow true
+            .circleci/orbs/service-voyager-orb.yml run-voyager-workflow true
 
             # Common orb change triggers the dedicated parameter
             .circleci/orbs/common-orb.yml run-common-change-workflow true
@@ -176,6 +183,7 @@ workflows:
                       services/core/voyager/Dockerfile run-voyager-service-workflow true
                       services/core/voyager/requirements.txt run-voyager-service-workflow true
                       k8s/charts/services/core/voyager/.* run-voyager-service-workflow true
+                      k8s/argo/services/core/posey-voyager-application.yaml run-voyager-service-workflow true
 
                       # Data Service Orb & Code
                       \.circleci/orbs/service-data-orb.yml run-data-service-orb-publish true

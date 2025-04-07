@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: posey-voyager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/compare-options: server-side-diff=true
+  labels:
+    app.kubernetes.io/component: core
+    app.kubernetes.io/instance: posey-voyager
+    app.kubernetes.io/part-of: posey
+spec:
+  project: posey
+
+  source:
+    repoURL: https://github.com/poseylabs/posey
+    targetRevision: main
+    path: k8s/charts/services/core/voyager
+    helm:
+      valueFiles:
+        - ../../../base-values.yaml
+        - values.yaml
+      parameters:
+        - name: image.tag
+          value: "latest"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: posey
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+      - PruneLast=true 
