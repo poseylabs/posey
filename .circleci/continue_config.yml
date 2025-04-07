@@ -1,139 +1,230 @@
-# This is the main CircleCI configuration file.
-# It uses parameters set by the path-filtering job in .circleci/config.yml
-# to determine which workflows to run.
-
 version: 2.1
 
-# Define organization-level orbs
 orbs:
-  common: posey/common@0.4.14 # Replace with actual version
+  docker: circleci/docker@2.5.0
+  path-filtering: circleci/path-filtering@1.0.0
+  cli: circleci/circleci-cli@0.1.9
+  
+  common: posey/common@0.4.13
+  data-postgres: posey/data-postgres@0.4.13
+  data-qdrant: posey/data-qdrant@0.3.13
+  data-couchbase: posey/data-couchbase@0.4.13
+  service-mcp: posey/service-mcp@0.5.26
+  service-auth: posey/service-auth@0.1.27
+  service-supertokens: posey/service-supertokens@0.1.27
+  service-cron: posey/service-cron@0.1.13
 
 parameters:
-  # Control parameters (set by path-filtering job)
-  run-all-workflows: # Triggers all workflows
+  run-postgres-workflow:
     type: boolean
     default: false
-  run-common-orb-publish:
+  run-qdrant-workflow:
     type: boolean
     default: false
-  run-docker-orb-publish:
+  run-couchbase-workflow:
     type: boolean
     default: false
-  run-core-service-orb-publish:
+  run-mcp-workflow:
     type: boolean
     default: false
-  run-core-service-workflow:
+  run-auth-workflow:
     type: boolean
     default: false
-  run-data-service-orb-publish:
+  run-supertokens-workflow:
     type: boolean
     default: false
-  run-data-service-workflow:
+  run-cron-workflow:
     type: boolean
     default: false
-  run-frontend-app-orb-publish:
+  run-voyager-workflow:
     type: boolean
     default: false
-  run-frontend-app-workflow:
+  run-common-change-workflow:
+    description: "Run the combined workflow when the common orb changes"
     type: boolean
     default: false
-  run-ui-pkg-orb-publish:
-    type: boolean
-    default: false
-  run-ui-pkg-workflow:
-    type: boolean
-    default: false
-  # Add other control parameters here
+  orb-version-type:
+    description: "Version type for orb publishing (patch, minor, major)"
+    type: enum
+    enum: ["patch", "minor", "major"]
+    default: "patch"
 
 workflows:
-  # Workflow for publishing common orbs
-  publish-common-orbs:
-    when:
-      or:
-        - << pipeline.parameters.run-all-workflows >>
-        - << pipeline.parameters.run-common-orb-publish >>
-        - << pipeline.parameters.run-docker-orb-publish >>
-    jobs:
-      - common/publish-orb:
-          orb-path: .circleci/orbs/common/common-orb.yml
-          orb-name: posey/common
-          context:
-            - posey-secrets # Assuming a context for CircleCI API token
-          filters:
-            branches:
-              only: main # Only publish from main branch
-      - common/publish-orb:
-          orb-path: .circleci/orbs/docker/docker-orb.yml
-          orb-name: posey/docker
-          context:
-            - posey-secrets
-          filters:
-            branches:
-              only: main
-          requires:
-            - common/publish-orb # Example of dependency if needed
+  version: 2
 
-  # Workflow for the Core Service
-  core-service:
-    when:
-      or:
-        - << pipeline.parameters.run-all-workflows >>
-        - << pipeline.parameters.run-core-service-workflow >>
+  ############################################################
+  # DATA SERVICES
+  ############################################################
+
+  postgres:
+    when: << pipeline.parameters.run-postgres-workflow >>
+    jobs:
+      - data-postgres/build-postgres:
+          context:
+            - posey-prod-core
+            - posey-prod-data
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  qdrant:
+    when: << pipeline.parameters.run-qdrant-workflow >>
+    jobs:
+      - data-qdrant/build-qdrant:
+          context:
+            - posey-prod-core
+            - posey-prod-data
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  couchbase:
+    when: << pipeline.parameters.run-couchbase-workflow >>
+    jobs:
+      - data-couchbase/build-couchbase:
+          context:
+            - posey-prod-core
+            - posey-prod-data
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  ############################################################
+  # CORE SERVICES
+  ############################################################
+
+  mcp:
+    when: << pipeline.parameters.run-mcp-workflow >>
+    jobs:
+      - service-mcp/build-mcp:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  auth:
+    when: << pipeline.parameters.run-auth-workflow >>
+    jobs:
+      - service-auth/build-auth:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  supertokens:
+    when: << pipeline.parameters.run-supertokens-workflow >>
+    jobs:
+      - service-supertokens/build-supertokens:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  cron:
+    when: << pipeline.parameters.run-cron-workflow >>
+    jobs:
+      - service-cron/build-cron:
+          name: build-cron
+          context:
+            - posey-prod-core
+            - posey-prod-services
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # Add the voyager workflow
+  voyager:
+    when: << pipeline.parameters.run-voyager-workflow >>
     jobs:
       - docker/build-push:
-          dockerfile-path: services/core/Dockerfile
-          image-name: posey/core-service # Match repository in Helm chart/ArgoCD
+          dockerfile-path: services/core/voyager/Dockerfile
+          image-name: posey/voyager
           context:
-            - posey-prod-core # Context with Docker registry credentials
+            - posey-prod-core # Context with Docker registry credentials + ArgoCD trigger script deps
+          post-steps:
+            - run:
+                name: Trigger ArgoCD sync for Voyager
+                command: |
+                  # Ensure the script exists and is executable
+                  if [ -f .circleci/scripts/trigger-argocd-sync.sh ]; then
+                    chmod +x .circleci/scripts/trigger-argocd-sync.sh
+                    echo "Triggering ArgoCD sync for posey-voyager..."
+                    .circleci/scripts/trigger-argocd-sync.sh posey-voyager
+                  else
+                    echo "ArgoCD sync script not found. Skipping sync trigger."
+                    exit 1 # Fail the step if the script is missing
+                  fi
           filters:
             branches:
-              only: main # Only build/push from main
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
 
-  # Workflow for the Data Service
-  data-service:
-    when:
-      or:
-        - << pipeline.parameters.run-all-workflows >>
-        - << pipeline.parameters.run-data-service-workflow >>
+  all-services:
+    when: << pipeline.parameters.run-common-change-workflow >>
     jobs:
-      - docker/build-push:
-          dockerfile-path: services/data/Dockerfile
-          image-name: posey/data-service
+      - data-postgres/build-postgres:
           context:
-            - posey-prod-data # Separate context for data service secrets
-          filters:
-            branches:
-              only: main
-      # Optional deployment job
-
-  # Workflow for the Frontend Application
-  frontend-app:
-    when:
-      or:
-        - << pipeline.parameters.run-all-workflows >>
-        - << pipeline.parameters.run-frontend-app-workflow >>
-    jobs:
-      - docker/build-push: # Assuming frontend is also containerized
-          dockerfile-path: apps/frontend/Dockerfile
-          image-name: posey/frontend-app
+            - posey-prod-core
+            - posey-prod-data
+      - data-qdrant/build-qdrant:
           context:
-            - posey-prod-apps # Context for app secrets
-          filters:
-            branches:
-              only: main
-      # Optional deployment job
-
-  # Workflow for the UI Package (Example: Build and test)
-  ui-package:
-    when:
-      or:
-        - << pipeline.parameters.run-all-workflows >>
-        - << pipeline.parameters.run-ui-pkg-workflow >>
-    jobs:
-      - common/yarn-install-build-test: # Example job from common orb
-          working-directory: packages/ui
-          # Add context if needed for private npm packages etc.
-          # context: posey-npm
-          filters:
-            branches:
-              ignore: /.*/ # Typically only run on PRs or specific triggers, not push to main
+            - posey-prod-core
+            - posey-prod-data
+      - data-couchbase/build-couchbase:
+          context:
+            - posey-prod-core
+            - posey-prod-data
+      - service-mcp/build-mcp:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - service-auth/build-auth:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - service-supertokens/build-supertokens:
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - service-cron/build-cron:
+          name: build-cron-common
+          context:
+            - posey-prod-core
+            - posey-prod-services
