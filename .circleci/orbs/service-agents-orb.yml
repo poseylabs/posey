@@ -1,13 +1,13 @@
 version: 2.1
 
-description: "Orb for building and deploying the Auth service"
+description: "Orb for building and deploying the Agents service"
 
 # Use the common orb for shared executors and commands
 orbs:
   common: posey/common@0.4.15
 
 jobs:
-  build-auth:
+  build-agents:
     executor: common/docker-builder
     steps:
       - common/setup-common
@@ -15,14 +15,14 @@ jobs:
           name: Pull existing images for cache
           command: |
             echo "Pulling existing images for caching..."
-            docker pull docker.io/poseylabs/posey-auth:latest || echo "No latest image found"
-            docker pull docker.io/poseylabs/posey-auth:buildcache || echo "No buildcache image found"
-            docker pull docker.io/poseylabs/posey-auth:PRODUCTION || echo "No PRODUCTION image found"
+            docker pull docker.io/poseylabs/posey-agents:latest || echo "No latest image found"
+            docker pull docker.io/poseylabs/posey-agents:buildcache || echo "No buildcache image found"
+            docker pull docker.io/poseylabs/posey-agents:PRODUCTION || echo "No PRODUCTION image found"
       - run:
-          name: Build Auth Service
+          name: Build Agents Service
           no_output_timeout: 30m
           command: |
-            echo "Building auth service..."
+            echo "Building agents service..."
             
             # Create logs directory
             mkdir -p build-logs
@@ -37,21 +37,20 @@ jobs:
               # Build for both amd64 and arm64
               set -o pipefail && DOCKER_BUILDKIT=1 docker buildx build \
                 --platform linux/amd64,linux/arm64 \
-                --no-cache \
                 --build-arg BUILDKIT_INLINE_CACHE=1 \
                 --build-arg NODE_ENV=production \
                 --progress=plain \
                 --memory=8g \
-                --cache-from type=registry,ref=docker.io/poseylabs/posey-auth:buildcache \
-                --cache-from docker.io/poseylabs/posey-auth:latest \
-                --cache-from docker.io/poseylabs/posey-auth:PRODUCTION \
-                --cache-to type=registry,ref=docker.io/poseylabs/posey-auth:buildcache,mode=max \
-                -t docker.io/poseylabs/posey-auth:latest \
-                -t docker.io/poseylabs/posey-auth:PRODUCTION \
-                -t docker.io/poseylabs/posey-auth:$(echo $CIRCLE_SHA1 | cut -c1-7) \
-                -f services/core/auth/Dockerfile \
+                --cache-from type=registry,ref=docker.io/poseylabs/posey-agents:buildcache \
+                --cache-from docker.io/poseylabs/posey-agents:latest \
+                --cache-from docker.io/poseylabs/posey-agents:PRODUCTION \
+                --cache-to type=registry,ref=docker.io/poseylabs/posey-agents:buildcache,mode=max \
+                -t docker.io/poseylabs/posey-agents:latest \
+                -t docker.io/poseylabs/posey-agents:PRODUCTION \
+                -t docker.io/poseylabs/posey-agents:$(echo $CIRCLE_SHA1 | cut -c1-7) \
+                -f services/core/agents/Dockerfile \
                 --push \
-                . 2>&1 | tee build-logs/build-attempt-$attempt.log
+                ./services/core/agents 2>&1 | tee build-logs/build-attempt-$attempt.log
                 
               if [ ${PIPESTATUS[0]} -eq 0 ]; then
                 echo "Build succeeded on attempt $attempt"
@@ -70,14 +69,14 @@ jobs:
               fi
             done
       - run:
-          name: Trigger ArgoCD sync for Auth
+          name: Trigger ArgoCD sync for Agents
           no_output_timeout: 10m 
           command: |
             # Ensure the script is executable
             chmod +x .circleci/scripts/trigger-argocd-sync.sh
             
             # Execute the script, passing the application name
-            .circleci/scripts/trigger-argocd-sync.sh posey-auth
+            .circleci/scripts/trigger-argocd-sync.sh posey-agents
 
       - store_artifacts:
           path: build-logs

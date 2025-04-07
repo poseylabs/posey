@@ -5,15 +5,16 @@ orbs:
   path-filtering: circleci/path-filtering@1.0.0
   cli: circleci/circleci-cli@0.1.9
   
-  common: posey/common@0.4.13
-  data-postgres: posey/data-postgres@0.4.14
-  data-qdrant: posey/data-qdrant@0.3.14
-  data-couchbase: posey/data-couchbase@0.4.14
-  service-mcp: posey/service-mcp@0.5.26
-  service-auth: posey/service-auth@0.1.29
-  service-supertokens: posey/service-supertokens@0.1.29
-  service-cron: posey/service-cron@0.1.15
-  service-voyager: posey/service-voyager@0.1.5
+  common: posey/common@0.4.15
+  data-postgres: posey/data-postgres@0.4.15
+  data-qdrant: posey/data-qdrant@0.3.15
+  data-couchbase: posey/data-couchbase@0.4.15
+  service-mcp: posey/service-mcp@0.5.30
+  service-auth: posey/service-auth@0.1.31
+  service-supertokens: posey/service-supertokens@0.1.31
+  service-cron: posey/service-cron@0.1.17
+  service-voyager: posey/service-voyager@0.1.7
+  service-agents: posey/service-agents@0.1.5
 
 parameters:
   run-postgres-workflow:
@@ -38,6 +39,9 @@ parameters:
     type: boolean
     default: false
   run-voyager-workflow:
+    type: boolean
+    default: false
+  run-agents-workflow:
     type: boolean
     default: false
   run-common-change-workflow:
@@ -184,6 +188,23 @@ workflows:
             tags:
               only: /^v.*/
 
+  # Add the agents workflow
+  agents:
+    when: << pipeline.parameters.run-agents-workflow >>
+    jobs:
+      - service-agents/build-agents:
+          name: build-agents
+          context:
+            - posey-prod-core
+            - posey-prod-services
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
   all-services:
     when: << pipeline.parameters.run-common-change-workflow >>
     jobs:
@@ -213,6 +234,11 @@ workflows:
             - posey-prod-services
       - service-cron/build-cron:
           name: build-cron-common
+          context:
+            - posey-prod-core
+            - posey-prod-services
+      - service-agents/build-agents:
+          name: build-agents-common
           context:
             - posey-prod-core
             - posey-prod-services

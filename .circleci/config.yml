@@ -53,6 +53,9 @@ parameters:
   run-voyager-workflow:
     type: boolean
     default: false
+  run-agents-workflow:
+    type: boolean
+    default: false
 
 workflows:
   # Path-based filtering to determine what to build
@@ -130,6 +133,10 @@ workflows:
             # Voyager 
             services/core/voyager/.* run-voyager-workflow true
             .circleci/orbs/service-voyager-orb.yml run-voyager-workflow true
+
+            # Agents
+            services/core/agents/.* run-agents-workflow true
+            .circleci/orbs/service-agents-orb.yml run-agents-workflow true
 
             # Common orb change triggers the dedicated parameter
             .circleci/orbs/common-orb.yml run-common-change-workflow true

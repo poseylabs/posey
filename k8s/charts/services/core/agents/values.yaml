@@ -1,0 +1,67 @@
+image:
+  repository: poseylabs/posey-agents
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: "posey-agents"
+
+serviceAccount:
+  create: true
+  automount: true
+  name: "posey-agents-svc"
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 5555
+  ingressPortName: http
+
+ingress:
+  subdomain: agents.api
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+volumes: []
+volumeMounts: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+persistence:
+  enabled: true
+  storageClassName: "standard"
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  mountPath: /app/data
+
+configOverrides:
+  logLevel: INFO
+  telemetryDisabled: true
+
+envFromSecret:
+  enabled: true
+  secretName: posey-prod-services-env-vars
+
+global:
+  partOf: posey
+  image:
+    registry: docker.io
+    pullPolicy: Always
+  resources:
+    limits:
+      memory: "512Mi"
+    requests:
+      memory: "256Mi"
