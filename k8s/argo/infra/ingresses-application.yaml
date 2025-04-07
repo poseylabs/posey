@@ -10,7 +10,7 @@ spec:
   project: posey # Reference the 'posey' project
 
   source:
-    repoURL: https://github.com/poseylabs/posey # Your repository
+    repoURL: https://github.com/poseylabs/posey
     targetRevision: HEAD # Or main
     path: k8s/ingresses # Point to the directory containing Ingress manifests
     directory:
