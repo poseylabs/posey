@@ -56,6 +56,9 @@ parameters:
   run-agents-workflow:
     type: boolean
     default: false
+  run-ml-base-workflow:
+    type: boolean
+    default: false
 
 workflows:
   # Path-based filtering to determine what to build
@@ -137,6 +140,11 @@ workflows:
             # Agents
             services/core/agents/.* run-agents-workflow true
             .circleci/orbs/service-agents-orb.yml run-agents-workflow true
+
+            # Agents ML Base Image
+            services/core/agents/docker/ml-base/.* run-ml-base-workflow true
+            services/core/agents/scripts/build-ml-base.sh run-ml-base-workflow true
+            .circleci/orbs/ml-base-orb.yml run-ml-base-workflow true
 
             # Common orb change triggers the dedicated parameter
             .circleci/orbs/common-orb.yml run-common-change-workflow true

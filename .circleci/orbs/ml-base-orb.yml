@@ -1,0 +1,22 @@
+version: 2.1
+
+description: "Orb for building and pushing the Posey Agents ML Base Image"
+
+# Use the common orb for shared executors and commands
+orbs:
+  common: posey/common@0.4.14 # Match version used in service-agents-orb
+
+jobs:
+  build-push-ml-base:
+    executor: common/docker-builder # Use the same builder as other services
+    steps:
+      - common/setup-common
+      - run:
+          name: Build and Push ML Base Image
+          # Increase timeout as ML dependencies can take time
+          no_output_timeout: 45m 
+          command: |
+            echo "Building and pushing posey-agents-ml-base image..."
+            chmod +x services/core/agents/scripts/build-ml-base.sh
+            # Execute the script with the --push flag
+            services/core/agents/scripts/build-ml-base.sh --push 

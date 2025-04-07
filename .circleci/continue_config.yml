@@ -12,9 +12,10 @@ orbs:
   service-mcp: posey/service-mcp@0.5.30
   service-auth: posey/service-auth@0.1.31
   service-supertokens: posey/service-supertokens@0.1.31
-  service-cron: posey/service-cron@0.1.17
-  service-voyager: posey/service-voyager@0.1.7
-  service-agents: posey/service-agents@0.1.5
+  service-cron: posey/service-cron@0.1.15
+  service-voyager: posey/service-voyager@0.1.5
+  service-agents: posey/service-agents@volatile
+  ml-base: posey/ml-base@volatile
 
 parameters:
   run-postgres-workflow:
@@ -42,6 +43,9 @@ parameters:
     type: boolean
     default: false
   run-agents-workflow:
+    type: boolean
+    default: false
+  run-ml-base-workflow:
     type: boolean
     default: false
   run-common-change-workflow:
@@ -197,6 +201,22 @@ workflows:
           context:
             - posey-prod-core
             - posey-prod-services
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+            tags:
+              only: /^v.*/
+
+  # Add the ML Base Image build workflow
+  ml-base:
+    when: << pipeline.parameters.run-ml-base-workflow >>
+    jobs:
+      - ml-base/build-push-ml-base:
+          name: build-push-ml-base
+          context:
+            - posey-prod-core
           filters:
             branches:
               only:
