@@ -35,6 +35,7 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 2222 # Corresponds to CRON_PORT
+  ingressPortName: http
 
 ingress:
   subdomain: cron.api

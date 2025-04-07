@@ -15,9 +15,9 @@ spec:
   project: posey
 
   source:
-    path: k8s/charts/services/core/cron
-    repoURL: 'https://github.com/poseylabs/posey'
+    repoURL: https://github.com/poseylabs/posey
     targetRevision: main
+    path: k8s/charts/services/core/cron
     helm:
       valueFiles:
         - ../../../base-values.yaml
@@ -27,7 +27,7 @@ spec:
           value: "latest"
 
   destination:
-    server: 'https://kubernetes.default.svc'
+    server: https://kubernetes.default.svc
     namespace: posey
 
   syncPolicy:
