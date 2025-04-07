@@ -57,6 +57,12 @@ async def lifespan(app: FastAPI):
             # Just create tables - init.py handles drops if needed
             await conn.run_sync(Base.metadata.create_all)
         
+        # --> Add logging HERE <--
+        logger.info(f"[Lifespan] DB instance ID: {id(db)}")
+        logger.info(f"[Lifespan] Postgres pool initialized: {hasattr(db, '_pool')}")
+        logger.info(f"[Lifespan] Couchbase cluster initialized: {hasattr(db, 'cluster')}")
+        logger.info(f"[Lifespan] Qdrant client initialized: {hasattr(db, 'qdrant_client')}")
+
         # Verify connections
         connection_status = await verify_connections(LLM_CONFIG)
         for service, status in connection_status.items():

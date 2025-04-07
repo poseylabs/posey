@@ -70,6 +70,7 @@ async def check_db_with_timeout(check_func, timeout=15.0):
 async def health_check(request: Request):
     """Health check endpoint - returns healthy overall,
        but reports actual DB connection statuses."""
+    logger.info(f"[/health] Using DB instance ID: {id(db)}")
     # Run checks concurrently with timeout
     postgres_ok, couchbase_ok, qdrant_ok = await asyncio.gather(
         check_db_with_timeout(check_postgres),
