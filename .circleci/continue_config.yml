@@ -170,7 +170,7 @@ workflows:
   voyager:
     when: << pipeline.parameters.run-voyager-workflow >>
     jobs:
-      - service-cron/build-voyager:
+      - service-voyager/build-voyager:
           name: build-voyager
           context:
             - posey-prod-core
