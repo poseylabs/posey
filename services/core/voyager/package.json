@@ -1,6 +1,6 @@
 {
   "name": "@posey.ai/voyager",
-  "version": "1.0.0-beta.6",
+  "version": "1.0.0-beta.7",
   "packageManager": "yarn@4.7.0",
   "scripts": {
     "docker:build": "docker build -t registry.digitalocean.com/poseylabs/posey-voyager:latest .",
