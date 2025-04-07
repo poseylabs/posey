@@ -62,12 +62,12 @@ spec:
               {{- end }}
             {{- end }}
           envFrom:
-          {{- range .Values.envFromSecrets }}
+            {{- range .Values.envFromSecrets }}
             {{- if not .values }} # Only process if there's no specific .values map
             - secretRef:
                 name: {{ .secretName }}
             {{- end }}
-          {{- end }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /health
