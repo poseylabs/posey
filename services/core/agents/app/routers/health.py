@@ -3,8 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict
 import asyncio
 import psutil
-from app.config.database import Database
-from app.config import logger
+from app.config import logger, db
 from app.models.responses import StandardResponse
 from app.utils.response_utils import standardize_response
 
@@ -14,8 +13,8 @@ router = APIRouter(
     redirect_slashes=False  # Prevent redirects for trailing slashes
 )
 
-# Initialize database
-db = Database()
+# Initialize database - REMOVED: Use shared db instance from app.config
+# db = Database()
 
 class HealthStatus(BaseModel):
     status: str
