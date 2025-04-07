@@ -2,22 +2,10 @@ apiVersion: v2
 name: cron
 description: Helm chart for the Posey Core Cron Service
 type: application
-version: 0.1.0 # This will be bumped automatically by release tooling if applicable
-appVersion: "latest" # This corresponds to the Docker image tag used
+version: 0.1.0
+appVersion: "latest"
 
-# Optional: Add dependencies if this chart relies on others
-# dependencies:
-#   - name: common
-#     version: "x.x.x"
-#     repository: "file://../common" # Example if using a local common chart
-
-# Optional: Keywords for searching
-# keywords:
-#   - cron
-#   - jobs
-#   - scheduler
-
-# Optional: Maintainer information
-# maintainers:
-#   - name: Posey AI Team
-#     email: dev@posey.ai 
+dependencies:
+  - name: common-helpers
+    version: "0.1.1"
+    repository: "file://../../../library/common-helpers" 
