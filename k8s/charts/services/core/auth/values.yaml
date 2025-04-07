@@ -50,3 +50,12 @@ configOverrides:
 envFromSecret:
   enabled: true
   secretName: posey-prod-services-env-vars
+
+# Override global resources for auth service
+resources:
+  limits:
+    # cpu: "0.5" # Optional: Adjust CPU limit if needed
+    memory: "256Mi" # Increased memory limit
+  requests:
+    # cpu: "100m" # Keep global request or adjust if needed
+    memory: "100Mi" # Keep global request
