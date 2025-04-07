@@ -50,17 +50,3 @@ configOverrides:
 envFromSecret:
   enabled: true
   secretName: posey-prod-services-env-vars
-
-global:
-  partOf: posey
-  image:
-    registry: docker.io
-    pullPolicy: Always
-  resources:
-    limits:
-      cpu: "1"
-      memory: "1Gi"
-    requests:
-      cpu: "500m"
-      memory: "512Mi"
-  replicaCount: 1 
