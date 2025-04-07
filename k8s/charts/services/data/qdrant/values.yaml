@@ -51,3 +51,9 @@ configOverrides:
 envFromSecret:
   enabled: true
   secretName: posey-prod-data-env-vars
+
+global:
+  partOf: posey
+  image:
+    registry: docker.io
+    pullPolicy: Always
