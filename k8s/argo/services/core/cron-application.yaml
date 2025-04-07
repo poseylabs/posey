@@ -1,45 +1,40 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cron-service
+  name: posey-cron
   namespace: argocd
-  # Add finalizer to ensure related resources are deleted upon application deletion
+  annotations:
+    argocd.argoproj.io/compare-options: server-side-diff=true
+  labels:
+    app.kubernetes.io/component: core
+    app.kubernetes.io/instance: posey-cron
+    app.kubernetes.io/part-of: posey
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default # Or your specific Argo CD project
+  project: posey
 
   source:
-    # Path to the Helm chart within the Git repository
-    path: k8s/charts/services/core/cron 
-    # URL of the Git repository where the Kubernetes manifests are stored
-    repoURL: 'https://github.com/your-org/your-repo.git' # <-- IMPORTANT: Replace with your actual repo URL
-    targetRevision: HEAD # Or a specific branch/tag/commit
+    path: k8s/charts/services/core/cron
+    repoURL: 'https://github.com/poseylabs/posey'
+    targetRevision: main
     helm:
-      # Reference values from the Git repository
       valueFiles:
+        - ../../../base-values.yaml
         - values.yaml
-      # Optional: Override specific values here if needed for the environment
-      # values: |
-      #   replicaCount: 2
-      #   image:
-      #     tag: stable
+      parameters:
+        - name: image.tag
+          value: "latest"
 
   destination:
-    # Target Kubernetes cluster URL
-    server: 'https://kubernetes.default.svc' 
-    # Target namespace where the application will be deployed
-    namespace: posey-services # Or the appropriate namespace for core services
+    server: 'https://kubernetes.default.svc'
+    namespace: posey
 
-  # Sync policy
   syncPolicy:
     automated:
-      # Automatically prune resources that are not defined in Git
-      prune: true 
-      # Automatically sync changes detected in Git
-      selfHeal: true 
+      prune: true
+      selfHeal: true
     syncOptions:
-      - CreateNamespace=true # Automatically create the namespace if it doesn't exist
-      - PruneLast=true # Ensures pruning happens last in the sync operation
-      # ApplyOutOfSyncOnly=true # Optional: Only apply changes if the app is OutOfSync
-      # ServerSideApply=true # Optional: Use server-side apply for potentially smoother updates 
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+      - PruneLast=true
