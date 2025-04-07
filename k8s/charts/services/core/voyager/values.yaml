@@ -36,7 +36,7 @@ service:
   port: 7777
 
 ingress:
-  subdomain: voyager.api. # Example: voyager.api.yourdomain.com
+  subdomain: voyager.api
 
 autoscaling:
   enabled: false

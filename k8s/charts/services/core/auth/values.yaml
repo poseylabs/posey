@@ -10,7 +10,7 @@ fullnameOverride: "posey-auth"
 serviceAccount:
   create: true
   automount: true
-  name: "posey-auth"
+  name: "posey-auth-svc"
 
 podAnnotations: {}
 podLabels: {}

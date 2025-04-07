@@ -22,7 +22,7 @@ service:
   port: 5050
 
 ingress:
-  subdomain: mcp.api.
+  subdomain: mcp.api
 
 autoscaling:
   enabled: false
