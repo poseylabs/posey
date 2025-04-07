@@ -8,10 +8,10 @@ global:
   resources:
     limits:
       cpu: "0.25"
-      memory: "128Mi"
+      memory: "0.1Gi"
     requests:
       cpu: "100m"
-      memory: "100Mi" 
+      memory: "128Mi"
 
 replicaCount: 1
 
