@@ -69,12 +69,38 @@ async def check_db_with_timeout(check_func, timeout=15.0):
 @router.get("", response_model=StandardResponse[HealthStatus])
 @standardize_response
 async def health_check(request: Request):
-    """Health check endpoint - returns healthy even if databases are not connected"""
+    """Health check endpoint - returns healthy overall,
+       but reports actual DB connection statuses."""
+    # Run checks concurrently with timeout
+    postgres_ok, couchbase_ok, qdrant_ok = await asyncio.gather(
+        check_db_with_timeout(check_postgres),
+        check_db_with_timeout(check_couchbase),
+        check_db_with_timeout(check_qdrant),
+        return_exceptions=True # Allow individual checks to fail without stopping others
+    )
+
+    # Log errors if checks failed (gather returns exception objects if return_exceptions=True)
+    if isinstance(postgres_ok, Exception):
+        logger.error(f"Postgres check gather error: {postgres_ok}")
+        postgres_ok = False
+    if isinstance(couchbase_ok, Exception):
+        logger.error(f"Couchbase check gather error: {couchbase_ok}")
+        couchbase_ok = False
+    if isinstance(qdrant_ok, Exception):
+        logger.error(f"Qdrant check gather error: {qdrant_ok}")
+        qdrant_ok = False
+
+    # Determine overall status - keeping 'healthy' for now as per original docstring
+    overall_status = "healthy"
+    # Optional: Change logic if overall status should depend on DBs
+    # if not all([postgres_ok, couchbase_ok, qdrant_ok]):
+    #     overall_status = "degraded"
+
     return HealthStatus(
-        status="healthy",
-        postgres=False,  # We'll update these when databases are ready
-        couchbase=False,
-        qdrant=False,
+        status=overall_status,
+        postgres=bool(postgres_ok),
+        couchbase=bool(couchbase_ok),
+        qdrant=bool(qdrant_ok),
         system={
             'memory_used': psutil.Process().memory_info().rss / 1024 / 1024,
             'cpu_percent': psutil.cpu_percent()
