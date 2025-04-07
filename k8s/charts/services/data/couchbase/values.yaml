@@ -74,20 +74,6 @@ adminCredentials:
   usernameKey: COUCHBASE_USER # Key name matches the variable in .env
   passwordKey: COUCHBASE_PASSWORD # Key name matches the variable in .env
 
-global:
-  partOf: posey
-  image:
-    registry: docker.io
-    pullPolicy: Always
-  resources:
-    limits:
-      cpu: "1"
-      memory: "2Gi"
-    requests:
-      cpu: "500m"
-      memory: "1Gi"
-  replicaCount: 1
-
 # Optional / Unused defaults
 affinity: {}
 imagePullSecrets: []

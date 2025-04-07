@@ -29,20 +29,6 @@ podSecurityContext:
   runAsUser: 999
   runAsGroup: 999
 
-global:
-  partOf: posey
-  image:
-    registry: docker.io
-    pullPolicy: Always
-  resources:
-    limits:
-      cpu: "1"
-      memory: "2Gi"
-    requests:
-      cpu: "500m"
-      memory: "1Gi"
-  replicaCount: 1
-
 podSecurityContext:
   fsGroup: 999
   runAsUser: 999
