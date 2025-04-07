@@ -1,6 +1,6 @@
 image:
   repository: poseylabs/posey-auth
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
 imagePullSecrets: []
