@@ -78,4 +78,11 @@ commands:
                echo "Docker Token: $DOCKERHUB_TOKEN"
                echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             fi
+      # Add QEMU setup for multi-platform builds
+      - run:
+          name: Register QEMU handlers for multi-arch builds
+          command: |
+            echo "Registering QEMU handlers..."
+            docker run --rm --privileged tonistiigi/binfmt --install all
+            echo "QEMU handlers registered."
       - setup-buildx # Setup Buildx, needed for building images 
