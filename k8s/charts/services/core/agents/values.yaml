@@ -10,13 +10,11 @@ fullnameOverride: "posey-agents"
 serviceAccount:
   create: true
   automount: true
-  name: "posey-agents-svc"
+  name: ""
 
 podAnnotations: {}
 podLabels: {}
-
 podSecurityContext: {}
-
 securityContext: {}
 
 service:
