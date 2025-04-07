@@ -40,6 +40,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Set NODE_ENV before installing dependencies
+ENV NODE_ENV=production
+
 # Copy necessary files from builder (aligning with auth)
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/.yarnrc.yml ./
@@ -53,7 +56,7 @@ COPY --from=builder /app/services/core/cron/package.json ./services/core/cron/
 # Install production dependencies for the cron workspace ONLY (like auth)
 # Run from /app context
 RUN corepack enable && corepack prepare yarn@4.7.0 --activate && \
-  YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn workspaces focus @posey.ai/cron --production
+  YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn workspaces focus @posey.ai/cron
 
 # Copy dist AFTER focusing dependencies (aligning with auth)
 COPY --from=builder /app/services/core/cron/dist ./services/core/cron/dist/
@@ -63,8 +66,7 @@ COPY --from=builder /app/services/core/cron/dist ./services/core/cron/dist/
 # Create necessary directories (logs)
 RUN mkdir -p /app/logs
 
-# Set environment variables
-ENV NODE_ENV=production
+# Set environment variables (NODE_ENV is already set)
 # Adjust NODE_PATH if necessary based on final structure
 ENV NODE_PATH=./services/core/cron/dist 
 
