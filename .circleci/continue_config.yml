@@ -14,7 +14,7 @@ orbs:
   service-supertokens: posey/service-supertokens@0.5.0
   service-cron: posey/service-cron@0.5.0
   service-voyager: posey/service-voyager@0.5.0
-  service-agents: posey/service-agents@0.6.0
+  service-agents: posey/service-agents@0.6.1
   ml-base: posey/ml-base@0.3.0
 
 parameters:
