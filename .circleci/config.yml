@@ -4,7 +4,7 @@ version: 2.1
 setup: true
 
 orbs:
-  path-filtering: circleci/path-filtering@1.0.0
+  path-filtering: circleci/path-filtering@1.1.0
 
 # Set up organization-level orbs
 orbs-dir: .circleci/orbs
@@ -47,10 +47,10 @@ parameters:
   run-supertokens-workflow:
     type: boolean
     default: false
-  run-cron-workflow: # Added for cron service
+  run-cron-workflow:
     type: boolean
     default: false
-  run-voyager-workflow: # Added for cron service
+  run-voyager-workflow:
     type: boolean
     default: false
 
