@@ -7,7 +7,7 @@ global:
     pullPolicy: Always
   resources:
     limits:
-      cpu: "0.15"
+      cpu: "0.5"
       memory: "0.1Gi"
     requests:
       cpu: "100m"
