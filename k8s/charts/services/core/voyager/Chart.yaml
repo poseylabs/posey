@@ -1,0 +1,20 @@
+apiVersion: v2
+name: voyager
+description: A Helm chart for the Posey Voyager service
+type: application
+version: 0.1.0
+appVersion: "latest"
+
+keywords:
+  - posey
+  - voyager
+  - core
+
+maintainers:
+  - name: Posey Labs
+    email: dev@posey.ai
+
+dependencies:
+  - name: common-helpers
+    repository: "file://../../../library/common-helpers" 
+    version: "0.1.1"

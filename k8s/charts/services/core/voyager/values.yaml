@@ -1,0 +1,48 @@
+replicaCount: 1
+
+image:
+  repository: poseylabs/posey-voyager # Assuming image will be pushed to Docker Hub under posey org
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: "posey-voyager"
+
+serviceAccount:
+  create: true
+  automount: true
+  name: "posey-voyager-svc"
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 7777
+
+ingress:
+  subdomain: voyager.api.
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+envFromSecret:
+  enabled: true
+  secretName: posey-prod-services-env-vars

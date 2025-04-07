@@ -1,6 +1,6 @@
 image:
   repository: poseylabs/posey-mcp
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
 imagePullSecrets: []
@@ -22,7 +22,7 @@ service:
   port: 5050
 
 ingress:
-  subdomain: mcp
+  subdomain: mcp.api.
 
 autoscaling:
   enabled: false

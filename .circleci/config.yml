@@ -4,7 +4,7 @@ version: 2.1
 setup: true
 
 orbs:
-  path-filtering: circleci/path-filtering@1.0.0
+  path-filtering: circleci/path-filtering@1.1.0
 
 # Set up organization-level orbs
 orbs-dir: .circleci/orbs
@@ -50,6 +50,21 @@ parameters:
   run-cron-workflow: # Added for cron service
     type: boolean
     default: false
+  GHA_Actor:
+    type: string
+    default: ""
+  GHA_Action:
+    type: string
+    default: ""
+  GHA_Event:
+    type: string
+    default: ""
+  GHA_Sha:
+    type: string
+    default: ""
+  GHA_Ref:
+    type: string
+    default: ""
 
 workflows:
   # Path-based filtering to determine what to build
@@ -126,6 +141,64 @@ workflows:
 
             # Common orb change triggers the dedicated parameter
             .circleci/orbs/common-orb.yml run-common-change-workflow true
+
+            # This workflow triggers the actual workflows in continue_config.yml
+            # based on file changes.
+            determine-workflow:
+              jobs:
+                - path-filtering/filter:
+                    name: check-updated-files
+                    # 3-column, whitespace-delimited mapping.
+                    # 1st column: A regex to match the changed file path.
+                    # 2nd column: The pipeline parameter that should be set to "true".
+                    #             This parameter is defined in continue_config.yml.
+                    # 3rd column: The value of the pipeline parameter. Typically "true".
+                    mapping: |
+                      # Common infrastructure changes trigger all relevant workflows
+                      \.circleci/orbs/common/.* run-common-orb-publish true
+                      \.circleci/orbs/docker/.* run-docker-orb-publish true
+                      \.circleci/config.yml run-all-workflows true # Changes to this file trigger everything
+                      \.circleci/continue_config.yml run-all-workflows true # Changes to this file trigger everything
+                      lib/scripts/publish-orbs-local.sh run-all-workflows true # Orb publishing script changes
+                      k8s/argo/root-argo-config.yaml run-all-workflows true # Root Argo config change
+                      k8s/argo/.* run-all-workflows true # Any Argo config change (conservative)
+
+                      # Core Service Orb & Code
+                      \.circleci/orbs/service-core-orb.yml run-core-service-orb-publish true
+                      services/core/src/.* run-core-service-workflow true
+                      services/core/Dockerfile run-core-service-workflow true
+                      services/core/requirements.txt run-core-service-workflow true
+                      k8s/charts/services/core/core/.* run-core-service-workflow true
+
+                      # Voyager Service Orb & Code
+                      \.circleci/orbs/service-voyager-orb.yml run-voyager-service-orb-publish true
+                      services/core/voyager/src/.* run-voyager-service-workflow true
+                      services/core/voyager/Dockerfile run-voyager-service-workflow true
+                      services/core/voyager/requirements.txt run-voyager-service-workflow true
+                      k8s/charts/services/core/voyager/.* run-voyager-service-workflow true
+
+                      # Data Service Orb & Code
+                      \.circleci/orbs/service-data-orb.yml run-data-service-orb-publish true
+                      services/data/src/.* run-data-service-workflow true
+                      services/data/Dockerfile run-data-service-workflow true
+                      services/data/requirements.txt run-data-service-workflow true
+                      k8s/charts/services/data/.* run-data-service-workflow true
+
+                      # Frontend App Orb & Code
+                      \.circleci/orbs/app-frontend-orb.yml run-frontend-app-orb-publish true
+                      apps/frontend/.* run-frontend-app-workflow true
+                      k8s/charts/apps/frontend/.* run-frontend-app-workflow true
+
+                      # UI Package Orb & Code
+                      \.circleci/orbs/pkg-ui-orb.yml run-ui-pkg-orb-publish true
+                      packages/ui/.* run-ui-pkg-workflow true # Any change in UI package triggers its workflow
+
+                      # Add mappings for other services/apps/packages here following the pattern
+                      # path/to/code/.* parameter-name true
+                      # path/to/helm/chart/.* parameter-name true
+                      # .circleci/orbs/your-orb.yml orb-parameter-name true
+                    base-revision: main
+                    config-path: .circleci/continue_config.yml
           base-revision: main
           # This is the path to the configuration file that will be used for the continuation
           config-path: .circleci/continue_config.yml
