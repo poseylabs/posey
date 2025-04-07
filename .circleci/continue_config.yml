@@ -5,14 +5,14 @@ orbs:
   path-filtering: circleci/path-filtering@1.0.0
   cli: circleci/circleci-cli@0.1.9
   
-  common: posey/common@0.4.10
-  data-postgres: posey/data-postgres@0.4.10
-  data-qdrant: posey/data-qdrant@0.3.10
-  data-couchbase: posey/data-couchbase@0.4.10
-  service-mcp: posey/service-mcp@0.5.20
-  service-auth: posey/service-auth@0.1.21
-  service-supertokens: posey/service-supertokens@0.1.21
-  service-cron: posey/service-cron@0.1.7
+  common: posey/common@0.4.11
+  data-postgres: posey/data-postgres@0.4.11
+  data-qdrant: posey/data-qdrant@0.3.11
+  data-couchbase: posey/data-couchbase@0.4.11
+  service-mcp: posey/service-mcp@0.5.22
+  service-auth: posey/service-auth@0.1.23
+  service-supertokens: posey/service-supertokens@0.1.23
+  service-cron: posey/service-cron@0.1.9
 
 parameters:
   run-postgres-workflow:
