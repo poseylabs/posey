@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "cron.fullname" . }}
   labels:
-    {{- include "cron.labels" . | nindent 4 }}
+    {{- include "cron.labels" . | nindent 6 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -62,12 +62,12 @@ spec:
               {{- end }}
             {{- end }}
           envFrom:
-            {{- range .Values.envFromSecrets }}
-              {{- if not .values }} # Only process if there's no specific .values map
-              - secretRef:
-                  name: {{ .secretName }}
-              {{- end }}
+          {{- range .Values.envFromSecrets }}
+            {{- if not .values }} # Only process if there's no specific .values map
+            - secretRef:
+                name: {{ .secretName }}
             {{- end }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health
