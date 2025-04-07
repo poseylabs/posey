@@ -50,22 +50,15 @@ spec:
             {{- end }}
             # Env vars from specific secret keys defined in values.yaml
             {{- range .Values.envFromSecrets }}
-              {{- $secretName := .secretName }} # Capture secret name for inner loop
-              {{- if .values }}
-                {{- range $envVar, $secretKey := .values }}
-                - name: {{ $envVar }}
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ $secretName }} # Use captured name
-                      key: {{ $secretKey }}
-                {{- end }}
-              {{- end }}
+            {{- $secretName := .secretName }} # Capture secret name for inner loop
+            {{- if .values }}
+            {{- range $envVar, $secretKey := .values }}
+            - name: {{ $envVar }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }} # Use captured name
+                  key: {{ $secretKey }}
             {{- end }}
-          envFrom:
-            {{- range .Values.envFromSecrets }}
-            {{- if not .values }} # Only process if there's no specific .values map
-            - secretRef:
-                name: {{ .secretName }}
             {{- end }}
             {{- end }}
           livenessProbe:
