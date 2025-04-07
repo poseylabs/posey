@@ -7,7 +7,6 @@ version: 2.1
 # Define organization-level orbs
 orbs:
   common: posey/common@0.4.14 # Replace with actual version
-  docker: posey/docker@0.1.0 # Replace with actual version
 
 parameters:
   # Control parameters (set by path-filtering job)
