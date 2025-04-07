@@ -170,24 +170,11 @@ workflows:
   voyager:
     when: << pipeline.parameters.run-voyager-workflow >>
     jobs:
-      - docker/build-push:
-          dockerfile-path: services/core/voyager/Dockerfile
-          image-name: posey/voyager
+      - service-cron/build-voyager:
+          name: build-voyager
           context:
-            - posey-prod-core # Context with Docker registry credentials + ArgoCD trigger script deps
-          post-steps:
-            - run:
-                name: Trigger ArgoCD sync for Voyager
-                command: |
-                  # Ensure the script exists and is executable
-                  if [ -f .circleci/scripts/trigger-argocd-sync.sh ]; then
-                    chmod +x .circleci/scripts/trigger-argocd-sync.sh
-                    echo "Triggering ArgoCD sync for posey-voyager..."
-                    .circleci/scripts/trigger-argocd-sync.sh posey-voyager
-                  else
-                    echo "ArgoCD sync script not found. Skipping sync trigger."
-                    exit 1 # Fail the step if the script is missing
-                  fi
+            - posey-prod-core
+            - posey-prod-services
           filters:
             branches:
               only:
