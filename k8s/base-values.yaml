@@ -1,0 +1,12 @@
+image:
+  registry: docker.io/poseylabs
+  pullPolicy: Always
+resources:
+  limits:
+    cpu: "0.25"
+    memory: "128Mi"
+  requests:
+    cpu: "100m"
+    memory: "100Mi"
+
+replicaCount: 1 
