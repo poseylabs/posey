@@ -4,7 +4,7 @@ description: "Orb for building and deploying the Postgres service"
 
 # Use the common orb for shared executors and commands
 orbs:
-  common: posey/common@0.6.0
+  common: posey/common@0.6.1
 
 jobs:
   build-postgres:
@@ -71,7 +71,7 @@ jobs:
       - run:
           name: Trigger ArgoCD sync for Postgres
           # Increased timeout for the whole step to accommodate script execution + wait time
-          no_output_timeout: 10m 
+          no_output_timeout: 10m
           command: |
             # Ensure the script is executable
             chmod +x .circleci/scripts/trigger-argocd-sync.sh

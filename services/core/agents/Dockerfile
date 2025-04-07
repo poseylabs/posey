@@ -1,4 +1,4 @@
-FROM registry.digitalocean.com/poseylabs/posey-agents-ml-base:latest AS builder
+FROM docker.io/poseylabs/posey-agents-ml-base:latest AS builder
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -33,7 +33,7 @@ RUN if [ -s unique-requirements.txt ]; then \
     fi
 
 # Final production stage - also using the ML base image
-FROM registry.digitalocean.com/poseylabs/posey-agents-ml-base:latest
+FROM docker.io/poseylabs/posey-agents-ml-base:latest
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \

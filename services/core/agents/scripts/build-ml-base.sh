@@ -8,7 +8,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 SERVICE_DIR="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$SERVICE_DIR/docker/ml-base"
-IMAGE_NAME="registry.digitalocean.com/poseylabs/posey-agents-ml-base"
+IMAGE_NAME="docker.io/poseylabs/posey-agents-ml-base"
 
 echo "=== Building ML base image for agents service ==="
 echo "⚙️  Using Docker directory: $DOCKER_DIR"
@@ -48,7 +48,7 @@ echo "🏷️  Image: $IMAGE_NAME:latest"
 
 # Check if we should push the image
 if [ "$1" == "--push" ] || [ "$2" == "--push" ]; then
-  echo "🚀 Pushing ML base image to registry..."
+  echo "🚀 Pushing ML base image to Docker Hub..."
   docker push "$IMAGE_NAME:latest"
   docker push "$IMAGE_NAME:$(date +%Y%m%d)"
   echo "✅ Image pushed successfully!"

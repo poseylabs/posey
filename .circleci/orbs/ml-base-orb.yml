@@ -4,24 +4,13 @@ description: "Orb for building and pushing the Posey Agents ML Base Image"
 
 # Use the common orb for shared executors and commands
 orbs:
-  common: posey/common@0.6.0 # Match version used in service-agents-orb
+  common: posey/common@0.6.1 # Match version used in service-agents-orb
 
 jobs:
   build-push-ml-base:
     executor: common/docker-builder # Use the same builder as other services
     steps:
       - common/setup-common
-      # Added step to explicitly log in to DigitalOcean Registry
-      - run:
-          name: Log in to DigitalOcean Container Registry
-          command: |
-            echo "Logging into DigitalOcean Container Registry..."
-            if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ]; then
-              echo "Error: DIGITALOCEAN_ACCESS_TOKEN environment variable not set."
-              exit 1
-            fi
-            echo $DIGITALOCEAN_ACCESS_TOKEN | docker login registry.digitalocean.com -u $DIGITALOCEAN_ACCESS_TOKEN --password-stdin
-            echo "Login successful."
       - run:
           name: Build and Push ML Base Image
           # Increase timeout as ML dependencies can take time

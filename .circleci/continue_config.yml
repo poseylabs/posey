@@ -15,7 +15,7 @@ orbs:
   service-cron: posey/service-cron@0.5.0
   service-voyager: posey/service-voyager@0.5.0
   service-agents: posey/service-agents@0.5.0
-  ml-base: posey/ml-base@0.2.0
+  ml-base: posey/ml-base@0.3.0
 
 parameters:
   run-postgres-workflow:
