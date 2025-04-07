@@ -66,10 +66,6 @@ env:
   LOG_LEVEL: info
   LOG_FILE_PATH: ""
 
-# Define environment variables that should come from secrets
-envFromSecrets:
-  # Assumes a secret named "posey-prod-core" exists (created via sync:secrets:cd)
-  # and contains a key named CRON_API_KEY
-  - secretName: posey-prod-core # Adjust if your secret has a different name
-    values:
-      API_KEY: CRON_API_KEY # The key within the Kubernetes secret 
+envFromSecret:
+  enabled: true
+  secretName: posey-prod-services-env-vars
