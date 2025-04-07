@@ -41,25 +41,35 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
+            # Standard env vars from values.yaml
             - name: CRON_PORT
               value: "{{ .Values.service.port }}"
             {{- range $key, $value := .Values.env }}
             - name: {{ $key }}
               value: "{{ $value }}"
             {{- end }}
+            # Env vars from specific secret keys defined in values.yaml
+            {{- range .Values.envFromSecrets }}
+              {{- $secretName := .secretName }} # Capture secret name for inner loop
+              {{- if .values }}
+                {{- range $envVar, $secretKey := .values }}
+                - name: {{ $envVar }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $secretName }} # Use captured name
+                      key: {{ $secretKey }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
+          # envFrom is for importing *all* keys from a secret.
+          # If you have secrets listed in envFromSecrets that DON'T have a .values map,
+          # they can be processed here. Otherwise, this block might be empty.
           envFrom:
           {{- range .Values.envFromSecrets }}
+            {{- if not .values }} # Only process if there's no specific .values map
             - secretRef:
                 name: {{ .secretName }}
-                {{- if .values }}
-                  {{- range $envVar, $secretKey := .values }}
-                    - name: {{ $envVar }}
-                      valueFrom:
-                        secretKeyRef:
-                          name: {{ $.secretName }}
-                          key: {{ $secretKey }}
-                  {{- end }}
-                {{- end }}
+            {{- end }}
           {{- end }}
           livenessProbe:
             httpGet:
