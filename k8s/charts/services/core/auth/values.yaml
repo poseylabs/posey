@@ -51,11 +51,16 @@ envFromSecret:
   enabled: true
   secretName: posey-prod-services-env-vars
 
-# Override global resources for auth service
-resources:
-  limits:
-    # cpu: "0.5" # Optional: Adjust CPU limit if needed
-    memory: "256Mi" # Increased memory limit
-  requests:
-    # cpu: "100m" # Keep global request or adjust if needed
-    memory: "100Mi" # Keep global request
+global:
+  partOf: posey
+  image:
+    registry: docker.io
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+  replicaCount: 1 
