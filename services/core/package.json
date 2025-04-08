@@ -42,7 +42,7 @@
     "ports": "./port-forward-services.sh"
   },
   "devDependencies": {
-    "@types/node": "^20.11.17",
+    "@types/node": "^22",
     "chalk": "^5.4.1",
     "dotenv": "^16.4.7",
     "execa": "^9.5.2",

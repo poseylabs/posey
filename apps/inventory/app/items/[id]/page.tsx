@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '@posey.ai/core';
@@ -28,26 +28,13 @@ export default function ItemDetailPage() {
   const id = params.id as string;
 
   const [item, setItem] = useState<Item | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const session = await getSession();
-      if (!session?.user) {
-        console.error('Unauthorized access, redirecting to login');
-        router.push('/login');
-        return;
-      }
-
-      fetchItem();
-    };
-
-    checkAuth();
-  }, [id, router]);
-
-  const fetchItem = async () => {
+  const fetchItem = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
     try {
       const response = await fetch(`/api/inventory/items/${id}`);
       if (!response.ok) {
@@ -65,9 +52,29 @@ export default function ItemDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const session = await getSession();
+      if (!session?.user) {
+        console.error('Unauthorized access, redirecting to login');
+        router.push('/login');
+        return;
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  useEffect(() => {
+    if (id) {
+      fetchItem();
+    }
+  }, [id, fetchItem]);
 
   const handleDelete = async () => {
+    if (!id) return;
     try {
       const response = await fetch(`/api/inventory/items/${id}`, {
         method: 'DELETE',

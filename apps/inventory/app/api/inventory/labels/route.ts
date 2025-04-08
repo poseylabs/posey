@@ -2,6 +2,15 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse, generateQRCode } from '@/lib/utils';
 
+// interface Pod {
+//   id: string;
+//   title: string;
+//   description: string;
+//   color: string;
+//   size: string;
+//   location: string;
+// }
+
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
@@ -11,7 +20,7 @@ export async function GET(req: NextRequest) {
       return errorResponse('Pod ID is required', 400);
     }
 
-    const pod = await prisma.storagePod.findUnique({
+    const pod: any = await prisma.storagePod.findUnique({
       where: { id: podId },
     });
 

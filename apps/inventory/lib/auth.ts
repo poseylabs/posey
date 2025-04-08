@@ -1,13 +1,4 @@
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify, createRemoteJWKSet, importJWK } from 'jose';
-import { createSecretKey } from 'crypto';
-
-// Function to get JWT secret
-const getJWTSecret = () => {
-  const secret = process.env.JWT_SECRET || 'posey-inventory-secret-key-for-development-only';
-  return createSecretKey(Buffer.from(secret, 'utf-8'));
-};
 
 // Function to verify JWT token
 export async function verifyToken(token: string) {
@@ -157,7 +148,7 @@ export async function ensureUser(prisma: any, user: any) {
     console.log('Looking for user with ID:', user.id);
 
     // First, try to find the user by ID
-    let existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { id: user.id },
     });
 

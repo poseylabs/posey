@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/lib/utils';
 import { prisma } from '@/lib/db/prisma';
 import { withAuth, ensureUser } from '@/lib/auth';

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '@posey.ai/core';
@@ -30,51 +30,18 @@ export default function NewItemPage() {
   const [quantity, setQuantity] = useState(1);
   const [selectedPodId, setSelectedPodId] = useState(podId || '');
   const [pods, setPods] = useState<Pod[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [shouldMountScanner, setShouldMountScanner] = useState(false);
   const scannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [loadingPods, setLoadingPods] = useState<boolean>(true);
+  const [errorPods, setErrorPods] = useState<string | null>(null);
 
-  // Clear any timeouts to prevent memory leaks
-  const clearTimeouts = () => {
-    if (scannerTimeoutRef.current) {
-      clearTimeout(scannerTimeoutRef.current);
-      scannerTimeoutRef.current = null;
-    }
-  };
-
-  // Cleanup timeouts on component unmount
-  useEffect(() => {
-    return () => {
-      clearTimeouts();
-    };
-  }, []);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const session = await getSession();
-      if (!session?.user) {
-        console.error('Unauthorized access, redirecting to login');
-        router.push('/login');
-        return;
-      }
-
-      fetchPods();
-    };
-
-    checkAuth();
-  }, [router]);
-
-  useEffect(() => {
-    console.log('podId', podId);
-    if (podId) {
-      setSelectedPodId(podId);
-    }
-  }, [podId]);
-
-  const fetchPods = async () => {
+  const fetchPods = useCallback(async () => {
+    setLoadingPods(true);
+    setErrorPods(null);
     try {
       // Get session and auth token
       const session = await getSession();
@@ -112,11 +79,11 @@ export default function NewItemPage() {
       }
     } catch (error) {
       console.error('Error fetching pods:', error);
-      setError('Failed to load pods. Please try again.');
+      setErrorPods('Failed to load pods. Please try again.');
     } finally {
-      setLoading(false);
+      setLoadingPods(false);
     }
-  };
+  }, [podId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,6 +169,55 @@ export default function NewItemPage() {
       toggleBarcodeScanner();
     }
   };
+
+  useEffect(() => {
+    fetchPods();
+  }, [fetchPods]);
+
+  useEffect(() => {
+    console.log('loadingPods', loadingPods);
+  }, [loadingPods]);
+
+  useEffect(() => {
+    console.log('errorPods', errorPods);
+  }, [errorPods]);
+
+  // Clear any timeouts to prevent memory leaks
+  const clearTimeouts = () => {
+    if (scannerTimeoutRef.current) {
+      clearTimeout(scannerTimeoutRef.current);
+      scannerTimeoutRef.current = null;
+    }
+  };
+
+  // Cleanup timeouts on component unmount
+  useEffect(() => {
+    return () => {
+      clearTimeouts();
+    };
+  }, []);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const session = await getSession();
+      if (!session?.user) {
+        console.error('Unauthorized access, redirecting to login');
+        router.push('/login');
+        return;
+      }
+
+      fetchPods();
+    };
+
+    checkAuth();
+  }, [fetchPods, router]);
+
+  useEffect(() => {
+    console.log('podId', podId);
+    if (podId) {
+      setSelectedPodId(podId);
+    }
+  }, [podId]);
 
   useEffect(() => {
     console.log('selectedPodId', selectedPodId);

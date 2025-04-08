@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { getSession } from '@posey.ai/core';
 import { AuthError, PageLoading } from '@posey.ai/ui';
 import { usePoseyState } from '@posey.ai/state';
@@ -24,6 +25,7 @@ export function AuthProvider({
   const state = usePoseyState();
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
 
   const {
     user,
@@ -39,7 +41,7 @@ export function AuthProvider({
 
   const isLoggedIn = !!user?.id && !!user?.email;
 
-  const getUserSession = async () => {
+  const getUserSession = useCallback(async () => {
     try {
       const data = await getSession();
       const user = data?.user;
@@ -70,6 +72,7 @@ export function AuthProvider({
       });
       return false;
     } catch (error) {
+      console.error(error);
       await initState({
         user: undefined,
         status: {
@@ -83,17 +86,18 @@ export function AuthProvider({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [setUser, status, initState]);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   useEffect(() => {
-    if (isClient) {
+    if (isClient && !isFetching) {
+      setIsFetching(true);
       getUserSession();
     }
-  }, [isClient]);
+  }, [getUserSession, isFetching, isClient]);
 
   // Handle auth required redirects
   useEffect(() => {
@@ -107,7 +111,7 @@ export function AuthProvider({
   }
 
   if (!isLoading && isClient && authRequired && !isLoggedIn) {
-    return <AuthError message="This page requires you to be logged in." redirect />;
+    return <AuthError message="This page requires you to be logged in." redirect LinkComponent={Link} />;
   }
 
   return (

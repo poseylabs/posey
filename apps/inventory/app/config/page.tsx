@@ -177,7 +177,7 @@ export default function ConfigPage() {
                 <span className="label-text">Connect to existing Posey database (port 3333)</span>
               </label>
               <div className="text-xs text-gray-500 mt-1">
-                This will use the Posey platform's PostgreSQL database running on port 3333.
+                This will use the Posey platform&apos;s PostgreSQL database running on port 3333.
               </div>
             </div>
 
@@ -241,7 +241,7 @@ export default function ConfigPage() {
       <div className="mt-8 bg-base-200 p-4 rounded-lg">
         <h3 className="font-semibold mb-2">After changing database settings</h3>
         <p className="mb-2">
-          If you change your database provider or connection string, you'll need to:
+          If you change your database provider or connection string, you&apos;ll need to:
         </p>
         <ol className="list-decimal pl-5 space-y-1">
           <li>Restart the application</li>

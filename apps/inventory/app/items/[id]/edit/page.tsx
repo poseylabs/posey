@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '@posey.ai/core';
@@ -34,13 +34,15 @@ export default function EditItemPage() {
   const [location, setLocation] = useState('');
   const [selectedPodId, setSelectedPodId] = useState('');
 
-  const [pods, setPods] = useState<Pod[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [pods] = useState<Pod[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const checkAuth = async () => {
+  const fetchItem = useCallback(async () => {
+    if (!id) return;
+
+    try {
       const session = await getSession();
       if (!session?.user) {
         console.error('Unauthorized access, redirecting to login');
@@ -48,20 +50,6 @@ export default function EditItemPage() {
         return;
       }
 
-      Promise.all([fetchItem(), fetchPods()]).then(() => {
-        setLoading(false);
-      }).catch(error => {
-        console.error('Error initializing page:', error);
-        setError('Failed to load data. Please try again.');
-        setLoading(false);
-      });
-    };
-
-    checkAuth();
-  }, [id, router]);
-
-  const fetchItem = async () => {
-    try {
       const response = await fetch(`/api/inventory/items/${id}`);
       if (!response.ok) {
         if (response.status === 404) {
@@ -83,22 +71,28 @@ export default function EditItemPage() {
     } catch (error) {
       console.error('Error fetching item:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [id, router]);
 
-  const fetchPods = async () => {
-    try {
-      const response = await fetch('/api/inventory/pods');
-      if (!response.ok) {
-        throw new Error('Failed to fetch pods');
-      }
-      const data = await response.json();
-      setPods(data.data || []);
-    } catch (error) {
-      console.error('Error fetching pods:', error);
-      throw error;
-    }
-  };
+  useEffect(() => {
+    fetchItem();
+  }, [id, fetchItem]);
+
+  // const fetchPods = async () => {
+  //   try {
+  //     const response = await fetch('/api/inventory/pods');
+  //     if (!response.ok) {
+  //       throw new Error('Failed to fetch pods');
+  //     }
+  //     const data = await response.json();
+  //     setPods(data.data || []);
+  //   } catch (error) {
+  //     console.error('Error fetching pods:', error);
+  //     throw error;
+  //   }
+  // };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

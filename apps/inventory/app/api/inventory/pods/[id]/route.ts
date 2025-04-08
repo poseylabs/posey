@@ -5,13 +5,12 @@ import { successResponse, errorResponse } from '@/lib/utils';
 // GET /api/inventory/pods/[id] - Get a single pod
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const pod = await prisma.storagePod.findUnique({
-      where: {
-        id: params.id,
-      },
+      where: { id },
       include: {
         childPods: true,
         items: true,
@@ -32,14 +31,13 @@ export async function GET(
 // PUT /api/inventory/pods/[id] - Update a pod
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const pod = await prisma.storagePod.update({
-      where: {
-        id: params.id,
-      },
+      where: { id },
       data: body,
     });
 
@@ -53,12 +51,13 @@ export async function PUT(
 // DELETE /api/inventory/pods/[id] - Delete a pod
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Check if pod has items or child pods
     const pod = await prisma.storagePod.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { items: true, childPods: true },
     });
 
@@ -71,7 +70,7 @@ export async function DELETE(
     }
 
     await prisma.storagePod.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return successResponse({ message: 'Pod deleted successfully' });

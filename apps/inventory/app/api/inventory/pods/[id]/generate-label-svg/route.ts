@@ -4,10 +4,13 @@ import { prisma } from '@/lib/db/prisma';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (req, user) => {
     try {
+      // Await params here to get the id
+      const { id: podId } = await params;
+
       // Ensure user exists
       const dbUser = await ensureUser(prisma, user);
       if (!dbUser) {
@@ -19,19 +22,21 @@ export async function POST(
 
       // Get pod data from request
       const podData = await req.json();
-      const { title, contents, id, width, height } = podData;
+      // Destructure podData carefully, ensuring 'id' from podData doesn't conflict with podId from params
+      const { title, contents, id: podDataId, width, height } = podData;
 
-      if (!title || !id) {
-        return new NextResponse(JSON.stringify({ error: 'Missing required pod data' }), {
+      // Use podId from the route parameters for validation and URL generation
+      if (!title || !podDataId) { // Still check if ID is present in the body for label content
+        return new NextResponse(JSON.stringify({ error: 'Missing required pod data (title, id) in request body' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' }
         });
       }
 
-      // Verify the pod belongs to this user
+       // Verify the pod belongs to this user using podId from the route
       const pod = await prisma.storagePod.findUnique({
         where: {
-          id: params.id,
+          id: podId, // Use podId from route params
           userId: dbUser.id
         }
       });
@@ -70,22 +75,17 @@ export async function POST(
         qrSize = Math.round(pxHeight * 0.6);
       }
       
-      // Calculate available width for text
-      const textAreaWidth = isSmallLabel
-        ? pxWidth - qrSize - (margin * 3) // For small labels, account for QR code width
-        : pxWidth - qrSize - (margin * 3); // For large labels, similar calculation
-      
       // Format text with proper wrapping
       const formatTextForSvg = (text: string, maxCharsPerLine: number, maxLines: number): string[] => {
         if (!text) return [];
         
         // Split text into words
         const words = text.split(' ');
-        let lines: string[] = [];
         let currentLine = '';
+        const lines: string[] = [];
         
         // Create lines that fit within width
-        for (let word of words) {
+        for (const word of words) {
           if ((currentLine + ' ' + word).length <= maxCharsPerLine) {
             currentLine += (currentLine ? ' ' : '') + word;
           } else {
@@ -123,8 +123,8 @@ export async function POST(
       const maxLines = isSmallLabel ? 3 : 5;
       const contentLines = contents ? formatTextForSvg(contents, maxCharsPerLine, maxLines) : [];
       
-      // Generate QR code URL (will be loaded by the client)
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8000'}/pods/${id}`)}`;
+      // Generate QR code URL using podId from route params
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8000'}/pods/${podId}`)}`;
       
       // Create SVG with improved layouts
       let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${pxWidth}" height="${pxHeight}" viewBox="0 0 ${pxWidth} ${pxHeight}">
@@ -153,7 +153,7 @@ export async function POST(
         
         <!-- ID at the bottom right -->
         <text x="${margin + qrSize + margin}" y="${pxHeight - margin}" 
-              font-family="Arial" font-size="8" fill="#666">ID: ${escapeXml(id)}</text>`;
+              font-family="Arial" font-size="8" fill="#666">ID: ${escapeXml(podDataId)}</text>`;
       } else {
         // IMPROVED 4x6 LAYOUT - Title at top, QR code on left, contents on right
         svg += `
@@ -180,7 +180,7 @@ export async function POST(
         
         <!-- ID at the bottom left under the QR code -->
         <text x="${margin}" y="${pxHeight - margin}" 
-              font-family="Arial" font-size="10" fill="#666">ID: ${escapeXml(id)}</text>`;
+              font-family="Arial" font-size="10" fill="#666">ID: ${escapeXml(podDataId)}</text>`;
       }
       
       svg += `</svg>`;

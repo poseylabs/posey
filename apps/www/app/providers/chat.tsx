@@ -40,7 +40,7 @@ export function ChatProvider({
       // Set the conversation in state
       setCurrentConversation(conversation);
     }
-  }, [conversation?.id]);
+  }, [conversation, currentConversation, setCurrentConversation]);
 
   return <ChatInterface />;
 }

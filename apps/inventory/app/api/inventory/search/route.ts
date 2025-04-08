@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { Prisma } from '@prisma/client';
 import { successResponse, errorResponse } from '@/lib/utils';
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,37 +14,54 @@ export async function GET(req: NextRequest) {
     const location = url.searchParams.get('location');
     const userId = url.searchParams.get('userId') || 'demo-user'; // In production, you'd get this from auth
 
-    if (!query && !color && !size && !location) {
-      return errorResponse('At least one search parameter is required', 400);
+    // Allow search even if only type is specified, refine check
+    if (!query && !color && !size && !location && !type) {
+      return errorResponse('At least one search parameter (q, color, size, location) or type is required', 400);
     }
 
-    // Define common filter conditions
-    const titleFilter = query ? { title: { contains: query, mode: 'insensitive' } } : {};
-    const descriptionFilter = query ? { description: { contains: query, mode: 'insensitive' } } : {};
-    const colorFilter = color ? { color: { contains: color, mode: 'insensitive' } } : {};
-    const sizeFilter = size ? { size: { contains: size, mode: 'insensitive' } } : {};
-    const locationFilter = location ? { location: { contains: location, mode: 'insensitive' } } : {};
     const userFilter = { userId };
 
-    let results: { pods?: any[]; items?: any[] } = {};
+    // --- Construct Pod Where Clause ---
+    const podWhereConditions: Prisma.StoragePodWhereInput[] = [userFilter];
+    if (query) {
+      podWhereConditions.push({
+        OR: [
+          { title: { contains: query, mode: Prisma.QueryMode.insensitive } },
+          { description: { contains: query, mode: Prisma.QueryMode.insensitive } },
+        ],
+      });
+    }
+    const podWhere: Prisma.StoragePodWhereInput = { AND: podWhereConditions };
 
-    // Search in pods if type is 'pods' or not specified
+
+    // --- Construct Item Where Clause ---
+    const itemWhereConditions: Prisma.ItemWhereInput[] = [userFilter];
+    if (query) {
+      itemWhereConditions.push({
+        OR: [
+          { title: { contains: query, mode: Prisma.QueryMode.insensitive } },
+          { description: { contains: query, mode: Prisma.QueryMode.insensitive } },
+        ],
+      });
+    }
+    if (color) {
+      itemWhereConditions.push({ color: { contains: color, mode: Prisma.QueryMode.insensitive } });
+    }
+    if (size) {
+      itemWhereConditions.push({ size: { contains: size, mode: Prisma.QueryMode.insensitive } });
+    }
+    if (location) {
+      itemWhereConditions.push({ location: { contains: location, mode: Prisma.QueryMode.insensitive } });
+    }
+    const itemWhere: Prisma.ItemWhereInput = { AND: itemWhereConditions };
+
+
+    const results: { pods?: any[]; items?: any[] } = {};
+
+    // Search in pods
     if (!type || type === 'pods') {
       const pods = await prisma.storagePod.findMany({
-        where: {
-          AND: [
-            userFilter,
-            {
-              OR: [
-                titleFilter,
-                descriptionFilter,
-              ],
-            },
-            colorFilter,
-            sizeFilter,
-            locationFilter,
-          ],
-        },
+        where: podWhere,
         include: {
           _count: {
             select: {
@@ -55,23 +74,10 @@ export async function GET(req: NextRequest) {
       results.pods = pods;
     }
 
-    // Search in items if type is 'items' or not specified
+    // Search in items
     if (!type || type === 'items') {
       const items = await prisma.item.findMany({
-        where: {
-          AND: [
-            userFilter,
-            {
-              OR: [
-                titleFilter,
-                descriptionFilter,
-              ],
-            },
-            colorFilter,
-            sizeFilter,
-            locationFilter,
-          ],
-        },
+        where: itemWhere,
         include: {
           pod: {
             select: {
@@ -84,7 +90,12 @@ export async function GET(req: NextRequest) {
       results.items = items;
     }
 
-    return successResponse(results);
+    const resultsArray = [
+      ...(results.items?.map((item) => ({ ...item, type: "item" })) || []),
+      ...(results.pods?.map((pod) => ({ ...pod, type: "pod" })) || []),
+    ];
+
+    return successResponse(resultsArray);
   } catch (error) {
     console.error('Error searching inventory:', error);
     return errorResponse('Failed to search inventory');

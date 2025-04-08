@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getSession } from '@posey.ai/core';
 import { AuthError, PageLoading } from '@posey.ai/ui';
 import { usePoseyState } from '@posey.ai/state';
@@ -53,48 +53,43 @@ function AuthProviderInner({
   const isAuthRoute = publicRoutes.includes(pathname);
   const isHomeRoute = pathname === HOME_ROUTE;
 
-  // Handle redirects through useEffect, not during render
-  useEffect(() => {
-    let redirectTimer: NodeJS.Timeout;
+  // useEffect(() => {
+  //   let redirectTimer: NodeJS.Timeout;
 
-    if (shouldRedirect && sessionChecked) {
-      console.log('Redirecting to:', shouldRedirect);
-      // Add delay to ensure all state updates are complete
-      redirectTimer = setTimeout(() => {
-        router.push(shouldRedirect);
-        setShouldRedirect(null);
-      }, 500); // 500ms delay for redirect
-    }
+  //   if (shouldRedirect && sessionChecked) {
+  //     console.log('Redirecting to:', shouldRedirect);
+  //     redirectTimer = setTimeout(() => {
+  //       router.push(shouldRedirect);
+  //       setShouldRedirect(null);
+  //     }, 500);
+  //   }
 
-    return () => {
-      if (redirectTimer) clearTimeout(redirectTimer);
-    };
-  }, [shouldRedirect, sessionChecked, router]);
+  //   return () => {
+  //     if (redirectTimer) clearTimeout(redirectTimer);
+  //   };
+  // }, [shouldRedirect, sessionChecked, router]);
 
-  // Check auth status and set redirect if needed
-  useEffect(() => {
-    if (!isLoading && sessionChecked) {
-      if (isAuthRoute && isLoggedIn) {
-        console.log('User is logged in but on auth route, redirecting to dashboard');
-        setShouldRedirect('/dashboard');
-      } else if (!isAuthRoute && !isLoggedIn) {
-        console.log('User is not logged in, redirecting to login');
-        setShouldRedirect('/auth/login');
-      } else if (isHomeRoute && !isLoggedIn) {
-        console.log('User is not logged in on home route, redirecting to login');
-        setShouldRedirect('/auth/login');
-      } else if (isHomeRoute && isLoggedIn) {
-        console.log('User is logged in on home route, redirecting to dashboard');
-        setShouldRedirect('/dashboard');
-      }
-    }
-  }, [isLoading, sessionChecked, isAuthRoute, isLoggedIn, isHomeRoute, pathname]);
+  // useEffect(() => {
+  //   if (!isLoading && sessionChecked) {
+  //     if (isAuthRoute && isLoggedIn) {
+  //       console.log('User is logged in but on auth route, redirecting to dashboard');
+  //       setShouldRedirect('/dashboard');
+  //     } else if (!isAuthRoute && !isLoggedIn) {
+  //       console.log('User is not logged in, redirecting to login');
+  //       setShouldRedirect('/auth/login');
+  //     } else if (isHomeRoute && !isLoggedIn) {
+  //       console.log('User is not logged in on home route, redirecting to login');
+  //       setShouldRedirect('/auth/login');
+  //     } else if (isHomeRoute && isLoggedIn) {
+  //       console.log('User is logged in on home route, redirecting to dashboard');
+  //       setShouldRedirect('/dashboard');
+  //     }
+  //   }
+  // }, [isLoading, sessionChecked, isAuthRoute, isLoggedIn, isHomeRoute, pathname]);
 
-  const getUserSession = async () => {
+  const getUserSession = useCallback(async () => {
     try {
       console.log('Checking user session...');
-
-      // First, check local storage for authToken
       const authToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
 
       if (!authToken) {
@@ -111,7 +106,6 @@ function AuthProviderInner({
         return false;
       }
 
-      // Use our core getSession method to validate the token and get user data
       const data = await getSession();
       const user = data?.user;
       const session = data?.session;
@@ -120,7 +114,6 @@ function AuthProviderInner({
         console.log('Valid session found:', user.email);
         console.log('User ID:', user.id);
         await setUser({ user });
-        // Initialize state after successful user setup
         await initState({
           user,
           status: {
@@ -145,19 +138,22 @@ function AuthProviderInner({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [forceLogout, initState, setUser, status]);
+
+  // useEffect(() => {
+  //   setIsClient(true);
+  // }, []);
+
+  // useEffect(() => {
+  //   if (isClient) {
+  //     getUserSession();
+  //   }
+  // }, [getUserSession, isClient]);
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
+    console.log('authRequired', authRequired);
+  }, [authRequired]);
 
-  useEffect(() => {
-    if (isClient) {
-      getUserSession();
-    }
-  }, [isClient]);
-
-  // Show loading state while checking auth
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -166,7 +162,6 @@ function AuthProviderInner({
     );
   }
 
-  // Render children or auth error based on login status
   return (
     <div className="w-full h-full">
       {(!isAuthRoute && !isLoggedIn && !isHomeRoute) ? (
@@ -184,9 +179,10 @@ export function AuthProvider(props: {
   children: React.ReactNode
 }) {
   return (
-    <AuthContextProvider>
-      <AuthProviderInner {...props} />
-    </AuthContextProvider>
+    // <AuthProviderInner {...props} />
+    // <AuthContextProvider>
+    //   <AuthProviderInner {...props} />
+    // </AuthContextProvider>
   );
 }
 

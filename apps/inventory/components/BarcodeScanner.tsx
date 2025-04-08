@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 interface BarcodeScannerProps {
@@ -30,7 +30,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
   // Wrap onScanSuccess to handle stopping the scanner after a successful scan
-  const handleScanSuccess = (decodedText: string, decodedResult: any) => {
+  const handleScanSuccess = useCallback((decodedText: string, decodedResult: any) => {
     // Only process if we're not already transitioning
     if (isTransitioning) return;
     
@@ -50,10 +50,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
           setIsTransitioning(false);
         });
     }
-  };
+  }, [isTransitioning, isScanning, onScanSuccess]);
 
   // Custom scan failure handler to prevent console spam
-  const handleScanFailure = (error: any) => {
+  const handleScanFailure = useCallback((error: any) => {
     // These are normal "no barcode found" errors that we can ignore
     const isCommonError = 
       error.includes('No barcode or QR code detected') || 
@@ -77,7 +77,92 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     if (onScanFailure) {
       onScanFailure(error);
     }
-  };
+  }, [onScanFailure]);
+
+  const cleanupScanner = useCallback(async () => {
+    if (!scannerRef.current) return;
+    
+    try {
+      setIsTransitioning(true);
+      
+      // Only call stop() if we are actually scanning
+      if (isScanning) {
+        await scannerRef.current.stop();
+        console.log('Scanner stopped during cleanup');
+      }
+      
+      // Try to clear the scanner instance
+      try {
+        scannerRef.current.clear();
+      } catch (e) {
+        console.warn('Error clearing scanner:', e);
+      }
+      
+      // Reset the scanner reference
+      scannerRef.current = null;
+    } catch (err) {
+      console.error('Error cleaning up scanner:', err);
+    } finally {
+      setIsTransitioning(false);
+      setIsScanning(false);
+      hasInitializedRef.current = false;
+    }
+  }, [isScanning]);
+
+  const startScanning = useCallback(async (cameraId: string) => {
+    if (!scannerRef.current || isScanning || isTransitioning) return;
+
+    try {
+      setIsTransitioning(true);
+      setIsScanning(true);
+      
+      await scannerRef.current.start(
+        cameraId,
+        {
+          fps,
+          qrbox,
+          aspectRatio: 1,
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.AZTEC,
+            Html5QrcodeSupportedFormats.CODABAR,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.DATA_MATRIX,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.ITF,
+            Html5QrcodeSupportedFormats.MAXICODE,
+            Html5QrcodeSupportedFormats.PDF_417,
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.RSS_14,
+            Html5QrcodeSupportedFormats.RSS_EXPANDED,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
+          ],
+        } as any,
+        handleScanSuccess,
+        handleScanFailure
+      );
+      
+      console.log('Scanner started successfully');
+    } catch (err) {
+      console.error('Error starting scanner:', err);
+      setIsScanning(false);
+      
+      // Track initialization attempts
+      initAttemptRef.current += 1;
+      
+      // If we've failed multiple times, show a user-friendly error
+      if (initAttemptRef.current >= 2) {
+        setScannerError("Failed to start the camera. Please try again or use manual entry.");
+      }
+    } finally {
+      setIsTransitioning(false);
+    }
+  }, [fps, qrbox, isScanning, isTransitioning, handleScanSuccess, handleScanFailure]);
+
 
   useEffect(() => {
     // Prevent double initialization in React strict mode
@@ -142,93 +227,12 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       
       cleanupScanner();
     };
-  }, []);
-
-  const cleanupScanner = async () => {
-    if (!scannerRef.current) return;
-    
-    try {
-      setIsTransitioning(true);
-      
-      // Only call stop() if we are actually scanning
-      if (isScanning) {
-        await scannerRef.current.stop();
-        console.log('Scanner stopped during cleanup');
-      }
-      
-      // Try to clear the scanner instance
-      try {
-        scannerRef.current.clear();
-      } catch (e) {
-        console.warn('Error clearing scanner:', e);
-      }
-      
-      // Reset the scanner reference
-      scannerRef.current = null;
-    } catch (err) {
-      console.error('Error cleaning up scanner:', err);
-    } finally {
-      setIsTransitioning(false);
-      setIsScanning(false);
-      hasInitializedRef.current = false;
-    }
-  };
-
-  const startScanning = async (cameraId: string) => {
-    // Don't start if scanner not initialized, already scanning, or transitioning
-    if (!scannerRef.current || isScanning || isTransitioning) return;
-
-    try {
-      setIsTransitioning(true);
-      setIsScanning(true);
-      
-      await scannerRef.current.start(
-        cameraId,
-        {
-          fps,
-          qrbox,
-          aspectRatio: 1,
-          // Support all formats for barcode scanning
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.AZTEC,
-            Html5QrcodeSupportedFormats.CODABAR,
-            Html5QrcodeSupportedFormats.CODE_39,
-            Html5QrcodeSupportedFormats.CODE_93,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.DATA_MATRIX,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.ITF,
-            Html5QrcodeSupportedFormats.MAXICODE,
-            Html5QrcodeSupportedFormats.PDF_417,
-            Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.RSS_14,
-            Html5QrcodeSupportedFormats.RSS_EXPANDED,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-            Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
-          ],
-        } as any, // Type casting as any to bypass the type error temporarily
-        handleScanSuccess,
-        handleScanFailure
-      );
-      
-      console.log('Scanner started successfully');
-    } catch (err) {
-      console.error('Error starting scanner:', err);
-      setIsScanning(false);
-      
-      // Track initialization attempts
-      initAttemptRef.current += 1;
-      
-      // If we've failed multiple times, show a user-friendly error
-      if (initAttemptRef.current >= 2) {
-        setScannerError("Failed to start the camera. Please try again or use manual entry.");
-      }
-    } finally {
-      setIsTransitioning(false);
-    }
-  };
+  }, [
+    cleanupScanner,
+    isScanning,
+    isTransitioning,
+    startScanning
+  ]);
 
   return (
     <div className="barcode-scanner">

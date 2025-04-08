@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { ListTodoIcon } from 'lucide-react';
 
 import { StartChat } from '../../chat/start';
@@ -6,13 +5,20 @@ import SidebarButton from '../sidebar/sidebar-btn';
 import UserButton from '../../user/user-button';
 import { usePoseyState } from '@posey.ai/state';
 
+interface NavbarProps {
+  withStartChat?: boolean;
+  useHashLinks?: boolean;
+  LinkComponent?: React.ElementType;
+}
+
+// Define a default link component (simple anchor tag)
+const DefaultLink = (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />;
+
 export function Navbar({
   withStartChat = true,
-  useHashLinks = false
-}: {
-  withStartChat?: boolean,
-  useHashLinks?: boolean
-}) {
+  useHashLinks = false,
+  LinkComponent = DefaultLink, // Use the functional component as default
+}: NavbarProps) {
   // Force re-render on user changes
   const user = usePoseyState((state) => state.user);
 
@@ -34,10 +40,10 @@ export function Navbar({
         )}
       </div>
       <div className="flex-none">
-        <Link href="/tasks" className="btn btn-ghost btn-sm">
+        <LinkComponent href="/tasks" className="btn btn-ghost btn-sm">
           <ListTodoIcon className="w-4 h-4" />
           <span className="hidden md:inline">Tasks</span>
-        </Link>
+        </LinkComponent>
         <UserButton key={user?.metadata?.profile?.avatar} useHashLinks={useHashLinks} />
       </div>
     </div>

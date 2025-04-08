@@ -1,14 +1,22 @@
-import Link from 'next/link';
 import { useEffect } from 'react';
 import { usePoseyRouter } from '../../hooks/router';
+
+// Define a default link component (simple anchor tag)
+const DefaultLink = (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />;
 
 interface AuthErrorProps {
   message?: string;
   redirect?: boolean;
   useHashLinks?: boolean;
+  LinkComponent?: React.ElementType;
 }
 
-export const AuthError: React.FC<AuthErrorProps> = ({ message, redirect, useHashLinks = false }) => {
+export const AuthError: React.FC<AuthErrorProps> = ({
+  message,
+  redirect,
+  useHashLinks = false,
+  LinkComponent = DefaultLink,
+}) => {
   const { linkTo } = usePoseyRouter({ useHashLinks });
 
   useEffect(() => {
@@ -26,9 +34,9 @@ export const AuthError: React.FC<AuthErrorProps> = ({ message, redirect, useHash
           {message || 'You must be logged in to view this page.'}
         </p>
         <p className="text-gray-700">
-          <Link href="/auth/login" className="text-primary hover:underline">
+          <LinkComponent href="/auth/login" className="text-primary hover:underline">
             Log in to continue
-          </Link>
+          </LinkComponent>
         </p>
       </div>
     </div>

@@ -35,13 +35,12 @@ export function DrawerContent({
   }));
 
   const { conversations } = chat;
-  // Handle client-side mounting
+  const drawerClass = status.isSidebarOpen ? 'show-drawer' : '';
+  const stickyFooterClass = stickyFooter ? 'sticky-footer' : '';
+
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  const drawerClass = status.isSidebarOpen ? 'show-drawer' : '';
-  const stickyFooterClass = stickyFooter ? 'sticky-footer' : '';
 
   useEffect(() => {
     if (!hasFetched && isClient) {

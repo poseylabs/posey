@@ -5,13 +5,12 @@ import { successResponse, errorResponse } from '@/lib/utils';
 // GET /api/inventory/items/[id] - Get a single item
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const item = await prisma.item.findUnique({
-      where: {
-        id: params.id,
-      },
+      where: { id },
       include: {
         pod: true,
       },
@@ -31,14 +30,13 @@ export async function GET(
 // PUT /api/inventory/items/[id] - Update an item
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const item = await prisma.item.update({
-      where: {
-        id: params.id,
-      },
+      where: { id },
       data: body,
       include: {
         pod: true,
@@ -55,13 +53,12 @@ export async function PUT(
 // DELETE /api/inventory/items/[id] - Delete an item
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.item.delete({
-      where: {
-        id: params.id,
-      },
+      where: { id },
     });
 
     return successResponse({ message: 'Item deleted successfully' });
@@ -69,4 +66,4 @@ export async function DELETE(
     console.error('Error deleting item:', error);
     return errorResponse('Failed to delete item');
   }
-} 
+}

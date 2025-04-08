@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '@posey.ai/core';
@@ -50,7 +50,6 @@ export default function PodLabelPage({ params }: { params: Promise<{ id: string 
   const [isGeneratingLabel, setIsGeneratingLabel] = useState(false);
   const [selectedSize, setSelectedSize] = useState<LabelSize>(LABEL_SIZES[0]);
   const [labelSvgContent, setLabelSvgContent] = useState<string | null>(null);
-  const labelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchPodDetails = async () => {
@@ -108,7 +107,7 @@ export default function PodLabelPage({ params }: { params: Promise<{ id: string 
     fetchPodDetails();
   }, [podId, router]);
 
-  const generateLabel = async () => {
+  const generateLabel = useCallback(async () => {
     setIsGeneratingLabel(true);
     try {
       const session = await getSession();
@@ -148,7 +147,7 @@ export default function PodLabelPage({ params }: { params: Promise<{ id: string 
     } finally {
       setIsGeneratingLabel(false);
     }
-  };
+  }, [pod, podId, selectedSize]);
 
   const handlePrint = () => {
     if (!labelSvgContent) return;
@@ -193,66 +192,12 @@ export default function PodLabelPage({ params }: { params: Promise<{ id: string 
     printWindow.document.close();
   };
 
-  // Function to set up print settings before opening print dialog
-  const printWithSettings = () => {
-    // Create a style element with print-specific settings
-    const printStyles = document.createElement('style');
-    printStyles.id = 'print-settings';
-    printStyles.innerHTML = `
-      @page {
-        size: ${selectedSize.width / 25.4}in ${selectedSize.height / 25.4}in !important;
-        margin: 0 !important;
-      }
-      
-      @media print {
-        body {
-          margin: 0;
-          padding: 0;
-        }
-        
-        /* Hide everything except the label */
-        body > *:not(.label-container) {
-          display: none !important;
-        }
-        
-        /* Make label fill the page */
-        .label-container {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          page-break-after: avoid;
-          page-break-inside: avoid;
-        }
-        
-        /* Ensure SVG fills the container */
-        .label-container svg {
-          width: 100%;
-          height: 100%;
-        }
-      }
-    `;
-    
-    // Add the style element to the document
-    document.head.appendChild(printStyles);
-    
-    // Open print dialog
-    window.print();
-    
-    // Optional: remove the print styles after printing
-    setTimeout(() => {
-      const element = document.getElementById('print-settings');
-      if (element) element.remove();
-    }, 1000);
-  };
-
   // Generate label when pod data loads or size changes
   useEffect(() => {
     if (pod && !loading && !error) {
       generateLabel();
     }
-  }, [pod, selectedSize]);
+  }, [error, generateLabel, loading, pod, selectedSize]);
 
   if (loading) {
     return (

@@ -131,6 +131,7 @@ export function ChatInterface({
   return (
     <DrawerContent>
       <div className="chat-header">
+        {/* Remove the LinkComponent prop, Navbar now has a default */}
         <Navbar />
         <div className="px-4 flex items-center">
           title...

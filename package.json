@@ -33,10 +33,6 @@
     "publish:orbs:major": "bash .circleci/scripts/publish-orbs-local.sh major"
   },
   "devDependencies": {
-    "@nrwl/nx-cloud": "19.1.0",
-    "@nx/js": "20.4.2",
-    "@nx/node": "^20.4.2",
-    "@nx/workspace": "^20.4.6",
     "husky": "^9.1.7",
     "lint-staged": "^15.4.3",
     "nx": "20.4.2",
@@ -55,7 +51,7 @@
     "url": "https://github.com/posey-ai/posey/issues"
   },
   "homepage": "https://github.com/posey-ai/posey#readme",
-  "packageManager": "yarn@4.7.0",
+  "packageManager": "yarn@4.8.1",
   "workspaces": [
     "apps/*",
     "services/data",

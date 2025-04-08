@@ -8,9 +8,9 @@
     "publish:npm": "npm publish --access restricted"
   },
   "peerDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
-    "eslint": "^9.22.0",
+    "@typescript-eslint/eslint-plugin": "^8.29.1",
+    "@typescript-eslint/parser": "^8.29.0",
+    "eslint": "^9.24.0",
     "eslint-config-next": "^15.0.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-jsx-a11y": "^6.10.0",

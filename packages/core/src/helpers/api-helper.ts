@@ -2,6 +2,14 @@ interface HeadersInit {
   [key: string]: string;
 }
 
+interface HTMLBodyElement {
+  body: HTMLBodyElement;
+}
+
+interface Document {
+  body: HTMLBodyElement;
+}
+
 // Add these type declarations at the top
 declare global {
   interface Window {

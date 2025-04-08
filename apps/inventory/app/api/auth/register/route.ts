@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { SignJWT } from 'jose';
 import { prisma } from '@/lib/db/prisma';
-import { successResponse, errorResponse } from '@/lib/utils';
+import { errorResponse } from '@/lib/utils';
 import bcrypt from 'bcrypt';
 
 // Function to get JWT secret

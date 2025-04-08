@@ -1,6 +1,5 @@
-'use client';
-
-import { useEffect, useMemo } from 'react';
+"use client";
+import React from "react";
 import { usePoseyState } from '@posey.ai/state';
 import { useRouter } from 'next/navigation';
 
@@ -12,7 +11,7 @@ export default function DashboardPage() {
   const logout = usePoseyState(state => state.logout);
 
   // Memoize complex values derived from state
-  const welcomeMessage = useMemo(() =>
+  const welcomeMessage = React.useMemo(() =>
     `Welcome, ${user?.email || 'User'}`,
     [user?.email]
   );

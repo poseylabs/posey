@@ -1,6 +1,6 @@
 {
   "name": "@posey.ai/state",
-  "version": "1.0.0-beta.41",
+  "version": "1.0.0-beta.1",
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -21,13 +21,15 @@
   "dependencies": {
     "@posey.ai/core": "workspace:^",
     "axios": "^1.7.9",
+    "lodash": "^4.17.21",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@types/node": "^20.11.19",
+    "@types/lodash": "^4.17.14",
+    "@types/node": "^22",
     "@types/react": "19",
     "dotenv": "^16.4.7",
-    "eslint": "^9.22.0",
+    "eslint": "^9.24.0",
     "tsup": "^8.3.5",
     "typescript": "^5.6.2"
   },

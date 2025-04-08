@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getSession } from '@posey.ai/core';
@@ -27,7 +27,7 @@ export default function PodsPage() {
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string, title: string }[]>([{ id: '', title: 'Root' }]);
 
-  const fetchPods = async (parentId: string | null = null) => {
+  const fetchPods = useCallback(async (parentId: string | null = null) => {
     setLoading(true);
     try {
       // Validate session first
@@ -79,11 +79,11 @@ export default function PodsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     fetchPods(selectedParentId);
-  }, [selectedParentId]);
+  }, [fetchPods, selectedParentId]);
 
   const navigateToPod = async (podId: string, podTitle: string) => {
     setSelectedParentId(podId);

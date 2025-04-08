@@ -5,16 +5,6 @@ interface BarcodeLookupProps {
   onProductFound: (productData: any) => void;
 }
 
-interface LookupResult {
-  title: string;
-  description: string;
-  brand?: string;
-  category?: string;
-  upc: string;
-  source: string;
-  originalData: any;
-}
-
 const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +53,7 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
     };
   }, []);
 
-  const handleScanSuccess = async (decodedText: string, decodedResult: any) => {
+  const handleScanSuccess = async (decodedText: string) => {
     // Avoid processing the same code twice
     if (lastProcessedCode === decodedText) {
       return;

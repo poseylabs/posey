@@ -1,11 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths'
+import dts from 'vite-plugin-dts'
 import { resolve } from 'path'
 import dotenv from 'dotenv'
-import autoprefixer from 'autoprefixer'
-import nested from 'postcss-nested'
-import tailwindcss from 'tailwindcss'
 
 dotenv.config()
 
@@ -15,16 +13,12 @@ const defaultConfig: any = () => {
     plugins: [
       react(),
       tsconfigPaths(),
+      dts({
+        insertTypesEntry: true,
+      }),
       // libInjectCss(),
     ],
     css: {
-      postcss: {
-        plugins: [
-          nested(),
-          autoprefixer(),
-          tailwindcss(),
-        ],
-      },
       preprocessorOptions: {
         scss: {
           additionalData: '@use "sass:math";',
