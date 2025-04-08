@@ -6562,6 +6562,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./packages/core/",\
         "packageDependencies": [\
           ["@posey.ai/core", "workspace:packages/core"],\
+          ["@posey.ai/ts-config", "workspace:packages/ts-config"],\
           ["@types/bcrypt", "npm:5.0.2"],\
           ["@types/jsonwebtoken", "npm:9.0.9"],\
           ["@types/node", "npm:22.14.0"],\
@@ -6580,6 +6581,7 @@ const RAW_RUNTIME_STATE =
           ["ts-node", "virtual:21655e0edb82076bf3e9b6dcb6dd2f93544847e64eaeafcce0ffa25d9af9eb9b435bd5bb6e3620a3ad02356004ce5b557136cde4a0f8947b40519d1cb7fee10f#npm:10.9.2"],\
           ["tsup", "virtual:21655e0edb82076bf3e9b6dcb6dd2f93544847e64eaeafcce0ffa25d9af9eb9b435bd5bb6e3620a3ad02356004ce5b557136cde4a0f8947b40519d1cb7fee10f#npm:8.4.0"],\
           ["typescript", "patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=5786d5"],\
+          ["uuid", "npm:11.1.0"],\
           ["zustand", "virtual:21655e0edb82076bf3e9b6dcb6dd2f93544847e64eaeafcce0ffa25d9af9eb9b435bd5bb6e3620a3ad02356004ce5b557136cde4a0f8947b40519d1cb7fee10f#npm:5.0.3"]\
         ],\
         "linkType": "SOFT"\
@@ -6798,6 +6800,7 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@posey.ai/core", "workspace:packages/core"],\
           ["@posey.ai/state", "virtual:39d24f41519efe4a13146009da55cf9737db7e5bad178bad1b13dd7033e81dabd3e64097e0c37c6e942fdd3843731bfb67487ea6653da281c902a3c33339d472#workspace:packages/state"],\
+          ["@posey.ai/ts-config", "workspace:packages/ts-config"],\
           ["@types/lodash", "npm:4.17.16"],\
           ["@types/node", "npm:22.14.0"],\
           ["@types/react", "npm:18.3.20"],\
@@ -6825,6 +6828,7 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@posey.ai/core", "workspace:packages/core"],\
           ["@posey.ai/state", "virtual:88f7eabd2ff43073fa27b6a62107cf2fb7e9b26543810b6293a6a3f76a2f5402a5627696ca0b53fe90bfe8b639ffb5e4c7be0297ca8dc836231d0d3e727a9bf7#workspace:packages/state"],\
+          ["@posey.ai/ts-config", "workspace:packages/ts-config"],\
           ["@types/lodash", "npm:4.17.16"],\
           ["@types/node", "npm:22.14.0"],\
           ["@types/react", "npm:19.1.0"],\
@@ -6852,6 +6856,7 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@posey.ai/core", "workspace:packages/core"],\
           ["@posey.ai/state", "workspace:packages/state"],\
+          ["@posey.ai/ts-config", "workspace:packages/ts-config"],\
           ["@types/lodash", "npm:4.17.16"],\
           ["@types/node", "npm:22.14.0"],\
           ["@types/react", "npm:19.1.0"],\

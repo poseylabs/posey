@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as jose from 'jose'; // Added import for JWT verification
 
 // Function to verify JWT token
 export async function verifyToken(token: string) {
   try {
-    // For SuperTokens session tokens, they may not be standard JWTs
-    // Instead of trying to decode the token, we'll trust that the middleware already validated it
-    // and just return a placeholder payload with the token value for later use
-    return {
-      sub: 'token_trusted',
-      tokenValue: token,
-    };
+    // Assume the token is a JWT and needs verification
+    // You MUST set a secret key in your environment variables (e.g., JWT_SECRET)
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-fallback-secret-key-here'); // Replace with your actual secret key mechanism
+
+    // Verify the token and decode the payload
+    const { payload } = await jose.jwtVerify(token, secret);
+
+    console.log('Verified token payload:', payload);
+    // Return the payload which should contain user info (e.g., sub for user ID)
+    return payload;
+
   } catch (error) {
-    console.error('Error handling token:', error);
-    return null;
+    console.error('Error verifying token:', error);
+    // Distinguish between verification errors and other errors
+    if (error instanceof jose.errors.JWTExpired || error instanceof jose.errors.JWTClaimValidationFailed || error instanceof jose.errors.JWSSignatureVerificationFailed) {
+        console.warn('Token validation failed:', error.message);
+    } else {
+        console.error('An unexpected error occurred during token verification:', error);
+    }
+    return null; // Return null if verification fails
   }
 }
 
@@ -106,16 +117,27 @@ export async function getCurrentUser(req?: NextRequest) {
   }
 
   try {
-    // Last resort - use the placeholder user ID from earlier
-    // This will work if the user with this ID exists in the database
-    console.log('WARN: Using fallback authentication method');
+    // Verify the token and get the payload
+    const payload = await verifyToken(token);
+
+    if (!payload || !payload.sub) {
+      console.error('Token verification failed or missing sub claim');
+      return null;
+    }
+
+    // Use the 'sub' claim (subject) as the user ID, which is standard for JWTs
+    const userIdFromToken = payload.sub;
+    console.log('Using user ID from verified token:', userIdFromToken);
+
     return {
-      id: 'ce9c4fa7-29c3-4018-958c-10ce796ac9b8', // The user ID from the headers
-      email: 'user@example.com',
-      name: 'User',
+      id: userIdFromToken,
+      // You might get email/name from the token payload as well, if available
+      email: (payload.email as string) || `${userIdFromToken}@example.com`,
+      name: (payload.name as string) || 'User',
     };
+
   } catch (error) {
-    console.error('Error getting current user:', error);
+    console.error('Error getting current user from token:', error);
     return null;
   }
 }

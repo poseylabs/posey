@@ -4323,6 +4323,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@posey.ai/core@workspace:packages/core"
   dependencies:
+    "@posey.ai/ts-config": "workspace:*"
     "@types/bcrypt": "npm:^5"
     "@types/jsonwebtoken": "npm:^9"
     "@types/node": "npm:^22"
@@ -4341,6 +4342,7 @@ __metadata:
     ts-node: "npm:^10.9.2"
     tsup: "npm:^8.3.5"
     typescript: "npm:^5.6.2"
+    uuid: "npm:^11.1.0"
     zustand: "npm:^5.0.3"
   dependenciesMeta:
     mongodb:
@@ -4472,6 +4474,7 @@ __metadata:
   resolution: "@posey.ai/state@workspace:packages/state"
   dependencies:
     "@posey.ai/core": "workspace:^"
+    "@posey.ai/ts-config": "workspace:*"
     "@types/lodash": "npm:^4.17.14"
     "@types/node": "npm:^22"
     "@types/react": "npm:19"
@@ -4515,7 +4518,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@posey.ai/ts-config@workspace:^, @posey.ai/ts-config@workspace:packages/ts-config":
+"@posey.ai/ts-config@workspace:*, @posey.ai/ts-config@workspace:^, @posey.ai/ts-config@workspace:packages/ts-config":
   version: 0.0.0-use.local
   resolution: "@posey.ai/ts-config@workspace:packages/ts-config"
   languageName: unknown
@@ -18730,7 +18733,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"uuid@npm:^11.0.4":
+"uuid@npm:^11.0.4, uuid@npm:^11.1.0":
   version: 11.1.0
   resolution: "uuid@npm:11.1.0"
   bin:

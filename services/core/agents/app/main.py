@@ -59,9 +59,10 @@ async def lifespan(app: FastAPI):
         
         # --> Add logging HERE <--
         logger.info(f"[Lifespan] DB instance ID: {id(db)}")
-        logger.info(f"[Lifespan] Postgres pool initialized: {hasattr(db, '_pool')}")
-        logger.info(f"[Lifespan] Couchbase cluster initialized: {hasattr(db, 'cluster')}")
-        logger.info(f"[Lifespan] Qdrant client initialized: {hasattr(db, 'qdrant_client')}")
+        # Check internal attributes directly to avoid triggering property errors
+        logger.info(f"[Lifespan] Postgres pool initialized: {hasattr(db, '_pg_pool') and db._pg_pool is not None}")
+        logger.info(f"[Lifespan] Couchbase cluster initialized: {hasattr(db, '_cb_cluster') and db._cb_cluster is not None}")
+        logger.info(f"[Lifespan] Qdrant client initialized: {hasattr(db, '_qdrant_client') and db._qdrant_client is not None}")
 
         # Verify connections
         connection_status = await verify_connections(LLM_CONFIG)

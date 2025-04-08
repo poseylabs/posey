@@ -13,7 +13,7 @@ interface Document {
 // Add these type declarations at the top
 declare global {
   interface Window {
-    document: Document;
+    // document: Document;
   }
 }
 

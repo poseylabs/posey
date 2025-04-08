@@ -3,8 +3,9 @@
   "version": "1.0.0-alpha.3",
   "license": "AGPL-3.0",
   "scripts": {
-    "build": "tsup --config tsup.config.ts",
-    "dev": "tsup --config tsup.config.ts --watch --dts",
+    "build": "tsup --config tsup.config.ts && yarn build:types",
+    "build:types": "tsc --build --clean && tsc --project tsconfig.json --declaration true --declarationDir dist/types --emitDeclarationOnly true",
+    "dev": "tsup --config tsup.config.ts --watch --onSuccess \"yarn build:types\"",
     "lint": "eslint src/**/*.ts*",
     "model:fetch": "./src/utils/pull-models.sh",
     "prepublishOnly": "yarn build",
@@ -13,31 +14,35 @@
   },
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./dist/types/index.d.ts",
       "import": "./dist/index.mjs"
     },
     "./config": {
-      "types": "./dist/config/index.d.ts",
+      "types": "./dist/types/config/index.d.ts",
       "import": "./dist/config/index.mjs"
     },
     "./prompts": {
-      "types": "./dist/prompts/index.d.ts",
+      "types": "./dist/types/prompts/index.d.ts",
       "import": "./dist/prompts/index.mjs"
     },
-    "./store": {
-      "types": "./dist/store/index.d.ts",
-      "import": "./dist/store/index.mjs"
-    },
     "./types": {
-      "types": "./dist/types/index.d.ts",
+      "types": "./dist/types/types/index.d.ts",
       "import": "./dist/types/index.mjs"
     },
     "./utils": {
-      "types": "./dist/utils/index.d.ts",
+      "types": "./dist/types/utils/index.d.ts",
       "import": "./dist/utils/index.mjs"
+    },
+    "./database": {
+      "types": "./dist/types/database/index.d.ts",
+      "import": "./dist/database/index.mjs"
+    },
+    "./helpers": {
+      "types": "./dist/types/helpers/index.d.ts",
+      "import": "./dist/helpers/index.mjs"
     }
   },
   "type": "module",
@@ -49,9 +54,11 @@
     "ollama": "^0.5.13",
     "openai": "^4.77.4",
     "pg": "^8.13.2",
+    "uuid": "^11.1.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@posey.ai/ts-config": "workspace:*",
     "@types/bcrypt": "^5",
     "@types/jsonwebtoken": "^9",
     "@types/node": "^22",

@@ -1,6 +1,7 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
+  tsconfig: 'tsconfig.json',
   entry: {
     'index': 'src/index.ts',
     'database/index': 'src/database/index.ts',
@@ -11,7 +12,7 @@ export default defineConfig({
     'helpers/index': 'src/helpers/index.ts',
   },
   format: ['esm'],
-  dts: true,
+  dts: false,
   sourcemap: true,
   clean: true,
   treeshake: true,

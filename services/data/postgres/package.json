@@ -2,12 +2,6 @@
   "name": "@posey.ai/postgres",
   "version": "1.0.0-beta.1",
   "type": "module",
-  "scripts": {
-    "dev": "node k8s/dev-proxy.js",
-    "docker:build": "docker build -t registry.digitalocean.com/poseylabs/posey-postgres:latest .",
-    "docker:push": "docker push registry.digitalocean.com/poseylabs/posey-postgres:latest",
-    "build": "yarn docker:build && yarn docker:push"
-  },
   "dependencies": {
     "dotenv": "^16.4.5"
   }

@@ -12,7 +12,7 @@
     "declaration": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "declarationDir": "./dist",
+    "declarationDir": "./dist/types",
     "emitDeclarationOnly": false,
     "esModuleInterop": true,
     "strict": true,

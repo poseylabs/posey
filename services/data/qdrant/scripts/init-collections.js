@@ -32,7 +32,7 @@ async function validateCollection(client, collectionName) {
 // async function healthCheck() {
 //   try {
 //     console.info('Checking Qdrant health...');
-//     const client = new QdrantClient({ url: QDRANT_URL });
+//     const client = new QdrantClient({ url: QDRANT_HOST });
     
 //     // Get collections to verify connectivity
 //     const collections = await client.getCollections();

@@ -17,8 +17,13 @@ cd "$WORKSPACE_ROOT"
 # Now run docker build with paths relative to the WORKSPACE_ROOT
 # Context is '.' (current dir, which is now WORKSPACE_ROOT)
 # Dockerfile path is relative to WORKSPACE_ROOT
+CRON_DOCKERFILE_RELATIVE_PATH="services/core/cron/Dockerfile"
 echo "Running Docker build from: $PWD"
-DOCKER_BUILDKIT=1 docker build -t posey-cron:latest -f "$CRON_SERVICE_DIR/Dockerfile" .
+if [ ! -f "$CRON_DOCKERFILE_RELATIVE_PATH" ]; then
+    echo "ERROR: Cron Dockerfile not found at relative path: $CRON_DOCKERFILE_RELATIVE_PATH" >&2
+    exit 1
+fi
+DOCKER_BUILDKIT=1 docker build -t posey-cron:latest -f "$CRON_DOCKERFILE_RELATIVE_PATH" .
 
 echo '✅ Build complete. Displaying image:'
 docker images posey-cron:latest

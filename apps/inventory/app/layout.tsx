@@ -93,7 +93,7 @@ export default function RootLayout({
                 </li>
                 <div className="mt-auto text-center text-xs text-gray-500 py-2">
                   <div>Inventory Manager v0.1.0</div>
-                  <div>© 2023 Posey.ai</div>
+                  <div>©2025 Posey Labs</div>
                 </div>
               </ul>
             </aside>

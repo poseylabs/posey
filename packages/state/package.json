@@ -4,16 +4,17 @@
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./dist/types/index.d.ts",
       "import": "./dist/index.mjs"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts",
-    "dev": "tsup --config tsup.config.ts --watch --dts",
+    "build": "tsup --config tsup.config.ts && yarn build:types",
+    "build:types": "tsc --build --clean && tsc --project tsconfig.json --declaration true --declarationDir dist/types --emitDeclarationOnly true",
+    "dev": "tsup --config tsup.config.ts --watch --onSuccess \"yarn build:types\"",
     "lint": "eslint src/**/*.ts*",
     "prepublishOnly": "yarn build",
     "test": "jest"
@@ -25,6 +26,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@posey.ai/ts-config": "workspace:*",
     "@types/lodash": "^4.17.14",
     "@types/node": "^22",
     "@types/react": "19",

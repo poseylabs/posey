@@ -57,3 +57,11 @@ global:
   image:
     registry: docker.io
     pullPolicy: Always
+  # Add default resources for local development
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi

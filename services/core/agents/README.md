@@ -38,7 +38,7 @@ POSTGRES_USER=your_user
 POSTGRES_PASSWORD=your_password
 POSTGRES_HOST=your_host
 
-QDRANT_URL=your_qdrant_url
+QDRANT_HOST=your_qdrant_url
 ```
 
 ### Running the Service
