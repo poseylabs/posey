@@ -10,7 +10,6 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy workspace configuration files first
-COPY .yarn/releases ./.yarn/releases
 COPY .yarnrc.yml .
 COPY package.json .
 COPY yarn.lock .
