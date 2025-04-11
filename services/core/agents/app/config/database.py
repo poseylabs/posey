@@ -4,14 +4,17 @@ import asyncio
 from contextlib import asynccontextmanager
 import asyncpg
 from couchbase.cluster import Cluster
+from couchbase.exceptions import CouchbaseException
 from couchbase.auth import PasswordAuthenticator
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
-from qdrant_client import QdrantClient
+from qdrant_client import AsyncQdrantClient, QdrantClient
+from qdrant_client.http import models as rest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.dialects.postgresql import asyncpg
+from sqlalchemy import text
 from sqlalchemy.engine.url import make_url
 from app.config.settings import settings
+from datetime import timedelta
 
 # Use the app.database logger
 logger = logging.getLogger("app.database")
@@ -22,27 +25,26 @@ class Database:
         self._pg_pool = None
         self._cb_cluster = None
         self._qdrant_client = None
-        self._async_session = None
         self._async_engine = None
         self._async_session_factory = None
         
         # Get Qdrant URL with fallback
         try:
-            self._qdrant_url = settings.QDRANT_FULL_URL
+            self._qdrant_url = settings.QDRANT_URL
         except AttributeError:
             # Fallback to constructing URL from components
             self._qdrant_url = f"http://{settings.QDRANT_HOST}:{settings.QDRANT_PORT}"
-            logger.warning(f"QDRANT_FULL_URL not found, using constructed URL: {self._qdrant_url}")
+            logger.warning(f"QDRANT_URL not found, using constructed URL: {self._qdrant_url}")
         
         # Create engine with explicit asyncpg driver
         url = settings.POSTGRES_DSN_POSEY.replace('postgresql://', 'postgresql+asyncpg://')
         
         self.engine = create_async_engine(
             url,
-            echo=False,
+            echo=settings.DEBUG,
             pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10,
+            pool_size=settings.POSTGRES_POOL_SIZE,
+            max_overflow=settings.POSTGRES_MAX_OVERFLOW,
             connect_args={
                 "server_settings": {
                     "application_name": "posey-agents"
@@ -54,6 +56,7 @@ class Database:
             class_=AsyncSession,
             expire_on_commit=False
         )
+        self._async_session_factory = self.SessionLocal
 
     @property
     def pool(self):
@@ -110,9 +113,9 @@ class Database:
     
     @property
     def couchbase(self):
-        if not self._collection:
+        if not self._cb_cluster:
             raise RuntimeError("Couchbase connection not initialized")
-        return self._collection
+        return self._cb_cluster
 
     @property
     def postgres(self):
@@ -149,35 +152,111 @@ class Database:
         return self._async_session
 
     async def connect_all(self):
-        """Initialize all database connections"""
+        """Initializes all database connections."""
         logger.info("Initializing database connections...")
-        
-        # Parse and reconstruct the DSN for asyncpg
-        base_dsn = settings.POSTGRES_DSN_POSEY
-        # Remove any protocol prefix and query params
-        base_dsn = base_dsn.replace('postgresql://', '').replace('postgresql+asyncpg://', '')
-        main_part = base_dsn.split('?')[0]
-        
-        # Create SQLAlchemy engine with asyncpg
-        sqlalchemy_dsn = f"postgresql+asyncpg://{main_part}"
-        
-        # Create async engine
-        self._async_engine = create_async_engine(
-            sqlalchemy_dsn,
-            echo=settings.DEBUG,
-            pool_size=5,
-            max_overflow=10,
-            connect_args={
-                "host": settings.POSTGRES_HOST  # Force TCP/IP connection
-            }
-        )
 
-        # Create async session factory
-        self._async_session_factory = sessionmaker(
-            self._async_engine,
-            class_=AsyncSession,
-            expire_on_commit=False
-        )
+        # Initialize SQLAlchemy first (often less problematic)
+        try:
+            # Ensure the DSN uses the correct asyncpg driver
+            sqlalchemy_dsn = settings.POSTGRES_DSN_POSEY
+            if sqlalchemy_dsn.startswith("postgresql://"):
+                sqlalchemy_dsn = sqlalchemy_dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
+            elif not sqlalchemy_dsn.startswith("postgresql+asyncpg://"):
+                 raise ValueError(f"Invalid PostgreSQL DSN format: {sqlalchemy_dsn}")
+
+            self._async_engine = create_async_engine(
+                sqlalchemy_dsn,
+                echo=settings.DEBUG,
+                pool_size=5,
+                max_overflow=10,
+                pool_pre_ping=True
+            )
+            self._async_session_factory = sessionmaker(
+                self._async_engine,
+                class_=AsyncSession,
+                expire_on_commit=False
+            )
+            # Test SQLAlchemy connection by creating a session
+            async with self.get_session() as session:
+                await session.execute(text("SELECT 1"))
+            logger.info("SQLAlchemy Engine/Session initialized successfully.")
+        except Exception as e:
+            logger.error(f"SQLAlchemy Engine/Session initialization failed: {e}")
+            self._async_engine = None
+            self._async_session_factory = None
+
+        # Initialize asyncpg Pool (Separate from SQLAlchemy)
+        try:
+            self._pg_pool = await asyncpg.create_pool(
+                dsn=settings.POSTGRES_DSN_POSEY,
+                min_size=1,
+                max_size=10,
+                timeout=5
+            )
+            # Test the pool
+            async with self.get_pg_connection() as conn:
+                 await conn.fetchval("SELECT 1")
+            logger.info("asyncpg Pool initialized successfully.")
+        except Exception as e:
+            logger.error(f"asyncpg Pool initialization failed: {e}")
+            self._pg_pool = None
+            # Decide if we should raise or continue
+
+        # Initialize Couchbase
+        try:
+            # Log connection details before attempting
+            cb_url = settings.COUCHBASE_URL
+            cb_user = settings.COUCHBASE_USER
+            logger.info(f"Attempting Couchbase connection: URL='{cb_url}', User='{cb_user}'")
+            
+            logger.debug(f"Settings dir JUST BEFORE ClusterTimeoutOptions: {dir(settings)}")
+            timeout_opts = ClusterTimeoutOptions(
+                connect_timeout=timedelta(seconds=settings.COUCHBASE_CONNECT_TIMEOUT),
+                key_value_timeout=timedelta(seconds=settings.COUCHBASE_KV_TIMEOUT)
+            )
+            auth = PasswordAuthenticator(
+                settings.COUCHBASE_USER,
+                settings.COUCHBASE_PASSWORD
+            )
+            self._cb_cluster = Cluster(
+                settings.COUCHBASE_URL,
+                ClusterOptions(auth, timeout_options=timeout_opts)
+            )
+            # Ensure cluster object was created before proceeding
+            if self._cb_cluster:
+                # Removed readiness/ping checks from initial connect for simplicity
+                # await self._cb_cluster.wait_until_ready(timeout=timedelta(seconds=5))
+                # await self._cb_cluster.ping()
+                logger.info("Couchbase Cluster initialized and pinged successfully.")
+            else:
+                # Raise an error if Cluster() returned None unexpectedly
+                raise ConnectionError("Couchbase Cluster() constructor returned None")
+        except CouchbaseException as ce: 
+             logger.error(f"Couchbase Cluster initialization failed: {ce}")
+             self._cb_cluster = None
+             return False # Indicate failure
+        except Exception as e:
+            # Log the specific exception type and message
+            logger.error(f"Couchbase Cluster initialization failed: {type(e).__name__}: {e}")
+            # Log details for debugging
+            logger.error(f"  URL: {settings.COUCHBASE_URL}")
+            logger.error(f"  User: {settings.COUCHBASE_USER}")
+
+        # Initialize Qdrant Client (Async)
+        try:
+            await self.connect_qdrant()
+        except Exception as e:
+            logger.error(f"Qdrant connection failed: {type(e).__name__} - {str(e)}")
+            self._qdrant_client = None
+
+        # Enhanced check after all attempts
+        if not self._qdrant_client:
+            logger.critical("Qdrant client failed to initialize. Application cannot start.")
+            raise RuntimeError("Qdrant client failed to initialize during startup.")
+        elif not all([self._async_engine, self._pg_pool, self._cb_cluster]):
+             logger.warning("One or more non-critical database connections failed to initialize.")
+        else:
+            logger.info("All required database connections initialized successfully.")
 
     @property
     def async_engine(self):
@@ -314,9 +393,10 @@ class Database:
             if self._qdrant_client:
                 logger.info("Closing Qdrant connection")
                 try:
-                    await self._qdrant_client.close()
+                    # Async client likely has an async close method
+                    await self._qdrant_client.close(timeout=5)
                 except Exception as e:
-                    logger.error(f"Error closing Qdrant connection: {e}")
+                    logger.error(f"Error closing Async Qdrant connection: {e}")
             
             if self._async_engine:
                 await self._async_engine.dispose()
@@ -329,13 +409,13 @@ class Database:
     @asynccontextmanager
     async def get_pg_connection(self):
         """Get a PostgreSQL connection from the pool"""
-        if not self.pg_pool:
+        if not self._pg_pool:
             raise RuntimeError("PostgreSQL connection pool not initialized")
-        conn = await self.pg_pool.acquire()
+        conn = await self._pg_pool.acquire()
         try:
             yield conn
         finally:
-            await self.pg_pool.release(conn) 
+            await self._pg_pool.release(conn) 
 
     async def get_db(self) -> AsyncGenerator[AsyncSession, None]:
         """Get database session"""
@@ -362,6 +442,53 @@ class Database:
         if not self._async_session_factory:
             raise RuntimeError("Database not initialized. Call connect_all() first.")
         return self._async_session_factory()
+
+    async def connect_qdrant(self) -> bool:
+        """Initializes the Async Qdrant Client."""
+        if self._qdrant_client:
+            logger.info("Qdrant Client already initialized.")
+            return True
+        
+        client = None # Initialize local variable
+        try:
+            qdrant_host = settings.QDRANT_HOST
+            qdrant_port = settings.QDRANT_PORT
+            logger.info(f"Attempting Qdrant connection via HTTP: Host='{qdrant_host}', Port={qdrant_port}")
+
+            # Instantiate the Async Client locally first
+            client = AsyncQdrantClient(
+                host=qdrant_host,
+                port=qdrant_port,
+                # prefer_grpc=settings.QDRANT_PREFER_GRPC, # Use setting if defined
+                prefer_grpc=False, # Explicitly using HTTP for now based on previous logs
+                # timeout=settings.QDRANT_TIMEOUT # Use setting if defined
+                timeout=15
+            )
+            logger.debug(f"AsyncQdrantClient instantiated locally: {client}")
+
+            # Test Qdrant connection (async call)
+            # Use get_collections() to verify connection instead of health_check
+            logger.debug("Attempting AsyncQdrantClient.get_collections() for health check...")
+            await client.get_collections()
+            logger.debug("AsyncQdrantClient.get_collections() health check successful.")
+            
+            # Assign to self._qdrant_client ONLY after successful health check
+            self._qdrant_client = client 
+            logger.info(f"Async Qdrant Client initialized and health check successful.")
+            return True # Indicate success
+
+        except Exception as e:
+            logger.error(f"Async Qdrant Client initialization failed: {type(e).__name__}: {e}")
+            logger.error(f"  Host='{settings.QDRANT_HOST}', Port={settings.QDRANT_PORT}")
+            self._qdrant_client = None # Ensure instance variable is None on failure
+            # Attempt to clean up the locally created client if it exists
+            if client:
+                try:
+                    await client.close()
+                    logger.debug("Cleaned up partially initialized Qdrant client after failure.")
+                except Exception as close_err:
+                    logger.error(f"Error closing partially initialized Qdrant client: {close_err}")
+            return False # Indicate failure
 
 # Create a single instance of the Database class
 db = Database()

@@ -67,7 +67,7 @@ USER posey-agents
 
 EXPOSE 5555
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:5555/health || exit 1
+# HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+#     CMD curl -f http://localhost:5555/health || exit 1
 
 ENTRYPOINT ["/app/entrypoint.sh"]

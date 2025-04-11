@@ -60,6 +60,6 @@ global:
     pullPolicy: Always
   resources:
     limits:
-      memory: "512Mi"
+      memory: "4Gi"
     requests:
-      memory: "256Mi"
+      memory: "2Gi"

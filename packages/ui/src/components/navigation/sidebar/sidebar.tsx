@@ -1,7 +1,6 @@
 'use client';
 import { config, UserPreferences, getUpdatedLLMAdapters } from '@posey.ai/core';
 import { PoseyState, usePoseyState } from '@posey.ai/state';
-import debounce from 'lodash/debounce';
 import { useEffect, useState, useCallback } from 'react';
 import { usePoseyRouter } from '../../../hooks/router';
 import { VoiceSelector } from '../../preferences/voice-selector';
@@ -105,7 +104,7 @@ export default function Sidebar({
   const [selectedTTS, setSelectedTTS] = useState(false);
 
   // Add all preferences as local state
-  const [localPreferences, setLocalPreferences] = useState(preferences || {});
+  const [localPreferences, setLocalPreferences] = useState<Partial<UserPreferences>>(preferences || {});
 
   // Update local preferences when store preferences change
   useEffect(() => {
@@ -125,7 +124,7 @@ export default function Sidebar({
   }, [localPreferences]);
 
   // Update helper function
-  const updatePreferences = (updates: Partial<UserPreferences>) => {
+  const updatePreferences = useCallback((updates: Partial<UserPreferences>) => {
     const newPreferences = {
       ...localPreferences,
       ...updates
@@ -138,7 +137,7 @@ export default function Sidebar({
     setUserPreferences({
       preferences: newPreferences
     });
-  };
+  }, [localPreferences, setUserPreferences]);
 
   useEffect(() => {
     if (user) {
@@ -151,7 +150,7 @@ export default function Sidebar({
   useEffect(() => {
     if (localPreferences) {
       const adapter = localPreferences.preferred_image_adapter;
-      const model = localPreferences.preferred_image_models?.[adapter];
+      const model = adapter ? localPreferences.preferred_image_models?.[adapter] : undefined;
 
       if (adapter && (adapter !== selectedImageAdapter || model !== selectedImageModel)) {
         if (adapter) setSelectedImageAdapter(adapter);
@@ -242,29 +241,35 @@ export default function Sidebar({
   const handleAdapterChange = (provider: string) => {
     setSelectedProvider(provider);
 
-    // If use already prefers this provider and we switched back to it, use previous model
-    if (localPreferences.preferred_provider && provider === localPreferences.preferred_provider) {
-      setSelectedModel(localPreferences.preferred_model);
-      // Otherwise, clear the model
-    } else {
-      setSelectedModel('');
+    // Reset model selection based on provider and preferences
+    let nextModel = ''; // Default to no model selected
+    if (provider === localPreferences.preferred_provider && localPreferences.preferred_model) {
+      // Check if the preferred model exists within the *full* model list for the selected provider
+      const providerHasPreferredModel = modelOptions.some(
+        model => model.provider === provider && model.id === localPreferences.preferred_model
+      );
+      if (providerHasPreferredModel) {
+        nextModel = localPreferences.preferred_model;
+      }
     }
-  }
+    setSelectedModel(nextModel); // Set the determined model (could be '' or the preferred one)
+    // The filtering logic is now handled by a dedicated useEffect hook
+  };
 
-  const handleModelChange = useCallback(async (model: string) => {
+  const handleModelChange = useCallback(async (modelId: string) => {
     try {
-      setSelectedModel(model);
+      setSelectedModel(modelId); // Update UI state first
       updatePreferences({
-        preferred_model: model,
-        preferred_provider: selectedProvider
+        preferred_model: modelId,
+        preferred_provider: selectedProvider // Ensure provider is also updated
       });
     } catch (error) {
       console.error('Error changing model:', error);
-      if (localPreferences.preferred_model) {
-        setSelectedModel(localPreferences.preferred_model);
-      }
+      // Optional: Add error handling/reversion logic here if needed
+      // For now, keep the UI state as selected, log the error
     }
-  }, [selectedProvider, selectedModel]);
+    // Added missing dependencies
+  }, [selectedProvider, updatePreferences]);
 
   const handleThemeChange = useCallback((theme: string) => {
     setSelectedTheme(theme);
@@ -422,25 +427,19 @@ export default function Sidebar({
         const _models: any = getModelListFromAdapters(adapters);
         if (!isEqual(_models, modelOptions)) {
           setModelOptions(_models);
-
-          // If we have a preferred provider, update filtered models
-          if (selectedProvider) {
-            const filtered = _models.filter((model: any) => model.provider === selectedProvider);
-            setFilteredModels(filtered);
-          }
         }
+        setHasFetchedModels(true); // Set true only after successful fetch/update
       } catch (error) {
         console.error('Error loading models:', error);
-        setHasFetchedModels(false);
+        setHasFetchedModels(false); // Keep false on error to potentially allow retry
       }
     };
 
+    // Fetch models if we haven't successfully fetched them yet
     if (!hasFetchedModels) {
       loadModels();
     }
-
-
-  }, [selectedProvider]);
+  }, [hasFetchedModels]);
 
   useEffect(() => {
     if (currentConversation?.id && !currentConversationId) {
@@ -452,6 +451,24 @@ export default function Sidebar({
 
   }, [currentConversation]);
 
+  // NEW: useEffect to filter models when provider or model list changes
+  useEffect(() => {
+    if (selectedProvider && modelOptions.length > 0) {
+      const filtered = modelOptions.filter(model => model.provider === selectedProvider);
+      setFilteredModels(filtered);
+
+      // If a model was selected but is not in the new filtered list, clear it
+      // This prevents displaying a model that doesn't belong to the selected provider
+      if (selectedModel && !filtered.some(m => m.id === selectedModel)) {
+        setSelectedModel('');
+      }
+
+    } else {
+      setFilteredModels([]); // Clear filtered models if no provider is selected or no models loaded
+    }
+    // Depend on the provider selection and the full list of models
+  }, [selectedProvider, modelOptions, selectedModel]);
+
   return (
     <div className={sidebarClass}>
       <div className={`sidebar-content bg-base-300 text-base-content max-h-1 overflow-y-auto min-h-full p-4 ${sidebarClass}`}>
@@ -461,7 +478,7 @@ export default function Sidebar({
             <li>
               <label className={style.label}>Jump to conversation</label>
               <select
-                className="select select-bordered mb-1"
+                className="select"
                 value={currentConversationId || ''}
                 onChange={(e) => handleConversationChange({
                   conversationId: e.target.value
@@ -516,15 +533,17 @@ export default function Sidebar({
                     onChange={(e) => handleAdapterChange(e.target.value)}
                   >
                     <option value="">Select an adapter</option>
+                    {/* Ensure modelOptions is used here to derive providers */}
                     {Array.from(new Set(modelOptions.map(model => model.provider))).map((provider: string) => (
                       <option key={provider} value={provider}>
+                        {/* You might want a mapping for prettier provider names */}
                         {provider}
                       </option>
                     ))}
                   </select>
                 </li>
 
-                {/* Model Selector */}
+                {/* Model Selector - Uses filteredModels */}
                 {selectedProvider && (
                   <li className={liClass}>
                     <label className={style.label}>Model</label>
@@ -534,12 +553,13 @@ export default function Sidebar({
                       onChange={(e) => handleModelChange(e.target.value)}
                     >
                       <option value="">Select a model</option>
-                      {filteredModels.map((model: any) => (
+                      {/* Ensure filteredModels is correctly typed or cast */}
+                      {filteredModels.map((model: ModelOption) => (
                         <option
-                          key={model.id}
-                          value={model.id}
+                          key={model.id} // Use unique model id
+                          value={model.id} // Value should be model id
                         >
-                          {model.name}
+                          {model.name} {/* Display model name */}
                         </option>
                       ))}
                     </select>

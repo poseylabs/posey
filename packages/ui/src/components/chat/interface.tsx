@@ -107,7 +107,6 @@ export function ChatInterface() {
     }
   };
 
-  // Replace useLayoutEffect with useEffect and better state management
   useEffect(() => {
     // Only process if:
     // 1. We have a valid conversation
@@ -120,7 +119,7 @@ export function ChatInterface() {
       currentConversation.status === ConversationStatus.NEW &&
       currentConversation.messages?.length === 1 &&
       !processedConversations.current.has(currentConversation.id) &&
-      processingState.status !== 'processing'
+      processingState.status !== 'processing' && processingState.status !== 'error'
     ) {
       console.log("Starting to process conversation:", currentConversation.id);
 
@@ -138,7 +137,8 @@ export function ChatInterface() {
         message: firstMessage?.content || '',
         firstContact: true
       })
-        .then(() => {
+        .then((response: any) => {
+          console.log("AGENT RESPONSE", response);
           setStatus('idle');
           setStatusMessage('');
           setProcessingState({ id: currentConversation.id, status: 'completed' });
@@ -155,7 +155,17 @@ export function ChatInterface() {
           setIsProcessing(false);
         });
     }
-  }, [currentConversation?.id, currentConversation?.status, currentConversation?.messages?.length, processingState.status]);
+  }, [
+    currentConversation?.id,
+    currentConversation?.status,
+    currentConversation?.messages?.length,
+    processingState.status,
+    setIsProcessing,
+    setStatus,
+    setStatusMessage,
+    callAgent,
+    setProcessingState
+  ]);
 
   return (
     <DrawerContent>
@@ -192,10 +202,12 @@ export function ChatInterface() {
       </div>
       <div className="chat-footer text-center p-4">
 
-        {status !== 'idle' && statusMessage && <ChatStatus
-          status={status}
-          message={statusMessage}
-        />}
+        <div>
+          {status !== 'idle' && statusMessage && <ChatStatus
+            status={status}
+            message={statusMessage}
+          />}
+        </div>
 
         <ChatInput
           onSubmit={handleSubmit}

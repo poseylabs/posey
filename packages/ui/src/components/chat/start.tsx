@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { usePoseyRouter } from '../../hooks/router';
 import { useConversation } from '../../hooks/useConversation';
 
-const defaultClass = "input input-bordered text-neutral-content flex items-center gap-2 border-1";
+const defaultClass = "input input-bordered text-neutral-content flex items-center gap-2 border-1 w-full";
 
 export function StartChat({
   className = defaultClass,

@@ -10,7 +10,8 @@ SERVICES_DIR="services"
 TARGET_KUBE_CONTEXT="docker-desktop"
 # Determine workspace root relative to this script
 SCRIPT_DIR_DEPLOY=$(dirname "$0")
-WORKSPACE_ROOT="$SCRIPT_DIR_DEPLOY/.."
+# Go up two levels from lib/scripts to the workspace root
+WORKSPACE_ROOT=$(cd "$SCRIPT_DIR_DEPLOY/../.." && pwd)
 
 # --- Helper Functions ---
 log_info() {
@@ -27,6 +28,25 @@ check_command() {
     log_error "$1 command not found. Please install it."
   fi
 }
+
+# --- Argument Parsing ---
+TARGET_APP="" # Initialize target app variable
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --app) TARGET_APP="$2"; shift ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+if [ -n "$TARGET_APP" ]; then
+  log_info "Target app specified: $TARGET_APP"
+  # Remove potential 'posey-' prefix to get the base service name
+  SERVICE_NAME_BASE="${TARGET_APP#posey-}"
+else
+  log_info "No target app specified, deploying all services."
+fi
 
 # --- Context Handling ---
 ORIGINAL_KUBE_CONTEXT=$(kubectl config current-context)
@@ -201,21 +221,47 @@ deploy_service() {
 # --- Main Execution ---
 log_info "Starting local deployment process..."
 
-# Find and deploy data services
-log_info "Looking for data services in $SERVICES_DIR/data/* ..."
-for service_path in "$SERVICES_DIR"/data/*/; do
-    if [ -d "$service_path" ]; then
-      deploy_service "data" "$service_path"
-  fi
-done
+if [ -n "$TARGET_APP" ]; then
+    # Deploy only the specified app
+    log_info "Attempting to deploy single service: $TARGET_APP (Base: $SERVICE_NAME_BASE)"
+    SERVICE_FOUND=false
+    # Check in data services
+    SERVICE_PATH_DATA="$SERVICES_DIR/data/$SERVICE_NAME_BASE"
+    if [ -d "$SERVICE_PATH_DATA" ]; then
+        log_info "Found $SERVICE_NAME_BASE in data services directory."
+        deploy_service "data" "$SERVICE_PATH_DATA"
+        SERVICE_FOUND=true
+    fi
 
-# Find and deploy core services
-log_info "Looking for core services in $SERVICES_DIR/core/* ..."
-for service_path in "$SERVICES_DIR"/core/*/; do
-  if [ -d "$service_path" ]; then
-    deploy_service "core" "$service_path"
-  fi
-done
+    # Check in core services if not found in data
+    if [ "$SERVICE_FOUND" = false ]; then
+        SERVICE_PATH_CORE="$SERVICES_DIR/core/$SERVICE_NAME_BASE"
+        if [ -d "$SERVICE_PATH_CORE" ]; then
+            log_info "Found $SERVICE_NAME_BASE in core services directory."
+            deploy_service "core" "$SERVICE_PATH_CORE"
+            SERVICE_FOUND=true
+        fi
+    fi
+
+    if [ "$SERVICE_FOUND" = false ]; then
+        log_error "Service '$SERVICE_NAME_BASE' (derived from --app '$TARGET_APP') not found in $SERVICES_DIR/data/ or $SERVICES_DIR/core/"
+    fi
+else
+    # Deploy all services (original logic)
+    log_info "Looking for data services in $SERVICES_DIR/data/* ..."
+    for service_path in "$SERVICES_DIR"/data/*/; do
+        if [ -d "$service_path" ]; then
+          deploy_service "data" "$service_path"
+      fi
+    done
+
+    log_info "Looking for core services in $SERVICES_DIR/core/* ..."
+    for service_path in "$SERVICES_DIR"/core/*/; do
+      if [ -d "$service_path" ]; then
+        deploy_service "core" "$service_path"
+      fi
+    done
+fi
 
 log_info "Local deployment script finished."
 # Explicit cleanup call (trap should handle it, but this is belt-and-suspenders)

@@ -13,8 +13,6 @@ from sqlalchemy import text
 import time
 import traceback
 
-posey_agent = PoseyAgent()
-
 router = APIRouter(
     prefix="/orchestrator/posey",
     tags=["posey", "orchestrator"]
@@ -206,15 +204,26 @@ async def list_agents(
 async def run_posey(
     request: Request,
     run_request: RunRequest,
-    db: AsyncSession = Depends(get_db)
+    db_session: AsyncSession = Depends(get_db)
 ):
     """Run Posey with the given prompt or messages and return a standardized execution response"""
+    # Log entry and client status IMMEDIATELY
+    request_id = str(uuid4())
+    logger.info(f"[RUN_POSEY / {request_id}] Request received.")
+    if db._qdrant_client:
+        logger.info(f"[RUN_POSEY / {request_id}] db._qdrant_client is SET at request start. Type: {type(db._qdrant_client)}")
+    else:
+        logger.warning(f"[RUN_POSEY / {request_id}] db._qdrant_client is NONE at request start.")
+    
     try:
+        # Instantiate agent inside the request handler
+        posey_agent = PoseyAgent()
+
         # Get user preferences from database with defaults fallback
         query = text("""
             SELECT preferences FROM users WHERE id = :user_id
         """)
-        result = await db.execute(query, {"user_id": request.state.user["id"]})
+        result = await db_session.execute(query, {"user_id": request.state.user["id"]})
         row = result.fetchone()
         
         # Use preferences from DB or defaults
@@ -223,7 +232,7 @@ async def run_posey(
         # Build context with user info and preferences
         context = {
             "user_id": request.state.user["id"],
-            "request_id": str(uuid4()),
+            "request_id": request_id,
             "conversation_id": run_request.conversation_id,
             "preferences": {
                 "llm": {
@@ -305,7 +314,7 @@ async def run_posey(
         }
         
     except Exception as e:
-        logger.error(f"Error running Posey: {str(e)}")
+        logger.error(f"[RUN_POSEY / {request_id}] Error running Posey: {str(e)}")
         logger.error(traceback.format_exc())
-        logger.info(f"Request: {json.dumps(run_request.model_dump(), indent=4)}")
+        logger.info(f"[RUN_POSEY / {request_id}] Request: {json.dumps(run_request.model_dump(), indent=4)}")
         raise HTTPException(status_code=500, detail=str(e))

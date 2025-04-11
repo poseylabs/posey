@@ -16,10 +16,12 @@ const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffec
 export function DrawerContent({
   children,
   className = '',
-  stickyFooter = false
+  stickyFooter = false,
+  sidebar = <Sidebar />
 }: {
   children?: React.ReactNode;
   className?: string;
+  sidebar?: React.ReactNode;
   stickyFooter?: boolean;
 }) {
   const [isClient, setIsClient] = useState(false);
@@ -62,7 +64,7 @@ export function DrawerContent({
   return (
     <ContentWrapper className={mergeClasses('posey-drawer', className, drawerClass)}>
       <div className={mergeClasses('posey-sidebar', drawerClass)}>
-        <Sidebar />
+        {sidebar}
       </div>
       <div className={mergeClasses('posey-drawer-content', drawerClass, stickyFooterClass)}>
         {children}

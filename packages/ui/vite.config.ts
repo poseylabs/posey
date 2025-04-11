@@ -4,7 +4,7 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 import dts from 'vite-plugin-dts'
 import { resolve } from 'path'
 import dotenv from 'dotenv'
-
+// import { libInjectCss } from 'vite-plugin-lib-inject-css'
 dotenv.config()
 
 const defaultConfig: any = () => {
@@ -29,7 +29,6 @@ const defaultConfig: any = () => {
       },
     },
     build: {
-      // cssCodeSplit: false,
       lib: {
         entry: {
           index: resolve(__dirname, 'src/index.ts'),
@@ -49,8 +48,6 @@ const defaultConfig: any = () => {
         },
         formats: ['es'],
         fileName: (format, entryName) => `${entryName}.mjs`,
-        cssFileName: 'style/posey.ui.css',
-        // cssCodeSplit: false,
       },
       rollupOptions: {
         external: [
@@ -80,7 +77,12 @@ const defaultConfig: any = () => {
           '__vite-browser-external'
         ],
         output: {
-          assetFileNames: '[name][extname]',
+          assetFileNames: (assetInfo) => {
+            if (assetInfo.name === 'style.css') {
+              return 'style.css';
+            }
+            return '[name][extname]';
+          },
           globals: {
             react: 'React',
             'react-dom': 'ReactDOM',

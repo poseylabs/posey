@@ -1,7 +1,4 @@
-/// <reference types="node" />
-
 import type { NextConfig } from "next";
-import pnp from "pnpapi";
 
 const allowedPorts = [2222, 3000, 3333, 5173, 5555, 8000, 8888, 9999]
 const allowedOrigins = allowedPorts.map(port => `http://localhost:${port}`)
@@ -31,7 +28,6 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '20mb',
     },
-    externalDir: true,
   },
   async headers() {
     return [
@@ -62,36 +58,31 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  webpack: (config, { isServer, defaultLoaders }) => {
+  webpack: (config, { isServer }) => {
     config.module.exprContextCritical = false;
+
+    // Handle WebAssembly files for PDF.js
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+
+    // Add fallbacks for PDF.js dependencies
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        canvas: false,
+        encoding: false,
+        'pdfjs-dist/build/pdf.worker': false,
+        'qcms_bg.wasm': false,
+      };
+    }
 
     config.resolve.alias = {
       ...config.resolve.alias,
     };
-
-    // Add custom externals function for PnP compatibility
-    // config.externals = [
-    //   // @ts-ignore:next-line
-    //   (ctx, callback) => {
-    //     // Check if the request is a bare specifier (package name)
-    //     if (ctx.request && /^[^./\\]/.test(ctx.request)) {
-    //       try {
-    //         const resolvedPath = pnp.resolveToUnqualified(ctx.request, ctx.context, {
-    //           considerBuiltins: false,
-    //         });
-    //         // Externalize using the resolved path
-    //         return callback(null, "commonjs " + resolvedPath);
-    //       } catch (error) {
-    //         // If pnpapi can't resolve it, let Webpack handle it normally
-    //         // console.warn(`PNP Resolve Failed for ${ctx.request}:`, error);
-    //       }
-    //     }
-    //     // Continue without externalizing
-    //     // @ts-ignore:next-line
-    //     callback();
-    //   },
-    //   ...(Array.isArray(config.externals) ? config.externals : [config.externals].filter(Boolean)),
-    // ];
 
     if (!isServer) {
       config.watchOptions = {
@@ -100,7 +91,7 @@ const nextConfig: NextConfig = {
     }
 
     return config;
-  },
+  }
 };
 
 export default nextConfig;

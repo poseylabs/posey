@@ -4,6 +4,7 @@ from typing import Optional, Dict
 import asyncio
 import psutil
 from app.config import logger, db
+from app.config.settings import settings
 from app.models.responses import StandardResponse
 from app.utils.response_utils import standardize_response
 
@@ -26,33 +27,52 @@ class HealthStatus(BaseModel):
 
 async def check_postgres():
     try:
-        conn = db.pool.getconn()
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT 1")
+        # Use the asyncpg connection pool managed by the Database class
+        async with db.get_pg_connection() as conn:
+            await conn.fetchval("SELECT 1")
             return True
-        finally:
-            db.pool.putconn(conn)
     except Exception as e:
         logger.error(f"Postgres check failed: {str(e)}")
         return False
 
 async def check_couchbase():
     try:
-        result = db.cluster.ping()
-        return bool(result)
+        # Use the couchbase property to access the cluster
+        if db.couchbase:
+            # ping() is sync, run in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, db.couchbase.ping)
+            # Check if ping returned results (indicating successful connection)
+            # Example: result might have information on successful pings per node
+            # Adjust this check based on the actual ping() method's return value
+            return bool(result) 
+        else:
+            logger.warning("Couchbase cluster not initialized in db object.")
+            return False
     except Exception as e:
         logger.error(f"Couchbase check failed: {str(e)}")
         return False
 
 async def check_qdrant():
     try:
-        # Use the initialized Qdrant client
-        response = await db.qdrant_client.get_collections()
-        return bool(response)
+        # Check the underlying attribute directly to avoid the property's RuntimeError
+        if db._qdrant_client: 
+            # The client is now async, so we await its methods directly.
+            logger.debug("Attempting AsyncQdrantClient.get_collections() for health check...")
+            response = await db._qdrant_client.get_collections()
+            logger.debug("AsyncQdrantClient.get_collections() health check successful.")
+            # get_collections returns a CollectionsResponse object, check its existence
+            return response is not None
+        else:
+             logger.warning("Qdrant client (_qdrant_client) not initialized in db object.")
+             return False
     except Exception as e:
-        logger.error(f"Qdrant check failed: {str(e)}")
-        logger.info(f"Qdrant URL: {db.qdrant_url}")
+        logger.error(f"Qdrant health check failed: {type(e).__name__}: {str(e)}")
+        # Log host/port for consistency
+        try:
+             logger.info(f"Qdrant health check connection details: Host='{settings.QDRANT_HOST}', Port={settings.QDRANT_PORT}") 
+        except AttributeError:
+             logger.warning("Could not retrieve Qdrant host/port from settings for logging.")
         return False
 
 async def check_db_with_timeout(check_func, timeout=15.0):

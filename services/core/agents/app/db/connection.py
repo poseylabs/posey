@@ -154,6 +154,28 @@ class Database:
             logger.error(f"PostgreSQL connection failed: {e}")
             raise
 
+    async def connect_all(self):
+        """Initialize all database connections."""
+        if self.is_connected:
+            logger.info("Database connections already initialized.")
+            return
+
+        logger.info("Initializing all database connections...")
+        try:
+            # Initialize connections concurrently
+            await asyncio.gather(
+                self._init_postgres(),
+                self._init_couchbase(),
+                self._init_qdrant()
+            )
+            self.is_connected = True
+            logger.info("All database connections initialized successfully.")
+        except Exception as e:
+            logger.error(f"Failed to initialize all database connections: {e}")
+            # Attempt to close any connections that might have been opened
+            await self.disconnect() 
+            raise # Re-raise the exception to signal failure
+
     async def _init_couchbase(self):
         """Initialize Couchbase connection"""
         try:
@@ -188,22 +210,24 @@ class Database:
     async def _init_qdrant(self):
         """Initialize Qdrant connection"""
         try:
-            # Remove any duplicate http:// prefixes and handle URL construction properly
+            # Ensure host is just the hostname, not a URL
             host = settings.QDRANT_HOST.replace('http://', '').replace('https://', '')
-            qdrant_url = f"http://{host}:{settings.QDRANT_PORT}"
-            logger.info(f"Connecting to Qdrant: {qdrant_url}")
+            grpc_port = settings.QDRANT_PORT # Already defaults to 6333
+            logger.info(f"Connecting to Qdrant via gRPC: host='{host}', port={grpc_port}")
             
             self._qdrant_client = QdrantClient(
-                url=qdrant_url,
+                host=host,
+                grpc_port=grpc_port,
+                prefer_grpc=True, # Explicitly prefer gRPC
                 timeout=5.0
             )
             
             # Test connection
             self._qdrant_client.get_collections()
-            logger.info("Qdrant connection established")
+            logger.info("Qdrant connection established via gRPC")
             
         except Exception as e:
-            logger.error(f"Qdrant connection failed: {e}")
+            logger.error(f"Qdrant gRPC connection failed: {e}")
             raise
 
     async def disconnect(self):

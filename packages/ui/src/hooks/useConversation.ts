@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Message, ConversationService, PoseyState, Conversation } from '@posey.ai/core';
 import { usePoseyState } from '@posey.ai/state';
 import { agentService } from '@posey.ai/core';
@@ -32,15 +32,15 @@ export const useConversation = () => {
     if (chat.currentConversation?.id && !conversationService.currentConversationId) {
       conversationService.setConversation(chat.currentConversation);
     }
-  }, [chat]);
+  }, [chat, conversationService]);
 
-  const ensureConversationID = () => {
+  const ensureConversationID = useCallback(() => {
     if (chat.currentConversation?.id && !conversationService.currentConversationId) {
       conversationService.setConversation(chat.currentConversation);
     }
-  }
+  }, [conversationService, chat]);
 
-  const callAgent = async ({
+  const callAgent = useCallback(async ({
     message,
     firstContact = false,
   }: {
@@ -89,14 +89,14 @@ export const useConversation = () => {
     } finally {
       setIsConversationLoading(false);
     }
-  };
+  }, [conversationService, addMessage, user, chat, ensureConversationID, setIsConversationLoading]);
 
-  const getAllConversations = async () => {
+  const getAllConversations = useCallback(async () => {
     const conversations = await conversationService.getAllConversations();
     return conversations;
-  }
+  }, [conversationService]);
 
-  const likeMessage = async (messageId: string) => {
+  const likeMessage = useCallback(async (messageId: string) => {
     try {
       if (!user?.id) return;
       ensureConversationID();
@@ -129,9 +129,9 @@ export const useConversation = () => {
       console.error('Error favoriting message:', error);
       return false;
     }
-  };
+  }, [user, chat, conversationService, ensureConversationID, updateMessage]);
 
-  const loadConversation = async (conversationId: string) => {
+  const loadConversation = useCallback(async (conversationId: string) => {
     try {
       ensureConversationID();
       const conversation = await conversationService.getConversation(conversationId);
@@ -148,9 +148,9 @@ export const useConversation = () => {
       console.error('Error loading conversation:', error);
       throw error;
     }
-  };
+  }, [conversationService, ensureConversationID, setState, chat]);
 
-  const startConversation = async (content: string) => {
+  const startConversation = useCallback(async (content: string) => {
     try {
       ensureConversationID();
       const newMessage = await conversationService.start(content);
@@ -166,9 +166,9 @@ export const useConversation = () => {
       console.error('Error starting conversation:', error);
       throw error;
     }
-  };
+  }, [conversationService, ensureConversationID, setState, chat, addMessage]);
 
-  const unlikeMessage = async (messageId: string) => {
+  const unlikeMessage = useCallback(async (messageId: string) => {
     try {
       if (!user?.id) return;
       ensureConversationID();
@@ -201,15 +201,15 @@ export const useConversation = () => {
       console.error('Could not unlike message:', error);
       return false;
     }
-  };
+  }, [user, chat, conversationService, ensureConversationID, updateMessage]);
 
-  const setID = (id: string) => {
+  const setID = useCallback((id: string) => {
     conversationService.setID(id);
-  }
+  }, [conversationService]);
 
-  const setConversation = (conversation: Conversation) => {
+  const setConversation = useCallback((conversation: Conversation) => {
     conversationService.setConversation(conversation);
-  }
+  }, [conversationService]);
 
   return {
     callAgent,

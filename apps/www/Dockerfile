@@ -28,7 +28,7 @@ WORKDIR /app
 # Copy package files for better caching
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn ./.yarn/
-COPY .pnp.cjs .pnp.loader.mjs ./
+# COPY .pnp.cjs .pnp.loader.mjs ./
 
 # Configure Yarn network settings to prevent hanging
 RUN yarn config set httpRetry 600000 && \

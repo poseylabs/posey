@@ -11,7 +11,7 @@ couchbase>=4.3.3
 asyncpg>=0.29.0,<0.31.0
 psycopg[binary,pool]==3.2.4
 psycopg2-binary
-qdrant-client>=1.12.1
+qdrant-client>=1.13.3,<1.14.0
 redis>=5.0.1
 
 # Remaining Agent dependencies

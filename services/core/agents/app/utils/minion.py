@@ -5,6 +5,7 @@ from app.minions.image import ImageMinion
 from app.minions.research import ResearchMinion
 from app.minions.content_analysis import ContentAnalysisMinion
 from app.config import logger
+from app.db import db # Import the shared db object
 
 class MinionRegistry:
     """Registry for managing minion instances"""
@@ -40,7 +41,11 @@ class MinionRegistry:
         if name not in self._instances:
             logger.info(f"Creating new {name} minion instance")
             try:
-                self._instances[name] = self._minion_classes[name]()
+                # Pass the db object to the MemoryMinion constructor
+                if name == "memory":
+                    self._instances[name] = self._minion_classes[name](db)
+                else:
+                    self._instances[name] = self._minion_classes[name]()
                 logger.info(f"Successfully initialized {name} minion")
             except Exception as e:
                 logger.error(f"Failed to initialize {name} minion: {e}")
@@ -63,7 +68,11 @@ class MinionRegistry:
             if name not in self._instances:
                 try:
                     logger.info(f"Initializing {name} minion")
-                    self._instances[name] = self._minion_classes[name]()
+                    # Pass the db object to the MemoryMinion constructor
+                    if name == "memory":
+                        self._instances[name] = self._minion_classes[name](db)
+                    else:
+                        self._instances[name] = self._minion_classes[name]()
                     logger.info(f"Successfully initialized {name} minion")
                 except Exception as e:
                     logger.error(f"Failed to initialize {name} minion: {e}")

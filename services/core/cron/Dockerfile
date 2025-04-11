@@ -11,7 +11,7 @@ COPY .yarn ./.yarn/
 COPY .yarnrc.yml ./
 COPY package.json ./
 COPY yarn.lock ./
-COPY .pnp.cjs ./
+# COPY .pnp.cjs ./
 COPY tsconfig.json ./
 COPY services/core/cron ./services/core/cron/
 COPY packages ./packages/
@@ -34,7 +34,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/.yarnrc.yml ./
 COPY --from=builder /app/yarn.lock ./
 COPY --from=builder /app/.yarn ./.yarn/
-COPY --from=builder /app/.pnp.cjs ./
+# COPY --from=builder /app/.pnp.cjs ./
 COPY --from=builder /app/services/core/cron/package.json ./services/core/cron/
 
 RUN corepack enable && corepack prepare yarn@4.7.0 --activate && \

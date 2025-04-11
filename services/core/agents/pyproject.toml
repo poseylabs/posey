@@ -7,3 +7,6 @@ disable = [
     "missing-function-docstring",
     "missing-module-docstring"
 ] 
+
+# qdrant-client = "^1.10.1" # Old version
+qdrant-client = "^1.13.3" # Corrected to match latest available server v1.13.3

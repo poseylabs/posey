@@ -5,13 +5,14 @@ import EmailPassword from 'supertokens-auth-react/recipe/emailpassword';
 const apiDomain = process.env.NEXT_PUBLIC_AUTH_API_ENDPOINT || "http://localhost:9999";
 const websiteDomain = process.env.NEXT_PUBLIC_INVENTORY_BASE_URL || "http://localhost:8000";
 
+// --- Frontend Configuration ONLY --- (Uses -React imports)
 export const frontendConfig: SuperTokensConfig = {
   appInfo: {
     appName: "Posey Inventory",
     apiDomain: apiDomain,
     websiteDomain: websiteDomain,
-    apiBasePath: "/auth",
-    websiteBasePath: "/auth"
+    apiBasePath: "/auth", // Note: This is the base path on the *auth service* (localhost:9999)
+    websiteBasePath: "/auth" // Base path for auth UI on *this* frontend (localhost:8000)
   },
   getRedirectionURL: async (context) => {
     if (context.action === "SUCCESS") {
@@ -67,3 +68,4 @@ export const frontendConfig: SuperTokensConfig = {
     }),
   ],
 }; 
+// Removed backend initialization logic 

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '@posey.ai/core';
-import BarcodeLookup from '../../../components/BarcodeLookup';
+import BarcodeLookup from '../../../components/barcode-lookup';
 
 interface Pod {
   id: string;
@@ -30,14 +30,19 @@ export default function NewItemPage() {
   const [quantity, setQuantity] = useState(1);
   const [selectedPodId, setSelectedPodId] = useState(podId || '');
   const [pods, setPods] = useState<Pod[]>([]);
-  const [loading] = useState(true);
+  const [loadingPods, setLoadingPods] = useState<boolean>(true);
+  const [errorPods, setErrorPods] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
-  const [shouldMountScanner, setShouldMountScanner] = useState(false);
-  const scannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [loadingPods, setLoadingPods] = useState<boolean>(true);
-  const [errorPods, setErrorPods] = useState<string | null>(null);
+
+  // State for food-specific fields
+  const [isFood, setIsFood] = useState(false);
+  const [expirationDate, setExpirationDate] = useState('');
+  const [addDate, setAddDate] = useState(''); // Consider defaulting or setting server-side
+  const [cost, setCost] = useState<string | number>('');
+  const [brand, setBrand] = useState('');
+  const [upc, setUpc] = useState('');
 
   const fetchPods = useCallback(async () => {
     setLoadingPods(true);
@@ -56,25 +61,23 @@ export default function NewItemPage() {
         },
         credentials: 'include'
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch pods');
       }
-      
+
       const data = await response.json();
       console.log('Fetched pods:', data.data);
       setPods(data.data || []);
-      
+
       if (podId) {
         const matchingPod = data.data?.find((pod: Pod) => pod.id === podId);
-        console.log('Matching pod for URL podId:', matchingPod);
-        
         if (!matchingPod) {
-          console.log('No exact match found, trying case-insensitive comparison');
+          console.warn('No exact match found, trying case-insensitive comparison');
           const insensitiveMatch = data.data?.find(
             (pod: Pod) => pod.id.toLowerCase() === podId.toLowerCase()
           );
-          console.log('Case-insensitive match:', insensitiveMatch);
+          console.warn('Case-insensitive match:', insensitiveMatch);
         }
       }
     } catch (error) {
@@ -97,17 +100,27 @@ export default function NewItemPage() {
     setError('');
 
     try {
+      const itemData: { [key: string]: any } = {
+        title,
+        description,
+        quantity,
+        podId: selectedPodId || null,
+        upc: upc || null,
+        metadata: {}
+      };
+
+      if (isFood) itemData.metadata.isFood = true;
+      if (expirationDate) itemData.metadata.expirationDate = expirationDate;
+      if (addDate) itemData.metadata.addDate = addDate;
+      if (cost) itemData.metadata.cost = cost;
+      if (brand) itemData.metadata.brand = brand;
+
       const response = await fetch('/api/inventory/items', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title,
-          description,
-          quantity,
-          podId: selectedPodId || null,
-        }),
+        body: JSON.stringify(itemData),
       });
 
       if (!response.ok) {
@@ -130,24 +143,9 @@ export default function NewItemPage() {
   };
 
   const toggleBarcodeScanner = () => {
-    // Clear any existing timeouts
-    clearTimeouts();
-    
-    if (showBarcodeScanner) {
-      // Hide scanner first, then unmount it after a short delay
-      setShowBarcodeScanner(false);
-      scannerTimeoutRef.current = setTimeout(() => {
-        setShouldMountScanner(false);
-      }, 300);
-    } else {
-      // Mount scanner first, then show it
-      setShouldMountScanner(true);
-      scannerTimeoutRef.current = setTimeout(() => {
-        setShowBarcodeScanner(true);
-      }, 300);
-    }
-    
-    // Clear any existing errors
+    setShowBarcodeScanner(prevShow => !prevShow);
+
+    // Clear any existing errors when toggling
     if (error.includes('camera') || error.includes('barcode')) {
       setError('');
     }
@@ -164,6 +162,13 @@ export default function NewItemPage() {
         `Source: ${productData.source}`
       ].filter(Boolean).join('\n\n')
     );
+    // Pre-fill brand and UPC if available
+    if (productData.brand) {
+      setBrand(productData.brand);
+    }
+    if (productData.upc) {
+      setUpc(productData.upc);
+    }
     // Instead of directly changing the state, use our toggle function
     if (showBarcodeScanner) {
       toggleBarcodeScanner();
@@ -181,21 +186,6 @@ export default function NewItemPage() {
   useEffect(() => {
     console.log('errorPods', errorPods);
   }, [errorPods]);
-
-  // Clear any timeouts to prevent memory leaks
-  const clearTimeouts = () => {
-    if (scannerTimeoutRef.current) {
-      clearTimeout(scannerTimeoutRef.current);
-      scannerTimeoutRef.current = null;
-    }
-  };
-
-  // Cleanup timeouts on component unmount
-  useEffect(() => {
-    return () => {
-      clearTimeouts();
-    };
-  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -223,7 +213,7 @@ export default function NewItemPage() {
     console.log('selectedPodId', selectedPodId);
   }, [selectedPodId])
 
-  if (loading) {
+  if (loadingPods) {
     return <div className="container mx-auto py-12 text-center">Loading...</div>;
   }
 
@@ -246,8 +236,8 @@ export default function NewItemPage() {
             )}
 
             <div className="mb-6">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-secondary w-full"
                 onClick={toggleBarcodeScanner}
               >
@@ -255,7 +245,7 @@ export default function NewItemPage() {
               </button>
             </div>
 
-            {shouldMountScanner && (
+            {showBarcodeScanner && (
               <div key={`scanner-container-${Date.now()}`}>
                 <BarcodeLookup onProductFound={handleProductFound} />
               </div>
@@ -301,6 +291,87 @@ export default function NewItemPage() {
                   required
                 />
               </div>
+
+              {/* Is Food Toggle */}
+              <div className="form-control mb-4">
+                <label className="label cursor-pointer">
+                  <span className="label-text">Is this item food?</span>
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-primary"
+                    checked={isFood}
+                    onChange={(e) => setIsFood(e.target.checked)}
+                  />
+                </label>
+              </div>
+
+              {/* Conditional Food Fields */}
+              {isFood && (
+                <div className="p-4 border border-base-300 rounded-md mb-4">
+                  <h3 className="text-lg font-semibold mb-2">Food Details</h3>
+                  <div className="form-control mb-4">
+                    <label className="label">
+                      <span className="label-text">Brand</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="input input-bordered"
+                      value={brand}
+                      onChange={(e) => setBrand(e.target.value)}
+                      placeholder="Brand name (optional)"
+                    />
+                  </div>
+                  <div className="form-control mb-4">
+                    <label className="label">
+                      <span className="label-text">UPC</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="input input-bordered"
+                      value={upc}
+                      onChange={(e) => setUpc(e.target.value)}
+                      placeholder="UPC Code (optional)"
+                    />
+                  </div>
+                  <div className="form-control mb-4">
+                    <label className="label">
+                      <span className="label-text">Cost</span>
+                    </label>
+                    <input
+                      type="number"
+                      className="input input-bordered"
+                      value={cost}
+                      onChange={(e) => setCost(e.target.value)}
+                      placeholder="Cost (optional)"
+                      step="0.01" // Allow cents
+                      min="0"
+                    />
+                  </div>
+                  <div className="form-control mb-4">
+                    <label className="label">
+                      <span className="label-text">Expiration Date</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      className="input input-bordered"
+                      value={expirationDate}
+                      onChange={(e) => setExpirationDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-control mb-4">
+                    <label className="label">
+                      <span className="label-text">Date Added</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      className="input input-bordered"
+                      value={addDate}
+                      onChange={(e) => setAddDate(e.target.value)}
+                    />
+                    {/* Consider defaulting this or setting server-side */}
+                  </div>
+                </div>
+              )}
 
               <div className="form-control mb-6">
                 <label className="label">

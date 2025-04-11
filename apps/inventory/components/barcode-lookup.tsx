@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import BarcodeScanner from './BarcodeScanner';
+import BarcodeScanner from './barcode-scanner';
 
 interface BarcodeLookupProps {
   onProductFound: (productData: any) => void;
@@ -15,7 +15,7 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
   const [scannerFailed, setScannerFailed] = useState(false);
   const [mountScanner, setMountScanner] = useState(true);
   const scannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Cleanup function to clear any timeouts
   const clearTimeouts = () => {
     if (scannerTimeoutRef.current) {
@@ -28,7 +28,7 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
   const toggleScanner = (show: boolean) => {
     // Clear any pending timeouts
     clearTimeouts();
-    
+
     if (!show) {
       // When hiding scanner, unmount it completely to avoid state transitions
       setShowScanner(false);
@@ -45,7 +45,7 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
       }, 300);
     }
   };
-  
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -53,29 +53,31 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
     };
   }, []);
 
-  const handleScanSuccess = async (decodedText: string) => {
-    // Avoid processing the same code twice
-    if (lastProcessedCode === decodedText) {
-      return;
+  const onScanSuccess = async (decodedText: string) => {
+
+    console.log("Barcode Scan Success...");
+
+    if (lastProcessedCode !== decodedText) {
+      setLastProcessedCode(decodedText);
+      if (scanResult !== decodedText) setScanResult(decodedText);
+      scannerFailed && setScannerFailed(false);
+      lookupBarcode(decodedText).then((result: any) => {
+        console.log("Barcode Lookup Success:", {
+          decodedText,
+          result
+        });
+        toggleScanner(false);
+      }).catch((err) => {
+        console.error("Barcode Lookup Error:", err);
+      });
     }
-    
-    // Update state
-    setLastProcessedCode(decodedText);
-    setScanResult(decodedText);
-    setScannerFailed(false);
-    
-    // Hide scanner properly
-    toggleScanner(false);
-    
-    // Process the barcode
-    await lookupBarcode(decodedText);
   };
 
-  const handleScanError = (err: any) => {
+  const onScanFailure = (err: any) => {
     // Only log serious errors, not the common "no barcode found" errors
     if (!err.includes('No barcode') && !err.includes('No MultiFormat Readers')) {
       console.warn('Scan error:', err);
-      
+
       // Check for camera access or initialization errors
       if (err.includes('Permission') || err.includes('access') || err.includes('Failed to start')) {
         setScannerFailed(true);
@@ -85,42 +87,54 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
   };
 
   const lookupBarcode = async (barcode: string) => {
-    console.log('lookupBarcode for barcode:', barcode);
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Simulate API call with a timeout
-      const timeoutPromise = new Promise<void>((resolve) => {
-        scannerTimeoutRef.current = setTimeout(() => {
-          setLoading(false);
-          
-          const testProductData = {
-            title: `Product for UPC: ${barcode}`,
-            description: `This is a test product for barcode: ${barcode}`,
-            brand: 'Test Brand',
-            category: 'Test Category',
-            upc: barcode,
-            source: 'Local Test'
-          };
-          
-          onProductFound(testProductData);
-          resolve();
-        }, 1000);
-      });
-      
-      await timeoutPromise;
-    } catch (err) {
-      console.error('Error looking up product:', err);
-      setError('Failed to lookup product. Please try again.');
-      setLoading(false);
+      // Use the internal inventory lookup API
+      const response = await fetch(`/api/inventory/lookup?upc=${barcode}`);
+
+      // The internal API handles external errors, we check its response structure
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        // Handle errors reported by our internal API or fetch errors
+        const errorMessage = data.message || `API request failed with status: ${response.status}`;
+        throw new Error(errorMessage);
+      }
+
+      // Extract the data from the successful API response
+      const apiData = data.data;
+
+      // Map API response to our Product type
+      const productData = {
+        title: apiData.title || `Product for ${barcode}`,
+        description: apiData.description || 'No description available.',
+        brand: apiData.brand || 'Unknown Brand',
+        category: apiData.category || 'Unknown Category',
+        upc: apiData.upc || barcode, // Use UPC from response if available
+        // Assuming the internal API doesn't provide these explicitly, keep them null or map if they exist in apiData.originalData
+        ean: apiData.ean || null,
+        gtin: apiData.gtin || null,
+        // Attempt to get image from originalData if available and if it follows common patterns
+        imageUrl: apiData.originalData?.images?.[0] || apiData.originalData?.image_url || null,
+        source: apiData.source || 'Internal Lookup' // Use source from the API response
+      };
+
+      onProductFound(productData);
+
+    } catch (err: any) {
+      console.error('Error looking up product via internal API:', err);
+      setError(err.message || 'Failed to lookup product. Please try again.');
+    } finally {
+      setLoading(false); // Ensure loading is always turned off
     }
   };
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualCode.trim()) return;
-    
+
     setScanResult(manualCode);
     await lookupBarcode(manualCode);
   };
@@ -132,35 +146,35 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
         {showScanner && !scannerFailed && (
           <h2 className="text-lg font-semibold">Scanning for product barcode...</h2>
         )}
-        
+
         {scannerFailed && (
           <div className="alert alert-warning">
             <span>Camera access failed. You can still enter a barcode manually below.</span>
           </div>
         )}
-        
+
         <div className="scanner-container">
           {mountScanner && showScanner && !scannerFailed && (
             <div key="scanner-wrapper">
-              <BarcodeScanner 
-                onScanSuccess={handleScanSuccess} 
-                onScanFailure={handleScanError}
+              <BarcodeScanner
+                onScanSuccess={onScanSuccess}
+                onScanFailure={onScanFailure}
               />
-              <button 
-                className="btn btn-outline mt-2" 
+              <button
+                className="btn btn-outline mt-2"
                 onClick={() => toggleScanner(false)}
               >
                 Cancel Scanning
               </button>
             </div>
           )}
-          
+
           {!showScanner && scanResult && !loading && !error && (
             <>
               <div className="alert alert-success mb-3">
                 <span>Barcode scanned successfully: {scanResult}</span>
               </div>
-              <button 
+              <button
                 className="btn btn-primary"
                 onClick={() => {
                   setScanResult(null);
@@ -188,8 +202,8 @@ const BarcodeLookup: React.FC<BarcodeLookupProps> = ({ onProductFound }) => {
                 onChange={(e) => setManualCode(e.target.value)}
                 placeholder="Enter UPC/EAN code"
               />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="btn btn-primary"
                 disabled={loading || !manualCode.trim()}
               >

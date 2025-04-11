@@ -47,23 +47,37 @@ ALLOWED_HOSTS = parse_json_env(settings.ALLOWED_HOSTS, ["*"])
 async def lifespan(app: FastAPI):
     
     try:
-        logger.info("Starting application...")
+        logger.info("[LIFESPAN] Startup initiated.")
         
         # Initialize database connections
+        logger.info("[LIFESPAN] Attempting db.connect_all()...")
         await db.connect_all()
+        logger.info("[LIFESPAN] db.connect_all() completed.")
         
+        # Explicitly log Qdrant client status AFTER connect_all
+        if db._qdrant_client:
+            logger.info(f"[LIFESPAN] db._qdrant_client is SET after connect_all. Type: {type(db._qdrant_client)}")
+        else:
+            logger.error("[LIFESPAN] db._qdrant_client is NONE after connect_all.")
+            # Optionally raise here again if it should definitely be set
+            # raise RuntimeError("Qdrant client not set after connect_all in lifespan")
+
         # Create tables using the engine
+        logger.info("[LIFESPAN] Attempting DB table creation...")
         async with db.async_engine.begin() as conn:
             # Just create tables - init.py handles drops if needed
             await conn.run_sync(Base.metadata.create_all)
+        logger.info("[LIFESPAN] DB table creation completed.")
         
         # --> Add logging HERE <--
-        logger.info(f"[Lifespan] DB instance ID: {id(db)}")
+        logger.info(f"[LIFESPAN] DB instance ID: {id(db)}")
         # Check internal attributes directly to avoid triggering property errors
-        logger.info(f"[Lifespan] Postgres pool initialized: {hasattr(db, '_pg_pool') and db._pg_pool is not None}")
-        logger.info(f"[Lifespan] Couchbase cluster initialized: {hasattr(db, '_cb_cluster') and db._cb_cluster is not None}")
-        logger.info(f"[Lifespan] Qdrant client initialized: {hasattr(db, '_qdrant_client') and db._qdrant_client is not None}")
+        logger.info(f"[LIFESPAN] Postgres pool initialized: {hasattr(db, '_pg_pool') and db._pg_pool is not None}")
+        logger.info(f"[LIFESPAN] Couchbase cluster initialized: {hasattr(db, '_cb_cluster') and db._cb_cluster is not None}")
+        logger.info(f"[LIFESPAN] Qdrant client initialized: {hasattr(db, '_qdrant_client') and db._qdrant_client is not None}")
 
+        # --> ADD LOG LINE HERE <--
+        logger.info("Verifying database connections after initialization...")
         # Verify connections
         connection_status = await verify_connections(LLM_CONFIG)
         for service, status in connection_status.items():
@@ -73,6 +87,8 @@ async def lifespan(app: FastAPI):
                 logger.error(f"Failed to connect to {service}")
         
         logger.info("Database connections established")
+        
+        logger.info("[LIFESPAN] Startup sequence fully completed. Ready for requests.")
         
         yield
     except Exception as e:

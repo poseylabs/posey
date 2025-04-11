@@ -1,7 +1,7 @@
-FROM qdrant/qdrant:v1.9.0
+FROM qdrant/qdrant:v1.13.3
 
 USER root
-RUN apt-get update && apt-get install -y curl --no-install-recommends && \
+RUN apt-get update && apt-get install -y curl netcat-openbsd iputils-ping --no-install-recommends && \
   rm -rf /var/lib/apt/lists/*
 
 WORKDIR /qdrant

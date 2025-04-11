@@ -1,151 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as jose from 'jose'; // Added import for JWT verification
+import { prisma } from '@/lib/db/prisma'; // Keep prisma import for ensureUser
 
-// Function to verify JWT token
-export async function verifyToken(token: string) {
-  try {
-    // Assume the token is a JWT and needs verification
-    // You MUST set a secret key in your environment variables (e.g., JWT_SECRET)
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-fallback-secret-key-here'); // Replace with your actual secret key mechanism
+// Central Auth Service Endpoint - Updated Path
+const AUTH_SERVICE_SESSION_URL = `${process.env.NEXT_PUBLIC_AUTH_API_ENDPOINT || 'http://localhost:9999'}/auth/session`;
 
-    // Verify the token and decode the payload
-    const { payload } = await jose.jwtVerify(token, secret);
+// Get user info by verifying session with the central Auth service
+async function verifySessionWithAuthService(req: NextRequest): Promise<{ id: string; email?: string; name?: string } | null> {
+  console.log(`Verifying session with auth service: GET ${AUTH_SERVICE_SESSION_URL}`);
 
-    console.log('Verified token payload:', payload);
-    // Return the payload which should contain user info (e.g., sub for user ID)
-    return payload;
+  // Extract cookies from the incoming request
+  const cookieHeader = req.headers.get('cookie');
 
-  } catch (error) {
-    console.error('Error verifying token:', error);
-    // Distinguish between verification errors and other errors
-    if (error instanceof jose.errors.JWTExpired || error instanceof jose.errors.JWTClaimValidationFailed || error instanceof jose.errors.JWSSignatureVerificationFailed) {
-        console.warn('Token validation failed:', error.message);
-    } else {
-        console.error('An unexpected error occurred during token verification:', error);
-    }
-    return null; // Return null if verification fails
-  }
-}
-
-// Get the session token from cookies or headers
-export function getAccessToken(req?: NextRequest) {
-  try {
-    // If request object is provided, check for x-auth-token header first
-    if (req) {
-      const headerToken = req.headers.get('x-auth-token');
-      if (headerToken) {
-        return headerToken;
-      }
-
-      // Also check Authorization header
-      const authHeader = req.headers.get('Authorization');
-      if (authHeader?.startsWith('Bearer ')) {
-        return authHeader.substring(7);
-      }
-
-      // Check request cookies directly
-      const authToken = req.cookies.get('authToken')?.value;
-      const stAccessToken = req.cookies.get('sAccessToken')?.value;
-
-      if (authToken || stAccessToken) {
-        return authToken || stAccessToken;
-      }
-    }
-
-    // Don't attempt to use cookies() from next/headers in server components
-    // since it can behave differently in different contexts
-    return null;
-  } catch (error) {
-    console.error('Error accessing token:', error);
-    return null;
-  }
-}
-
-// Get user ID from request headers (added by middleware)
-export function getUserId(req?: NextRequest) {
-  if (!req) return null;
-  return req.headers.get('x-user-id') || null;
-}
-
-// Get current user from session
-export async function getCurrentUser(req?: NextRequest) {
-  // First, try to get the user ID from request headers (this is most reliable)
-  const userId = getUserId(req);
-  console.log('x-user-id from headers:', userId);
-
-  if (userId) {
-    // If we have a user ID in the headers, create a minimal user object
-    console.log('Using user ID from headers:', userId);
-    return {
-      id: userId,
-      email: `${userId}@example.com`, // We don't have the actual email, but we need something
-      name: 'User',
-    };
-  }
-
-  // If no user ID header, check for SuperTokens session tokens in cookies
-  if (req) {
-    const stAccessToken = req.cookies.get('sAccessToken')?.value;
-    const frontToken = req.cookies.get('sFrontToken')?.value;
-
-    if (stAccessToken && frontToken) {
-      try {
-        // Try to extract user ID from the front token which is less secure but simpler
-        // In a production app, you'd want to properly decode and verify these tokens
-        if (frontToken.includes('uid')) {
-          const frontTokenData = JSON.parse(Buffer.from(frontToken, 'base64').toString());
-          if (frontTokenData && frontTokenData.uid) {
-            console.log('Extracted user ID from SuperTokens front token:', frontTokenData.uid);
-            return {
-              id: frontTokenData.uid,
-              email: `${frontTokenData.uid}@example.com`,
-              name: 'User',
-            };
-          }
-        }
-      } catch (err) {
-        console.error('Error parsing SuperTokens front token:', err);
-      }
-    }
-  }
-
-  // If no user ID header or valid SuperTokens session, try token-based auth as fallback
-  const token = getAccessToken(req);
-  console.log('Auth token present:', !!token);
-  if (!token) {
+  if (!cookieHeader) {
+    console.log('No cookies found in request to forward to auth service.');
     return null;
   }
 
   try {
-    // Verify the token and get the payload
-    const payload = await verifyToken(token);
+    const response = await fetch(AUTH_SERVICE_SESSION_URL, {
+      method: 'GET', // Changed to GET
+      headers: {
+        // Forward cookies to the auth service
+        'Cookie': cookieHeader,
+        // Forward the rid header for anti-csrf protection - check if needed for GET
+        'rid': 'session', // SuperTokens usually checks this based on tokenTransferMethod
+      },
+      // No body for GET request
+    });
 
-    if (!payload || !payload.sub) {
-      console.error('Token verification failed or missing sub claim');
+    // Read response body regardless of status for logging
+    const responseBodyText = await response.text(); 
+
+    if (!response.ok) {
+      console.error(`Auth service verify failed with status: ${response.status}`);
+      console.error('Auth service response body:', responseBodyText);
+      // Specific handling for 401
+      if (response.status === 401) {
+        console.log('Auth service returned 401 Unauthorized. Session likely invalid or expired.');
+      }
       return null;
     }
 
-    // Use the 'sub' claim (subject) as the user ID, which is standard for JWTs
-    const userIdFromToken = payload.sub;
-    console.log('Using user ID from verified token:', userIdFromToken);
+    // Try to parse the successful response body as JSON
+    try {
+      const sessionInfo = JSON.parse(responseBodyText);
+      console.log('Auth service verification successful response body:', sessionInfo);
 
-    return {
-      id: userIdFromToken,
-      // You might get email/name from the token payload as well, if available
-      email: (payload.email as string) || `${userIdFromToken}@example.com`,
-      name: (payload.name as string) || 'User',
-    };
+      // Check if the response contains the expected user object and ID within it
+      if (sessionInfo && sessionInfo.user && sessionInfo.user.id) {
+        // Extract user details from the nested user object
+        const userId = sessionInfo.user.id;
+        const userEmail = sessionInfo.user.email;
+        // Use username as name, or fallback if needed
+        const userName = sessionInfo.user.username || sessionInfo.user.name || 'User'; 
+        
+        console.log(`Extracted user details: id=${userId}, email=${userEmail}, name=${userName}`);
+        
+        return {
+          id: userId,
+          email: userEmail || `${userId}@example.com`, // Use extracted email or fallback
+          name: userName, // Use extracted name/username
+        };
+      } else {
+        console.error('Auth service success response missing user object or user.id field.', sessionInfo);
+        return null;
+      }
+    } catch (parseError) {
+        console.error('Failed to parse successful auth service response as JSON:', parseError);
+        console.error('Auth service raw success response body:', responseBodyText);
+        return null;
+    }
 
   } catch (error) {
-    console.error('Error getting current user from token:', error);
+    console.error('Error calling auth service for session verification:', error);
     return null;
   }
 }
 
-// Middleware to protect API routes
+// Get current user by calling the central Auth Service
+export async function getCurrentUser(req: NextRequest) {
+  // Call the central auth service to verify the session
+  const userSession = await verifySessionWithAuthService(req);
+
+  if (!userSession) {
+    console.log('getCurrentUser: No valid session found by auth service.');
+    return null;
+  }
+
+  console.log('getCurrentUser: Valid session found:', userSession.id);
+  return userSession; // Return the user info obtained from the auth service
+}
+
+// Middleware wrapper to protect API routes
 export async function withAuth(
   request: NextRequest,
-  handler: (req: NextRequest, user: any) => Promise<NextResponse>
+  // The handler now receives the user object returned by getCurrentUser
+  handler: (req: NextRequest, user: { id: string; email?: string; name?: string }) => Promise<NextResponse>
 ) {
   const user = await getCurrentUser(request);
 
@@ -156,42 +106,41 @@ export async function withAuth(
     );
   }
 
+  // Pass the validated user object to the handler
   return handler(request, user);
 }
 
-// Ensure user exists in the database
-export async function ensureUser(prisma: any, user: any) {
+// Ensure user exists in the *inventory* database
+// Note: This assumes the user ID from the auth service should match the user ID in this app's DB.
+export async function ensureUser(prisma: any, user: { id: string; email?: string; name?: string }) {
   if (!user || !user.id) {
     console.error('ensureUser called with invalid user:', user);
     return null;
   }
 
   try {
-    console.log('Looking for user with ID:', user.id);
+    console.log('Ensuring user exists in Inventory DB with ID:', user.id);
 
-    // First, try to find the user by ID
     const existingUser = await prisma.user.findUnique({
       where: { id: user.id },
     });
 
     if (existingUser) {
-      console.log('Found existing user by ID');
+      console.log('Found existing user in Inventory DB');
       return existingUser;
     }
 
-    // If not found by ID, the user might exist with a different ID but same email
-    // We don't have email in this context though, so we need to create the user
-    console.log('User not found by ID, creating new user with ID:', user.id);
+    console.log('User not found in Inventory DB, creating new user record:', user.id);
+    // Use details from the validated session
     return await prisma.user.create({
       data: {
         id: user.id,
-        email: user.email || `${user.id}@example.com`, // Fallback email if not provided
-        name: user.name || 'User',
+        email: user.email || `${user.id}@example.com`, // Use provided email or fallback
+        name: user.name || 'User', // Use provided name or fallback
       },
     });
   } catch (error) {
-    console.error('Error ensuring user exists:', error);
-    console.error('Error details:', error instanceof Error ? error.message : String(error));
+    console.error('Error ensuring user exists in Inventory DB:', error);
     return null;
   }
 } 

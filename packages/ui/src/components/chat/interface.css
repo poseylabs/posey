@@ -28,3 +28,8 @@
   grid-template-rows: auto 1fr;
   gap: 1rem;
 }
+
+.chat-footer {
+  display: grid;
+  grid-template-rows: 1fr auto;
+}

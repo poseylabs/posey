@@ -86,19 +86,20 @@ export default function PodsPage() {
   }, [fetchPods, selectedParentId]);
 
   const navigateToPod = async (podId: string, podTitle: string) => {
-    setSelectedParentId(podId);
+    router.push(`/pods/${podId}`);
+    // setSelectedParentId(podId);
 
-    // Update breadcrumbs
-    const newBreadcrumbs = [...breadcrumbs];
-    const existingIndex = newBreadcrumbs.findIndex(b => b.id === podId);
+    // // Update breadcrumbs
+    // const newBreadcrumbs = [...breadcrumbs];
+    // const existingIndex = newBreadcrumbs.findIndex(b => b.id === podId);
 
-    if (existingIndex !== -1) {
-      // If we're going back in the breadcrumb chain, remove everything after this point
-      setBreadcrumbs(newBreadcrumbs.slice(0, existingIndex + 1));
-    } else {
-      // Add the new pod to the breadcrumb trail
-      setBreadcrumbs([...newBreadcrumbs, { id: podId, title: podTitle }]);
-    }
+    // if (existingIndex !== -1) {
+    //   // If we're going back in the breadcrumb chain, remove everything after this point
+    //   setBreadcrumbs(newBreadcrumbs.slice(0, existingIndex + 1));
+    // } else {
+    //   // Add the new pod to the breadcrumb trail
+    //   setBreadcrumbs([...newBreadcrumbs, { id: podId, title: podTitle }]);
+    // }
   };
 
   const navigateToRoot = () => {

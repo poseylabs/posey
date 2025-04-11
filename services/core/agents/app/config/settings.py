@@ -107,6 +107,8 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str
     POSTGRES_PORT: str
     POSTGRES_DSN_POSEY: str = ""
+    POSTGRES_POOL_SIZE: int = 5
+    POSTGRES_MAX_OVERFLOW: int = 10
 
     # Feature flags
     run_migrations: bool = True
@@ -143,15 +145,16 @@ class Settings(BaseSettings):
     COUCHBASE_BUCKET: str = "posey"
     COUCHBASE_PASSWORD: str = "NKJLHUYTUYKU^G&HP&LI^GY"
     COUCHBASE_USER: str = "pocketdb"
+    COUCHBASE_CONNECT_TIMEOUT: int = 5 # Added default timeout
+    COUCHBASE_KV_TIMEOUT: int = 5 # Added default timeout
     MIGRATIONS_DIR: ClassVar[Path] = Path("/app/service/app/db/migrations")
 
     # Database Settings - Qdrant
     QDRANT_URL: Optional[str] = None
-
-    # ENABLE_QDRANT=true
+    QDRANT_PORT: int = 6333 # Default REST port
+    QDRANT_GRPC_PORT: int = 6334 # Default gRPC port
+    QDRANT_HOST: str = "posey-qdrant" # Default to Kubernetes service name
     ENABLE_QDRANT: bool = True
-    QDRANT_PORT: int = 1111
-    QDRANT_HOST: str = "http://qdrant:1111"
 
     # API Settings
     ALLOWED_ORIGINS: List[str] = Field(default_factory=lambda: ["*"])
@@ -173,6 +176,7 @@ class Settings(BaseSettings):
 
 
     # Locale Settings
+    DEFAULT_LANGUAGE: str = "en"
     DEFAULT_TIMEZONE: str = "America/Los_Angeles"
     DEFAULT_CURRENCY: str = "USD"
     DEFAULT_COUNTRY: str = "US"

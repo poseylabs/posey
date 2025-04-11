@@ -2,7 +2,7 @@
 module.exports = {
   plugins: {
     'postcss-nested': {},
-    '@tailwindcss/postcss': {},
+    '@tailwindcss/postcss': {}, // Restoring plugin to test interaction
     autoprefixer: {},
   },
 };

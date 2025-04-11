@@ -14,7 +14,7 @@ COPY .yarn ./.yarn
 COPY .yarnrc.yml .
 COPY package.json .
 COPY yarn.lock .
-COPY .pnp.cjs .
+# COPY .pnp.cjs .
 COPY tsconfig.json .
 
 # Copy the service files
@@ -43,7 +43,7 @@ COPY --from=builder /app/package.json .
 COPY --from=builder /app/.yarnrc.yml .
 COPY --from=builder /app/yarn.lock .
 COPY --from=builder /app/.yarn ./.yarn
-COPY --from=builder /app/.pnp.cjs .
+# COPY --from=builder /app/.pnp.cjs .
 COPY --from=builder /app/services/core/auth/package.json ./services/core/auth/package.json
 # Copy other necessary workspace packages' package.json files if auth depends on them
 # Example: COPY --from=builder /app/packages/common/package.json ./packages/common/package.json

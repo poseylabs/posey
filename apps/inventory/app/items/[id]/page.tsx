@@ -13,6 +13,8 @@ interface Item {
   color?: string;
   size?: string;
   location?: string;
+  upc?: string;
+  metadata?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
   podId?: string;
@@ -209,6 +211,22 @@ export default function ItemDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Display Metadata if it exists */}
+            {item.metadata && Object.keys(item.metadata).length > 0 && (
+              <div className="mt-6 pt-6 border-t border-base-300">
+                <h3 className="font-semibold mb-3 text-lg">Additional Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {Object.entries(item.metadata).map(([key, value]) => (
+                    <div key={key} className="flex justify-between py-1 border-b border-base-200">
+                      <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                      <span>{formatMetadataValue(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       </div>
@@ -235,4 +253,32 @@ export default function ItemDetailPage() {
       )}
     </div>
   );
+}
+
+// Helper function to format metadata values for display
+function formatMetadataValue(value: any): string {
+  if (value === null || value === undefined) {
+    return 'N/A';
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'Yes' : 'No';
+  }
+  if (typeof value === 'number') {
+    return value.toLocaleString(); // Format numbers nicely
+  }
+  // Attempt to format potential date strings
+  if (typeof value === 'string') {
+    try {
+      const date = new Date(value);
+      // Basic check if it's a valid date and not just a random string parsed as 'Invalid Date'
+      if (!isNaN(date.getTime()) && value.match(/\d{4}-\d{2}-\d{2}/)) {
+        // You might want a more robust date check or use a library like date-fns
+        return date.toLocaleString();
+      }
+    } catch (e) {
+      // Not a date string, ignore
+    }
+  }
+  // Default to string conversion
+  return String(value);
 } 
