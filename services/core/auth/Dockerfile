@@ -41,19 +41,14 @@ COPY --from=builder /app/package.json .
 COPY --from=builder /app/.yarnrc.yml .
 COPY --from=builder /app/yarn.lock .
 COPY --from=builder /app/services/core/auth/package.json ./services/core/auth/package.json
-# Copy other necessary workspace packages' package.json files if auth depends on them
-# Example: COPY --from=builder /app/packages/common/package.json ./packages/common/package.json
 
 # Install production dependencies for the auth workspace ONLY
-# Run from /app context
 RUN corepack enable && corepack prepare yarn@4.7.0 --activate && \
   YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn workspaces focus @posey.ai/auth --production
 
 # Copy dist and scripts AFTER focusing dependencies
 COPY --from=builder /app/services/core/auth/dist ./services/core/auth/dist
 COPY --from=builder /app/services/core/auth/scripts ./services/core/auth/scripts
-# Copy any other dependent workspace builds if needed
-# Example: COPY --from=builder /app/packages/common/dist ./packages/common/dist
 
 # Ensure scripts are executable
 RUN chmod +x /app/services/core/auth/scripts/start.sh && \
