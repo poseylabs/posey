@@ -79,10 +79,37 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # Explicitly get the DB URL from environment variable
-    db_url = os.getenv('POSTGRES_DSN_POSEY')
+    # Prioritize external DSN for local runs, fallback to internal DSN for container runs
+    db_url = os.getenv('POSTGRES_DSN_POSEY_EXTERNAL')
+    using_external_db = True
     if not db_url:
-        raise ValueError("POSTGRES_DSN_POSEY environment variable not set for online mode.")
+        print("INFO: POSTGRES_DSN_POSEY_EXTERNAL not set, falling back to POSTGRES_DSN_POSEY")
+        db_url = os.getenv('POSTGRES_DSN_POSEY')
+        using_external_db = False
+
+    if not db_url:
+        raise ValueError("Neither POSTGRES_DSN_POSEY_EXTERNAL nor POSTGRES_DSN_POSEY environment variables are set for online mode.")
+    else:
+        # Mask credentials in log output for security
+        try:
+            from urllib.parse import urlparse, urlunparse
+            parsed = urlparse(db_url)
+            # Reconstruct URL masking password
+            netloc_parts = parsed.netloc.split('@')
+            if len(netloc_parts) > 1:
+                auth_parts = netloc_parts[0].split(':')
+                if len(auth_parts) > 1:
+                    masked_netloc = f"{auth_parts[0]}:********@{netloc_parts[1]}"
+                else:
+                    masked_netloc = f"{auth_parts[0]}@********"
+            else:
+                masked_netloc = netloc_parts[0] # No auth info
+            
+            masked_url = urlunparse((parsed.scheme, masked_netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+            print(f"INFO: Using {'external' if using_external_db else 'internal'} database URL: {masked_url}")
+        except Exception:
+             print(f"INFO: Using {'external' if using_external_db else 'internal'} database URL (credentials hidden).")
+
 
     # Create engine configuration dictionary programmatically
     # We no longer need engine_from_config here since we fetch the URL directly

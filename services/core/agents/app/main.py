@@ -22,16 +22,6 @@ import logging
 # Import admin sub-routers
 from app.routers.admin import llm_providers, llm_models
 
-# Import SuperTokens
-import supertokens_python.framework.fastapi as st_fastapi
-from supertokens_python import init, InputAppInfo, SupertokensConfig
-from supertokens_python.recipe import session # Assuming Session recipe
-from supertokens_python.interfaces import SuperTokensError
-from supertokens_python.framework.fastapi.fastapi_middleware import Middleware as SuperTokensMiddleware
-
-# Override settings if needed for debugging
-settings.LOG_LEVEL = "DEBUG"
-
 # Configure logging with DEBUG level
 setup_logging(settings.LOG_LEVEL)
 logger.info(f"Starting Posey Agents API with log level: {settings.LOG_LEVEL}")
@@ -40,36 +30,6 @@ logger.info("Setting package loggers to DEBUG level")
 # Set specific loggers to DEBUG level
 for module in ["app.orchestrators", "app.utils.agent", "app.utils.message_handler"]:
     logging.getLogger(module).setLevel(logging.DEBUG)
-
-# SuperTokens Initialization
-app_name = settings.SUPERTOKENS_APP_NAME
-api_domain = settings.SUPERTOKENS_API_DOMAIN # Frontend URL
-website_domain = settings.SUPERTOKENS_WEBSITE_DOMAIN # API URL
-connection_uri = settings.SUPERTOKENS_CONNECTION_URI # Core URL (e.g., http://posey-auth:3567)
-api_key = settings.SUPERTOKENS_API_KEY
-
-logger.info(f"Initializing SuperTokens: app_name={app_name}, api_domain={api_domain}, website_domain={website_domain}, connection_uri={connection_uri}")
-
-init(
-    app_info=InputAppInfo(
-        app_name=app_name,
-        api_domain=api_domain,
-        website_domain=website_domain,
-        api_base_path="/auth", # Match base path if using auth service proxy
-    ),
-    supertokens_config=SupertokensConfig(
-        connection_uri=connection_uri,
-        api_key=api_key
-    ),
-    framework='fastapi',
-    recipe_list=[
-        session.init() # Initialize Session recipe
-        # Add other recipes like EmailPassword, etc., if needed
-    ],
-    mode='asgi' # Important for FastAPI
-)
-
-logger.info("SuperTokens initialized.")
 
 # Parse JSON strings if needed
 def parse_json_env(value, default=None):
@@ -127,12 +87,6 @@ async def lifespan(app: FastAPI):
         
         logger.info("Database connections established")
         
-        # --> ADDED: Log SuperTokens connection status after init <--
-        # NOTE: The SDK doesn't have a direct test connection method like DBs.
-        # Initialization success is the primary indicator.
-        # We can add a test API call later if needed.
-        logger.info(f"SuperTokens SDK initialized for app '{app_name}'.")
-
         logger.info("[LIFESPAN] Startup sequence fully completed. Ready for requests.")
         
         yield
@@ -154,9 +108,6 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan
 )
-
-# Add SuperTokens Middleware - *BEFORE* AuthMiddleware
-app.add_middleware(SuperTokensMiddleware)
 
 # Add debug middleware first
 @app.middleware("http")
@@ -186,11 +137,6 @@ app.add_middleware(
 
 # Then add rate limiting (if needed)
 # app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
-
-# Add SuperTokens Exception Handler
-@app.exception_handler(SuperTokensError)
-async def supertokens_exception_handler(request: Request, exc: SuperTokensError):
-    return await st_fastapi.exception_handler(request, exc)
 
 # Add exception handlers
 @app.exception_handler(Exception)
@@ -223,8 +169,3 @@ app.include_router(mcp.router)
 # Include Admin Routers under /admin prefix
 app.include_router(llm_providers.router, prefix="/admin", tags=["Admin - LLM Providers"])
 app.include_router(llm_models.router, prefix="/admin", tags=["Admin - LLM Models"])
-
-@app.middleware("http")
-async def debug_request(request: Request, call_next):
-    response = await call_next(request)
-    return response

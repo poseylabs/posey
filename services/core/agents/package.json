@@ -2,6 +2,9 @@
   "name": "@posey.ai/agents",
   "version": "1.0.0-beta.2",
   "type": "module",
+  "scripts": { 
+    "migrate:generate": "bash ./scripts/generate-migration.sh"
+  },
   "dependencies": {
     "dotenv": "^16.4.5"
   }

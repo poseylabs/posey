@@ -66,7 +66,7 @@ class Agent(Base):
     # Define relationships if needed (e.g., to provider, model, projects?)
     # provider = relationship("LLMProvider") # Assuming LLMProvider model exists
     # model = relationship("LLMModel") # Assuming LLMModel model exists
-    # projects = relationship("Project", back_populates="agent") # Needs back_populates in Project
+    projects = relationship("Project", back_populates="agent") # Needs back_populates in Project
 
     # Note: `create_type=False` in ENUM tells SQLAlchemy not to try creating the TYPE
     # again, as it should already exist from your .sql file. 

@@ -32,6 +32,7 @@ class LLMModel(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()) # Add nullable=False
 
     provider = relationship("LLMProvider", back_populates="models")
+    configurations = relationship("MinionLLMConfig", back_populates="model")
 
     def __repr__(self):
-        return f"<LLMModel(model_id='{self.model_id}', provider={self.provider.name if self.provider else 'N/A'})>" 
+        return f"<LLMModel(model_id='{self.model_id}', provider={self.provider.name if self.provider else 'N/A'})>"

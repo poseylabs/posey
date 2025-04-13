@@ -40,13 +40,16 @@ class Project(Base):
         PrimaryKeyConstraint('id', name='projects_pkey'),
         UniqueConstraint('user_id', 'title', name='projects_user_id_title_key'),
         ForeignKeyConstraint(['user_id'], ['users.id'], name='projects_user_id_fkey'),
+        ForeignKeyConstraint(['agent_id'], ['agents.id'], name='projects_agent_id_fkey', use_alter=True),
         Index('idx_projects_focus', 'focus'),
         Index('idx_projects_status', 'status'),
         Index('idx_projects_user', 'user_id'),
+        Index('idx_projects_agent', 'agent_id'),
     )
 
     id = Column(PGUUID, primary_key=True)
     user_id = Column(PGUUID, nullable=False)
+    agent_id = Column(PGUUID, nullable=True)
     title = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     status = Column(ENUM(ProjectStatusEnum, name='project_status', create_type=False), nullable=False, default=ProjectStatusEnum.active)
@@ -65,7 +68,7 @@ class Project(Base):
     
     # Relationships
     user = relationship("User", back_populates="projects")
-    agent = relationship("Agent", back_populates="projects")
+    agent = relationship("Agent", back_populates="projects", foreign_keys=[agent_id])
     tags = relationship("ProjectTag", back_populates="project", cascade="all, delete-orphan")
     collaborators = relationship("ProjectCollaborator", back_populates="project", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="project")
@@ -78,6 +81,7 @@ class Project(Base):
         return {
             "id": str(self.id),
             "user_id": str(self.user_id),
+            "agent_id": str(self.agent_id),
             "title": self.title,
             "description": self.description,
             "status": self.status,

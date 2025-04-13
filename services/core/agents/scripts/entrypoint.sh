@@ -65,9 +65,16 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
     echo "Running Alembic upgrade..."
 
     cd /app/service
+    
+    # --- IMPORTANT FIX --- 
+    # Unset the external DSN var before running upgrade inside the container.
+    # This forces env.py to use the internal POSTGRES_DSN_POSEY.
+    echo "Ensuring internal DSN is used for container migrations..."
+    unset POSTGRES_DSN_POSEY_EXTERNAL
+    # --------------------
+    
     alembic upgrade head
     cd /app # Change back to original directory
-
 
 else
     echo "Skipping database migrations..."

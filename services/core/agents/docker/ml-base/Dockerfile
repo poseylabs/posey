@@ -73,6 +73,9 @@ RUN echo "--- Installing Auth packages ---" && \
 # Filter out auth packages, comments (#), and the specific comment line marker
 RUN cat ml-requirements.txt | grep -v \"^#\|^torch\|^transformers\|^sentence-transformers\|^langchain\|^numpy\|^pandas\|^scipy\|^PyJWT\|^supertokens-python\|# -->\" | grep -v \"^\\s*$\" | xargs -r pip install --no-cache-dir --verbose || (echo 'Failed to install remaining ML packages' && exit 1)
 
+# ---> RE-ADD Verification step <---
+RUN python -c "import torch; import transformers; import langchain; import jwt; import supertokens_python; print(\'PyTorch version:\', torch.__version__); print(\'CUDA available:\', torch.cuda.is_available()); print(\'Transformers version:\', transformers.__version__); print(\'PyJWT version:\', jwt.__version__); print(\'SuperTokens version:\', supertokens_python.VERSION); print(\'ML dependencies verified successfully\')"
+
 # Clean up build files
 RUN rm -rf /tmp/build
 

@@ -233,6 +233,10 @@ class Settings(BaseSettings):
 
     EMBEDDING_DIMENSIONS: int = 1536  # Default dimension for text embeddings
 
+    # Add the missing setting for the Auth Service URL
+    AUTH_API_DOMAIN: str = "http://localhost:9999"
+    AUTH_SERVICE_INTERNAL_URL: str = "http://posey-auth:9999"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not self.POSTGRES_DSN_POSEY:
