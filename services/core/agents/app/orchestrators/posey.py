@@ -21,6 +21,9 @@ from app.models.analysis import ContentAnalysis  # Update import
 from app.config.abilities import REGISTERED_ABILITIES
 import re
 from datetime import datetime
+from pydantic_ai import Agent
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db import get_db
 
 class PoseyResponse(BaseModel):
     """Model for final orchestrated response"""
@@ -63,15 +66,26 @@ class PoseyResponse(BaseModel):
         )
 
 class PoseyAgent:
-    """Main orchestrator agent using PydanticAI and LangGraph"""
+    """Main orchestrator agent using PydanticAI and LangGraph
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """Initialize the Posey orchestrator"""
+    Use the async factory method `create` to instantiate.
+    """
+
+    # Make __init__ simpler, accepting pre-configured agents
+    def __init__(self,
+                 orchestrator_agent: Agent,
+                 synthesis_agent: Agent,
+                 config: Optional[Dict[str, Any]] = None):
+        """Initialize the Posey orchestrator with pre-configured agents."""
         self.config = config or {}
         self.started = False
         self.agent_name = "posey"
-        
-        # Load prompts with shared configurations
+
+        # Store pre-configured agents
+        self.agent = orchestrator_agent
+        self.synthesis_agent = synthesis_agent
+
+        # Load prompts (synchronous is fine)
         try:
             self.prompts = {
                 "posey": PromptLoader.get_prompt_with_shared_config("posey"),
@@ -81,49 +95,65 @@ class PoseyAgent:
         except Exception as e:
             logger.error(f"Failed to load prompts for {self.agent_name} orchestrator: {e}")
             self.prompts = {"posey": {}, "synthesis": {}}
-        
+
+        # Initialize other synchronous parts
         self.minions = {}
         self.abilities = {}
         self.user_context = {}
-        
-        # Create the content analysis agent using the reasoning model to avoid tool usage issues
         self.content_analyzer = ContentAnalysisMinion()
         self.ability_registry = AbilityRegistry()
-        logger.info("Content analyzer created")
-
-        # Create the main orchestrator agent
-        self.agent = create_agent(
-            "orchestrator",
-            ["synthesis", "task_management"],
-            provider=LLM_CONFIG["default"]["provider"],
-            model=LLM_CONFIG["default"]["model"]
-        )
-        logger.info("Main orchestrator agent created")
-        
-        # Create a synthesis agent that will be used with explicit message handling
-        synthesis_system_prompt = self.prompts["synthesis"]["system_prompt"]
-        self.synthesis_agent = create_agent(
-            "synthesis",
-            [], # No abilities needed for synthesis
-            provider=LLM_CONFIG["default"]["provider"],
-            model=LLM_CONFIG["default"]["model"],
-        )
-        # Override the system prompt with the one from the prompts file
-        self.synthesis_agent._system_prompt = synthesis_system_prompt
-        logger.info("Synthesis agent created for message-based handling")
-
-        # Define minion mapping
         self.minion_map = {
             "image_generation": "image",
             "internet_research": "voyager",
             "memory_management": "memory",
             "research": "research"
         }
-        logger.debug(f"Minion mapping configured: {json.dumps(self.minion_map, indent=2, cls=CustomJSONEncoder)}")
-
-        # Add MCP server for inter-agent communication
         self.mcp = FastMCP("posey-orchestrator")
         self.register_minion_tools()
+        logger.info("PoseyAgent synchronous initialization complete.")
+
+    @classmethod
+    async def create(cls, db: AsyncSession, config: Optional[Dict[str, Any]] = None) -> "PoseyAgent":
+        """Asynchronous factory method to create and initialize PoseyAgent."""
+        logger.info("Starting async creation of PoseyAgent...")
+
+        # Create the main orchestrator agent using DB config
+        logger.info("Creating orchestrator agent...")
+        orchestrator_agent = await create_agent(
+            agent_type="orchestrator",
+            abilities=["synthesis", "task_management"],
+            db=db,
+            config_key="orchestrator" # Use specific key or agent_type
+        )
+        logger.info("Orchestrator agent created.")
+
+        # Create a synthesis agent using DB config
+        logger.info("Creating synthesis agent...")
+        synthesis_agent = await create_agent(
+            agent_type="synthesis",
+            abilities=[], # No abilities needed for synthesis
+            db=db,
+            config_key="synthesis" # Use specific key or agent_type
+        )
+        logger.info("Synthesis agent created.")
+
+        # Override the synthesis agent's system prompt (this is sync)
+        try:
+            prompts = PromptLoader.get_prompts()
+            synthesis_system_prompt = prompts.get("synthesis", {}).get("system_prompt", "Default synthesis prompt")
+            synthesis_agent._system_prompt = synthesis_system_prompt
+            logger.info("Overrode synthesis agent system prompt.")
+        except Exception as e:
+            logger.error(f"Failed to load prompts to override synthesis system prompt: {e}")
+
+        # Instantiate the class with the created agents
+        instance = cls(
+            orchestrator_agent=orchestrator_agent,
+            synthesis_agent=synthesis_agent,
+            config=config
+        )
+        logger.info("PoseyAgent instance created successfully.")
+        return instance
 
     def register_minion_tools(self):
         """Register minion abilities as MCP tools"""
@@ -646,7 +676,7 @@ class PoseyAgent:
         messages = extract_messages_from_context(context, prompt)
         
         # Ensure the current prompt is included as the latest user message if not already present
-        if prompt and not any(m["role"] == "user" and m["content"] == prompt for m in messages):
+        if prompt and not any(m.role == "user" and m.content == prompt for m in messages):
             messages.append({"role": "user", "content": prompt})
             
         return await self.run_with_messages(messages, context)

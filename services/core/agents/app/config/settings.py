@@ -155,6 +155,7 @@ class Settings(BaseSettings):
     QDRANT_GRPC_PORT: int = 6334 # Default gRPC port
     QDRANT_HOST: str = "posey-qdrant" # Default to Kubernetes service name
     ENABLE_QDRANT: bool = True
+    QDRANT_API_KEY: Optional[str] = Field(None, alias='QDRANT__SERVICE__API_KEY') # Add Qdrant API Key
 
     # API Settings
     ALLOWED_ORIGINS: List[str] = Field(default_factory=lambda: ["*"])
@@ -239,18 +240,34 @@ class Settings(BaseSettings):
 
     def get_qdrant_url(self) -> str:
         """Construct Qdrant URL from host and port if not provided directly"""
-        if self.QDRANT_HOST:
-            return self.QDRANT_HOST
-        
+        # Prioritize QDRANT_URL if explicitly set
         if self.QDRANT_URL:
             url = self.QDRANT_URL
             if not url.startswith(('http://', 'https://')):
+                # Assume http if scheme is missing
                 url = f"http://{url}"
-            if ':' not in url.split('/')[-1] and self.QDRANT_PORT:
-                url = f"{url}:{self.QDRANT_PORT}"
+            # Add port if missing in the URL and QDRANT_PORT is set
+            # Basic check: find last colon
+            last_colon = url.rfind(':')
+            last_slash = url.rfind('/')
+            port_in_url = last_colon > last_slash and url[last_colon+1:].isdigit()
+            if not port_in_url and self.QDRANT_PORT:
+                 # Append port carefully, avoiding double ports if scheme was added
+                 base_url = url.split('://')[1] if '://' in url else url
+                 scheme = url.split('://')[0] + '://' if '://' in url else 'http://'
+                 url = f"{scheme}{base_url}:{self.QDRANT_PORT}"
             return url
         
-        return f"http://{self.QDRANT_HOST}:{self.QDRANT_PORT}"
+        # Fallback to constructing from QDRANT_HOST and QDRANT_PORT
+        if self.QDRANT_HOST and self.QDRANT_PORT:
+            # Always assume http unless host suggests otherwise (e.g., contains 'https')
+            scheme = "http://"
+            return f"{scheme}{self.QDRANT_HOST}:{self.QDRANT_PORT}"
+        
+        # If we reach here, configuration is likely incomplete
+        logger.error("Qdrant URL/Host/Port configuration is insufficient.")
+        # Return a default or raise an error, returning default for now
+        return "http://localhost:6333" # Or raise ConfigurationError
 
     @property
     def QDRANT_FULL_URL(self) -> str:

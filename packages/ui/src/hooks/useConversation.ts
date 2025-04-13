@@ -42,34 +42,46 @@ export const useConversation = () => {
 
   const callAgent = useCallback(async ({
     message,
+    metadata,
     firstContact = false,
   }: {
     message: string,
+    metadata?: any,
     firstContact?: boolean
   }) => {
     try {
       setIsConversationLoading(true);
       ensureConversationID();
+      const currentMessages = chat?.currentConversation?.messages || [];
+
+      const messages = [...currentMessages];
+
+      if (!firstContact) {
+        const userMessage = await conversationService.addMessage({
+          content: message,
+          sender: user?.id || 'anonymous',
+          role: 'user',
+          metadata: {
+            user,
+            ...metadata
+          }
+        });
+        addMessage(userMessage);
+        messages.push(userMessage);
+      }
 
       // Send to agent
-      const response: any = await agentService.call(message);
+      const response: any = await agentService.call({
+        messages,
+        conversationId: chat?.currentConversation?.id,
+        metadata: {
+          ...user?.metadata
+        }
+      });
 
       if (!response?.success) {
         console.error('Error calling agent:', response?.error);
         throw new Error(response?.error);
-      }
-
-      if (!firstContact) {
-        // Add message to existing conversation
-        const userMessage = await conversationService.addMessage({
-          content: message,
-          sender: user?.id || '',
-          role: 'user',
-          metadata: {
-            ...user?.metadata
-          }
-        });
-        addMessage(userMessage);
       }
 
       // Add agent response to conversation

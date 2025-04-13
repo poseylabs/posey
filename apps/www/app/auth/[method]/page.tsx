@@ -28,7 +28,12 @@ export default function AuthPage() {
     }
   }, []);
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: {
+    email: string;
+    password: string;
+    username?: string;
+    inviteCode?: string;
+  }) => {
     setErrorMessage(null);
     try {
       // Add basic client-side validation
@@ -66,7 +71,8 @@ export default function AuthPage() {
             formFields: [
               { id: "email", value: formData.email },
               { id: "password", value: formData.password },
-              ...(method === 'register' ? [{ id: "username", value: formData.username }] : [])
+              ...(method === 'register' && formData.username !== undefined ? [{ id: "username", value: formData.username }] : []),
+              ...(method === 'register' && formData.inviteCode !== undefined ? [{ id: "inviteCode", value: formData.inviteCode }] : [])
             ]
           }),
         });
@@ -101,7 +107,8 @@ export default function AuthPage() {
           user: {
             email: formData.email,
             password: formData.password,
-            username: formData.username,
+            username: formData.username || '',
+            inviteCode: formData.inviteCode || ''
           },
         });
       }

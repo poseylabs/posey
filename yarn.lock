@@ -4585,6 +4585,7 @@ __metadata:
     ollama: "npm:^0.5.13"
     openai: "npm:^4.77.4"
     pg: "npm:^8.13.2"
+    supertokens-auth-react: "npm:^0.49.1"
     ts-node: "npm:^10.9.2"
     tsup: "npm:^8.3.5"
     typescript: "npm:^5.6.2"
@@ -5308,6 +5309,13 @@ __metadata:
   version: 0.5.0
   resolution: "@sevinf/maybe@npm:0.5.0"
   checksum: 10c0/42033a7c2ca07f4e17b11d69082b756b83c355170cedf7ef3e5202b5c5f531c12054745273364ca245b175eb862597ae0de2663f260c4a4ce652f8b30393131b
+  languageName: node
+  linkType: hard
+
+"@simplewebauthn/types@npm:^12.0.0":
+  version: 12.0.0
+  resolution: "@simplewebauthn/types@npm:12.0.0"
+  checksum: 10c0/b7ce0ae692ea1e069ad9cb028fc1ccfe3f37e0f197825ba9e468e60194f463e88f5db254ddea296019b470a465ffaffa96fe27bb5e1e5d5d14bfcd068b04abed
   languageName: node
   linkType: hard
 
@@ -18024,6 +18032,23 @@ __metadata:
     react-dom: ">=16.8.0"
     supertokens-web-js: ^0.14.0
   checksum: 10c0/7b3c06ab6c9c435458a7e2657c32bf7e7702a3216c5b24d53cd74c7e64a8b7a3996d1f15c11f64c2703f39fcd0691b2b615c607f26dda12c1fe614f4555240da
+  languageName: node
+  linkType: hard
+
+"supertokens-auth-react@npm:^0.49.1":
+  version: 0.49.1
+  resolution: "supertokens-auth-react@npm:0.49.1"
+  dependencies:
+    "@simplewebauthn/types": "npm:^12.0.0"
+    intl-tel-input: "npm:^17.0.19"
+    prop-types: "npm:*"
+    react-qr-code: "npm:^2.0.12"
+    supertokens-js-override: "npm:^0.0.4"
+  peerDependencies:
+    react: ">=16.8.0"
+    react-dom: ">=16.8.0"
+    supertokens-web-js: ^0.15
+  checksum: 10c0/ebefae4f24e38e69f1270722f69c4fda43f5f84d1c0c2e08a52f04bfa1712fcf1cc6220d0d37749d3ca258353cdf402c04cab6cab022044eceac7014cb7f3a2c
   languageName: node
   linkType: hard
 

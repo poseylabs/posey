@@ -52,29 +52,112 @@ export const supertokensConfig: any = {
               return undefined;
             }
           },
-          { id: "username", optional: false }
+          { id: "username", optional: false },
+          { id: "inviteCode", optional: false }
         ]
       },
       override: {
         apis: (originalImplementation: any) => ({
           ...originalImplementation,
           signUpPOST: async (input: any) => {
+            // Log the received formFields
+            console.log("signUpPOST Override: Received formFields:", JSON.stringify(input?.formFields, null, 2));
+
             if (!originalImplementation.signUpPOST) {
               throw new Error("signUpPOST not implemented");
             }
-            const response = await originalImplementation.signUpPOST(input);
 
-            if (response.status === "OK" && response.user.emails?.[0]) {
-              await syncUserToDatabase(
-                response.user.id,
-                response.user.emails[0],
-                input.formFields
-              );
+            const formFields = input.formFields;
+
+            // Ensure formFields exist and are an array
+            if (!Array.isArray(formFields)) {
+              console.error("signUpPOST Override: formFields is missing or not an array in input.");
+              return {
+                status: "GENERAL_ERROR",
+                message: "Internal server error: Invalid request format."
+              };
             }
-            if (response.status === "OK") {
-              delete response.redirectToPath;
+
+            // Extract inviteCode from the formFields array
+            const inviteCodeField = formFields.find((f: any) => f.id === "inviteCode");
+            const inviteCode = inviteCodeField?.value;
+
+            console.log(`signUpPOST Override: Extracted inviteCode: ${inviteCode}`);
+
+            if (!inviteCode) {
+              console.log("signUpPOST Override: Invite code check failed (missing from formFields or empty).");
+              return {
+                status: "GENERAL_ERROR",
+                message: "Invite code is required"
+              };
             }
-            return response;
+
+            try {
+              // 1. Validate Invite Code
+              const verifyQuery = `SELECT code FROM invite_codes WHERE code = $1`;
+              const verifyResult = await poseyPool.query(verifyQuery, [inviteCode]);
+
+              if (verifyResult.rows.length === 0) {
+                return {
+                  status: "GENERAL_ERROR",
+                  message: "Invalid invite code"
+                };
+              }
+
+              // 2. Call Original SuperTokens Implementation (with ORIGINAL fields)
+              // No need to filter since inviteCode is now declared in config
+              // const filteredFormFields = formFields.filter((f: any) => f.id !== "inviteCode");
+
+              // Pass the original input directly, or construct with all expected fields
+              // Option 1: Pass original input (assuming it's safe)
+              const originalInput = input;
+              // Option 2 (Slightly safer if Option 1 fails): Reconstruct with formFields, tenantId, userContext
+              // const originalInput = {
+              //   formFields: formFields,
+              //   tenantId: input.tenantId,
+              //   userContext: input.userContext
+              // };
+
+              // Remove logging of the potentially circular originalInput object
+              // console.log("Calling original signUpPOST with input:", JSON.stringify(originalInput, null, 2));
+              const response = await originalImplementation.signUpPOST(originalInput);
+              // Remove logging of the potentially circular response object
+              // console.log("Original signUpPOST response:", JSON.stringify(response, null, 2));
+
+              // Log specific, safe response properties if needed for debugging
+              console.log(`Original signUpPOST response status: ${response?.status}`);
+              if (response?.status === 'OK' && response?.user) {
+                console.log(`Original signUpPOST response user ID: ${response.user.id}`);
+              }
+
+              // 3. Post-Signup Actions (Sync user, Delete invite code)
+              if (response.status === "OK" && response.user && response.user.email) {
+                // Find username from the ORIGINAL formFields (which includes username)
+                const usernameField = formFields.find((f: any) => f.id === 'username');
+                const username = usernameField ? usernameField.value : undefined;
+
+                await syncUserToDatabase(
+                  response.user.id,
+                  response.user.email,
+                  username
+                );
+                console.log(`User ${response.user.id} synced to database.`);
+
+                const deleteQuery = `DELETE FROM invite_codes WHERE code = $1`;
+                await poseyPool.query(deleteQuery, [inviteCode]);
+                console.log(`Invite code ${inviteCode} used and deleted.`);
+              } else if (response.status !== "OK") {
+                console.error("Original signUpPOST failed:", response);
+              }
+
+              return response;
+            } catch (error) {
+              console.error("Error during sign up override:", error);
+              return {
+                status: "GENERAL_ERROR",
+                message: "An error occurred during sign up. Please try again."
+              };
+            }
           },
           signInPOST: async (input) => {
             const response = await originalImplementation?.signInPOST?.(input);
@@ -169,8 +252,8 @@ export const supertokensConfig: any = {
     }),
     Session.init({
       getTokenTransferMethod: () => "cookie",
-      cookieSecure: true,
-      cookieSameSite: "none",
+      cookieSecure: false,
+      cookieSameSite: "lax",
       exposeAccessTokenToFrontendInCookieBasedAuth: true,
       override: {
         functions: (originalImplementation) => ({

@@ -18,11 +18,14 @@ export default defineConfig({
   treeshake: true,
   splitting: false,
   target: 'es2020',
-  platform: 'browser',
+  platform: 'neutral',
   external: [
     'react',
     'react-dom',
     'react/jsx-runtime',
+    'supertokens-auth-react',
+    'supertokens-auth-react/recipe/session',
+    'supertokens-auth-react/recipe/emailpassword',
     'bson',
     'crypto',
     'fs',
@@ -52,15 +55,13 @@ export default defineConfig({
   ],
   esbuildOptions(options) {
     options.bundle = true
-    options.platform = 'browser'
+    options.platform = 'neutral'
     options.conditions = ['import', 'module']
-    options.alias = {
-      crypto: 'crypto-browserify',
-      fs: 'browserify-fs',
-      path: 'browserify-path',
-    }
     options.external = [
       ...options.external || [],
+      'supertokens-auth-react',
+      'supertokens-auth-react/recipe/session',
+      'supertokens-auth-react/recipe/emailpassword',
       'node:crypto',
       'node:fs',
       'node:stream',

@@ -1,9 +1,10 @@
 from typing import Dict, Any, Type
 from app.minions.memory import MemoryMinion
 from app.minions.voyager import VoyagerMinion
-from app.minions.image import ImageMinion
+from app.minions.image_generation import ImageGenerationMinion
 from app.minions.research import ResearchMinion
 from app.minions.content_analysis import ContentAnalysisMinion
+from app.minions.image_processing import ImageProcessingMinion
 from app.config import logger
 from app.db import db # Import the shared db object
 
@@ -14,9 +15,10 @@ class MinionRegistry:
         self._minion_classes: Dict[str, Type] = {
             "memory": MemoryMinion,
             "voyager": VoyagerMinion,
-            "image": ImageMinion,
+            "image_generation": ImageGenerationMinion,
             "research": ResearchMinion,
-            "content_analysis": ContentAnalysisMinion
+            "content_analysis": ContentAnalysisMinion,
+            "image_processing": ImageProcessingMinion
         }
         self._instances: Dict[str, Any] = {}
 

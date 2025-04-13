@@ -81,9 +81,11 @@ def get_last_user_message(messages: List[Dict[str, str]]) -> Optional[str]:
     Returns:
         Content of the last user message, or None if no user messages
     """
-    user_messages = [m for m in messages if m["role"] == "user"]
+    # Use attribute access (m.role) for MessageModel objects
+    user_messages = [m for m in messages if hasattr(m, 'role') and m.role == "user"]
     if user_messages:
-        return user_messages[-1]["content"]
+        # Use attribute access (m.content)
+        return user_messages[-1].content
     return None
 
 def add_assistant_message(

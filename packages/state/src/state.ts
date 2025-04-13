@@ -1,3 +1,5 @@
+'use client';
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
@@ -529,31 +531,42 @@ export const usePoseyState = create<PoseyState>()(
         }, 1000),
 
         addMessage: (message: Message) => {
-          set((state: PoseyState) => ({
-            ...state,
-            chat: {
-              ...state.chat,
-              currentConversation: {
-                ...state.chat.currentConversation,
-                messages: [...(state.chat.currentConversation?.messages || []), message]
+          set((state: PoseyState) => {
+            // Log the conversation ID being updated
+            console.log('[Zustand addMessage] Updating conversation:', state.chat.currentConversation?.id);
+            console.log('[Zustand addMessage] Adding message:', message.id, message.content.substring(0, 50));
+            // Clear the selector cache
+            state._cache.clear(); 
+            return {
+              ...state,
+              chat: {
+                ...state.chat,
+                currentConversation: {
+                  ...state.chat.currentConversation,
+                  messages: [...(state.chat.currentConversation?.messages || []), message]
+                }
               }
-            }
-          }));
+            };
+          });
         },
 
         updateMessage: (messageId: string, updates: Partial<Message>) => {
-          set((state: PoseyState) => ({
-            ...state,
-            chat: {
-              ...state.chat,
-              currentConversation: {
-                ...state.chat.currentConversation,
-                messages: state?.chat?.currentConversation?.messages?.map(msg =>
-                  msg.id === messageId ? { ...msg, ...updates } : msg
-                ) || []
+          set((state: PoseyState) => {
+            // Clear the selector cache
+            state._cache.clear();
+            return {
+              ...state,
+              chat: {
+                ...state.chat,
+                currentConversation: {
+                  ...state.chat.currentConversation,
+                  messages: state?.chat?.currentConversation?.messages?.map(msg =>
+                    msg.id === messageId ? { ...msg, ...updates } : msg
+                  ) || []
+                }
               }
-            }
-          }));
+            };
+          });
         },
 
         setCurrentConversation: (conversation: Conversation | null) => {

@@ -451,17 +451,10 @@ class Database:
         
         client = None # Initialize local variable
         try:
-            qdrant_host = settings.QDRANT_HOST
-            qdrant_port = settings.QDRANT_PORT
-            logger.info(f"Attempting Qdrant connection via HTTP: Host='{qdrant_host}', Port={qdrant_port}")
-
-            # Instantiate the Async Client locally first
+            logger.info(f"Using Qdrant URL: {settings.QDRANT_FULL_URL}") # Log the URL being used
             client = AsyncQdrantClient(
-                host=qdrant_host,
-                port=qdrant_port,
-                # prefer_grpc=settings.QDRANT_PREFER_GRPC, # Use setting if defined
-                prefer_grpc=False, # Explicitly using HTTP for now based on previous logs
-                # timeout=settings.QDRANT_TIMEOUT # Use setting if defined
+                url=settings.QDRANT_FULL_URL, # Use the full URL with scheme
+                api_key=settings.QDRANT_API_KEY,
                 timeout=15
             )
             logger.debug(f"AsyncQdrantClient instantiated locally: {client}")
@@ -479,7 +472,7 @@ class Database:
 
         except Exception as e:
             logger.error(f"Async Qdrant Client initialization failed: {type(e).__name__}: {e}")
-            logger.error(f"  Host='{settings.QDRANT_HOST}', Port={settings.QDRANT_PORT}")
+            logger.error(f"  URL: {settings.QDRANT_FULL_URL}")
             self._qdrant_client = None # Ensure instance variable is None on failure
             # Attempt to clean up the locally created client if it exists
             if client:
@@ -488,7 +481,7 @@ class Database:
                     logger.debug("Cleaned up partially initialized Qdrant client after failure.")
                 except Exception as close_err:
                     logger.error(f"Error closing partially initialized Qdrant client: {close_err}")
-            return False # Indicate failure
+            raise e # Re-raise the original exception to make it visible
 
 # Create a single instance of the Database class
 db = Database()

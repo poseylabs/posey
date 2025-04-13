@@ -69,7 +69,6 @@ export default function PodDetailPage({ params }: { params: Promise<{ id: string
         });
 
         if (response.status === 401) {
-          console.error('Unauthorized access, redirecting to login');
           localStorage.removeItem('authToken'); // Clear invalid token
           router.push('/auth/login');
           return;

@@ -75,7 +75,6 @@ export default function EditPodPage({ params }: { params: Promise<{ id: string }
         }
 
         if (podResponse.status === 401 || locationsResponse.status === 401) {
-          console.error('Unauthorized access, redirecting to login');
           localStorage.removeItem('authToken');
           router.push('/auth/login');
           return;

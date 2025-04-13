@@ -35,6 +35,7 @@ class SystemContext(BaseModel):
     timestamp: str
     timezone: str = "UTC"
     location: Optional[LocationInfo] = None
+    uploaded_files: list[Dict[str, Any]] = []
 
 class MemoryContext(BaseModel):
     """Memory context information"""

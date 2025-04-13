@@ -13,6 +13,7 @@ export interface AuthFormProps {
     email: string;
     password: string;
     username?: string;
+    inviteCode?: string;
   }) => Promise<void>;
   /**
    * Determines whether the component is in 'login' or 'register' mode.
@@ -33,9 +34,10 @@ export interface AuthFormProps {
  * />
  */
 export function AuthForm({ onSubmit, mode = 'login' }: AuthFormProps) {
-  const [email, setEmail] = useState('jesse@posey.ai');
-  const [password, setPassword] = useState('wormsoup');
-  const [username, setUsername] = useState('jesse');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,15 +50,16 @@ export function AuthForm({ onSubmit, mode = 'login' }: AuthFormProps) {
 
     try {
       if (mode === 'register') {
-        await onSubmit({ email, password, username });
+        await onSubmit({ email, password, username, inviteCode });
       } else {
         await onSubmit({ email, password });
       }
 
       // After successful auth, force a session check
-      window.location.href = '/'; // Use hard redirect to ensure clean session state
+      // window.location.href = '/'; // Use hard redirect to ensure clean session state
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
+    } finally {
       setLoading(false);
     }
   };
@@ -90,14 +93,14 @@ export function AuthForm({ onSubmit, mode = 'login' }: AuthFormProps) {
     }
 
     // Require at least 2 numbers
-    // if ((password.match(/\d/g) || []).length < 2) {
-    //   return "Password must contain at least 2 numbers";
-    // }
+    if ((password.match(/\d/g) || []).length < 2) {
+      return "Password must contain at least 2 numbers";
+    }
 
     // Require special characters
-    // if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    //   return "Password must contain at least one special character";
-    // }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      return "Password must contain at least one special character";
+    }
 
     // No validation error
     return undefined;
@@ -133,6 +136,16 @@ export function AuthForm({ onSubmit, mode = 'login' }: AuthFormProps) {
           required
           validate={validatePassword}
         />
+        {mode === 'register' && (
+          <Input
+            type="text"
+            placeholder="Invite Code"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            label="Invite Code"
+            required
+          />
+        )}
         {error && <p className="text-error text-sm">{error}</p>}
         <Button type="submit" disabled={loading}>
           {loading ? 'Loading...' : mode === 'login' ? 'Login' : 'Sign Up'}

@@ -9,12 +9,6 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_secret TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN DEFAULT FALSE;
 
-CREATE TABLE IF NOT EXISTS inviteCodes (
-    id SERIAL PRIMARY KEY,
-    code TEXT NOT NULL,
-    active BOOLEAN DEFAULT FALSE
-);
-
 -- Create sessions table for auth
 CREATE TABLE IF NOT EXISTS sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

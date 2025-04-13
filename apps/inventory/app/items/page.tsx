@@ -26,7 +26,6 @@ export default function ItemsPage() {
     const checkAuth = async () => {
       const session = await getSession();
       if (!session?.user) {
-        console.error('Unauthorized access, redirecting to login');
         router.push('/login');
         return;
       }

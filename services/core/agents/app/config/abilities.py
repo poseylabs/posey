@@ -7,7 +7,8 @@ class AgentAbility(Enum):
     CONTENT_ANALYSIS = "content_analysis"
     MEMORY = "memory"
     RESEARCH = "research"
-    IMAGE = "image"
+    IMAGE_GENERATION = "image_generation"
+    IMAGE_PROCESSING = "image_processing"
     VOYAGER = "voyager"
     # Add other abilities as we implement them
 
@@ -18,7 +19,8 @@ class AgentAbility(Enum):
             cls.CONTENT_ANALYSIS.value: "content_analysis",
             cls.MEMORY.value: "memory",
             cls.RESEARCH.value: "research",
-            cls.IMAGE.value: "image",
+            cls.IMAGE_GENERATION.value: "image_generation",
+            cls.IMAGE_PROCESSING.value: "image_processing",
             cls.VOYAGER.value: "voyager"
         }
         mapped_name = mapping.get(ability, ability)
@@ -66,9 +68,14 @@ class AbilityRegistry:
                 "capabilities": ["search", "analyze", "synthesize"]
             },
             {
-                "name": AgentAbility.IMAGE.value,
-                "description": "Handles image generation and analysis",
-                "capabilities": ["generate", "analyze", "optimize"]
+                "name": AgentAbility.IMAGE_GENERATION.value,
+                "description": "Handles image generation",
+                "capabilities": ["generate", "edit_generated", "optimize_prompt"]
+            },
+            {
+                "name": AgentAbility.IMAGE_PROCESSING.value,
+                "description": "Analyzes image processing requests and determines steps or delegates",
+                "capabilities": ["analyze", "delegate", "coordinate"]
             },
             {
                 "name": AgentAbility.VOYAGER.value,
@@ -110,7 +117,7 @@ class AbilityRegistry:
     def get_default_configs() -> Dict[str, Dict[str, Any]]:
         """Get default configurations for abilities"""
         return {
-            AgentAbility.IMAGE.value: {
+            AgentAbility.IMAGE_GENERATION.value: {
                 "default_size": "1024x1024",
                 "default_model": "dalle-3",
                 "default_style": "realistic"

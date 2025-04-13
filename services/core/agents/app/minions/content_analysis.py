@@ -14,6 +14,7 @@ import pytz
 from app.models.analysis import ContentAnalysis, ContentIntent, DelegationConfig
 from app.minions.base import BaseMinion
 import traceback
+from app.config.abilities import AbilityRegistry
 
 class ContentAnalysisMinion(BaseMinion):
     """Content Analysis Minion - analyzes content, determines intent and required abilities"""
@@ -80,6 +81,7 @@ class ContentAnalysisMinion(BaseMinion):
             current_time=formatted_time,
             timestamp=now.isoformat(),
             agent_capabilities=["content_analysis", "intent_detection", "ability_delegation"],
+            uploaded_files=context.get("uploaded_files", []),
             **context.get("system", {})
         )
         
@@ -227,6 +229,43 @@ Determine:
             logger.debug(f"Running content analysis agent for: {query}")
             result = await self.agent.run_with_messages(messages)
             
+            # Add enhanced logging for delegation decisions
+            if hasattr(result, 'delegation') and result.delegation:
+                if result.delegation.should_delegate:
+                    logger.info(f"Content analysis decided to delegate to abilities: {result.delegation.abilities}")
+                    
+                    # Validate requested abilities against available abilities
+                    registry = AbilityRegistry()
+                    valid_abilities = []
+                    invalid_abilities = []
+                    
+                    for ability in result.delegation.abilities:
+                        if registry.validate_ability(ability):
+                            valid_abilities.append(ability)
+                        else:
+                            invalid_abilities.append(ability)
+                    
+                    if invalid_abilities:
+                        logger.warning(f"Requested abilities not found in registry: {invalid_abilities}")
+                        # Update the delegation with only valid abilities
+                        result.delegation.abilities = valid_abilities
+                        
+                        # Cleanup configs for invalid abilities
+                        if hasattr(result.delegation, 'configs'):
+                            for invalid_ability in invalid_abilities:
+                                if invalid_ability in result.delegation.configs:
+                                    del result.delegation.configs[invalid_ability]
+                    
+                    logger.info(f"Validated abilities for delegation: {valid_abilities}")
+                    logger.info(f"Delegation priority: {result.delegation.priority}")
+                    logger.debug(f"Delegation configs: {json.dumps(result.delegation.configs, indent=2, default=str)}")
+                    logger.info(f"Delegation reasoning: {result.reasoning}")
+                else:
+                    logger.info("Content analysis decided NOT to delegate to any abilities")
+                    logger.info(f"Reasoning: {result.reasoning}")
+            else:
+                logger.warning("Content analysis result is missing delegation information")
+            
             execution_time = time.time() - start_time
             logger.info(f"Content analysis completed in {execution_time:.2f}s")
             
@@ -327,19 +366,18 @@ Determine:
 
 async def fetch_available_abilities() -> Dict[str, Dict[str, Any]]:
     """Fetch all available abilities and their configurations"""
-    # This is a placeholder - in real implementation, you would fetch from a registry
-    return {
-        "memory": {
-            "description": "Access and manipulate agent memory",
-            "operations": ["store", "retrieve", "analyze"]
-        },
-        "internet_research": {
-            "description": "Perform internet search and research",
-            "operations": ["search", "analyze"]
-        },
-        "image_generation": {
-            "description": "Generate images from text descriptions",
-            "operations": ["generate", "edit"]
+    # Get abilities from the registry
+    registry = AbilityRegistry()
+    abilities_list = registry.get_available_abilities()
+    
+    # Convert to the expected format
+    abilities_dict = {}
+    for ability in abilities_list:
+        abilities_dict[ability["name"]] = {
+            "description": ability.get("description", ""),
+            "capabilities": ability.get("capabilities", [])
         }
-    }
+    
+    logger.debug(f"Fetched {len(abilities_dict)} available abilities: {list(abilities_dict.keys())}")
+    return abilities_dict
 

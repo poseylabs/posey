@@ -493,9 +493,6 @@ export default function Sidebar({
                     value={conversation.id}>{conversation.title}
                   </option>
                 ))}
-                {conversations?.length === 0 && (
-                  <option value="">No conversations yet :)</option>
-                )}
               </select>
             </li>
           </ul>

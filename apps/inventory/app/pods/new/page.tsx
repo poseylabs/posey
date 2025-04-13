@@ -89,7 +89,6 @@ export default function NewPodPage() {
           });
 
           if (response.status === 401) {
-            console.error('Unauthorized access');
             return;
           }
 
@@ -142,7 +141,6 @@ export default function NewPodPage() {
         const locationsResponse = await fetch('/api/inventory/locations', fetchOptions);
 
         if (podsResponse.status === 401 || locationsResponse.status === 401) {
-          console.error('Unauthorized access, redirecting to login');
           localStorage.removeItem('authToken');
           router.push('/auth/login');
           return;

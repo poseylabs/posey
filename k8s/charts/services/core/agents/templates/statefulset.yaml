@@ -56,7 +56,7 @@ spec:
               path: /health
               port: {{ .Values.service.ingressPortName | default "http" }}
             initialDelaySeconds: 30
-            periodSeconds: 15
+            periodSeconds: 300
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
@@ -64,9 +64,9 @@ spec:
               path: /health
               port: {{ .Values.service.ingressPortName | default "http" }}
             initialDelaySeconds: 40
-            periodSeconds: 10
+            periodSeconds: 300
             timeoutSeconds: 5
-            failureThreshold: 6
+            failureThreshold: 3
           resources:
             {{- toYaml .Values.global.resources | nindent 12 }}
           volumeMounts:

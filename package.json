@@ -10,7 +10,8 @@
     "deploy:local": "bash lib/scripts/deploy-local-services.sh",
     "deploy:local:core": "bash lib/scripts/deploy-local-services.sh --app core",
     "deploy:agents": "bash lib/scripts/deploy-local-services.sh --app posey-agents",
-    "deploy:qdrant": "bash lib/scripts/deploy-local-services.sh --app qdrant"
+    "deploy:auth": "bash lib/scripts/deploy-local-services.sh --app posey-auth",
+    "deploy:qdrant": "bash lib/scripts/deploy-local-services.sh --app posey-qdrant"
   },
   "devDependencies": {
     "husky": "^9.1.7",

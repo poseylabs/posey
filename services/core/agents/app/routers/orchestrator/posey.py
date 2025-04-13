@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, Form, UploadFile, File
 from typing import Optional, List, Any, Dict
-from pydantic import BaseModel, UUID4, Field, model_validator
+from pydantic import BaseModel, UUID4, Field, model_validator, ValidationError, ConfigDict
 from datetime import datetime
 from uuid import uuid4
 from ...middleware.response import standardize_response
@@ -151,22 +151,47 @@ class AgentResponse(BaseModel):
 class StatusUpdate(BaseModel):
     status: str = Field(..., pattern="^(active|inactive|maintenance)$")
 
+# Define a Pydantic model for incoming messages
+class MessageModel(BaseModel):
+    id: str | UUID4 # Allow string or UUID from client
+    content: str
+    role: str
+    sender_type: str
+    created_at: datetime | str # Allow ISO string or datetime
+    metadata: Optional[str] = None # Expect stringified JSON from client
+    # Allow any other fields client might send (like legacy 'meta')
+    model_config = ConfigDict(extra="allow") 
+
 class RunRequest(BaseModel):
-    """Request model for running Posey"""
-    prompt: Optional[str] = None
-    messages: Optional[List[Dict[str, str]]] = None
-    conversation_id: Optional[str] = None
+    """Data model for the JSON payload part of the multipart request"""
+    # Use the specific MessageModel for validation
+    messages: Optional[List[MessageModel]] = None
+    conversation_id: Optional[str] = Field(default=None, alias='conversation_id')
     metadata: Dict[str, Any] = Field(default_factory=dict)
-    
+    prompt: Optional[str] = None # Keep for potential fallback/logging, though messages are primary
+
     @model_validator(mode='after')
     def validate_input(self) -> 'RunRequest':
-        """Validate that either prompt or messages is provided"""
-        prompt = self.prompt
-        messages = self.messages
-        
-        if prompt is None and (messages is None or len(messages) == 0):
-            raise ValueError("Either 'prompt' or 'messages' must be provided")
-            
+        # Validation might change if 'prompt' is no longer mandatory when 'messages' exists
+        if self.messages is None or len(self.messages) == 0:
+            if self.prompt is None:
+                 raise ValueError("Either 'prompt' or 'messages' must be provided in the payload")
+            # If only prompt is given, create a minimal messages list
+            # Note: The creation of a dict here is fine, as it will be re-validated if needed,
+            # but the main issue is accessing attributes of existing MessageModel objects below.
+            self.messages = [MessageModel(role="user", content=self.prompt, id=str(uuid4()), sender_type='unknown', created_at=datetime.utcnow())]
+        elif self.prompt is None:
+            # If messages exist, derive prompt from last user message for internal use
+            # Use attribute access (m.role) here as well
+            user_messages = [m for m in self.messages if m.role == "user"]
+            if user_messages:
+                # Use attribute access (user_messages[-1].content) here as well
+                self.prompt = user_messages[-1].content
+            else:
+                 # This case should ideally not happen if validation is done correctly client-side
+                 logger.warning("Received messages list without any user message.")
+                 self.prompt = "" # Assign empty string if no user message found
+
         return self
 
 @router.get("/list", response_model=List[AgentResponse])
@@ -203,33 +228,53 @@ async def list_agents(
 @standardize_response
 async def run_posey(
     request: Request,
-    run_request: RunRequest,
-    db_session: AsyncSession = Depends(get_db)
+    db_session: AsyncSession = Depends(get_db),
+    # Receive payload as a JSON string in a Form field
+    payload: str = Form(...),
+    # Receive files
+    files: List[UploadFile] = File([]) # Use File([]) for optional list
 ):
-    """Run Posey with the given prompt or messages and return a standardized execution response"""
-    # Log entry and client status IMMEDIATELY
+    """Run Posey accepting multipart/form-data with JSON payload and optional files"""
     request_id = str(uuid4())
-    logger.info(f"[RUN_POSEY / {request_id}] Request received.")
-    if db._qdrant_client:
-        logger.info(f"[RUN_POSEY / {request_id}] db._qdrant_client is SET at request start. Type: {type(db._qdrant_client)}")
-    else:
-        logger.warning(f"[RUN_POSEY / {request_id}] db._qdrant_client is NONE at request start.")
-    
-    try:
-        # Instantiate agent inside the request handler
-        posey_agent = PoseyAgent()
+    logger.info(f"[RUN_POSEY / {request_id}] Request received (multipart/form-data).")
+    logger.info(f"[RUN_POSEY / {request_id}] Received {len(files)} file(s).")
 
-        # Get user preferences from database with defaults fallback
+    try:
+        # Parse the JSON payload string into the RunRequest model
+        try:
+            run_request_data = json.loads(payload)
+            run_request = RunRequest(**run_request_data)
+        except json.JSONDecodeError:
+            logger.error(f"[RUN_POSEY / {request_id}] Failed to decode JSON payload: {payload[:200]}...")
+            raise HTTPException(status_code=400, detail="Invalid JSON payload provided.")
+        except ValidationError as e:
+            logger.error(f"[RUN_POSEY / {request_id}] Validation error for payload: {e}")
+            raise HTTPException(status_code=400, detail=f"Payload validation failed: {e}")
+
+        # Log file details
+        uploaded_file_info = []
+        for file in files:
+            logger.info(f"[RUN_POSEY / {request_id}] File: {file.filename}, Type: {file.content_type}, Size: {file.size}")
+            uploaded_file_info.append({
+                "filename": file.filename,
+                "content_type": file.content_type,
+                "size": file.size
+            })
+            # Potential: Save files temporarily or process them here if needed before passing to agent
+            # Example: content = await file.read()
+
+        # Instantiate agent using the async factory method
+        posey_agent = await PoseyAgent.create(db=db_session)
+
+        # Get user preferences
         query = text("""
             SELECT preferences FROM users WHERE id = :user_id
         """)
         result = await db_session.execute(query, {"user_id": request.state.user["id"]})
         row = result.fetchone()
-        
-        # Use preferences from DB or defaults
         user_prefs = row[0] if row and row[0] else {}
-        
-        # Build context with user info and preferences
+
+        # Build context - include uploaded file info
         context = {
             "user_id": request.state.user["id"],
             "request_id": request_id,
@@ -244,47 +289,42 @@ async def run_posey(
                     "model": user_prefs.get("image", {}).get("model", "dalle-3")
                 }
             },
-            "metadata": run_request.metadata
+            "metadata": run_request.metadata,
+            "messages": run_request.messages, # Use messages from parsed payload
+            "uploaded_files": uploaded_file_info # Add info about uploaded files
+            # Potential: Pass file objects or paths if saved temporarily
+            # "file_objects": files # Be careful with large files in memory
         }
 
-        # Check if we're using messages or prompt
-        if run_request.messages:
-            # Add messages to context
-            context["messages"] = run_request.messages
-            
-            # Get the last user message as prompt if no explicit prompt is provided
-            if not run_request.prompt:
-                user_messages = [m for m in run_request.messages if m["role"] == "user"]
-                if user_messages:
-                    run_request.prompt = user_messages[-1]["content"]
-                else:
-                    raise ValueError("No user messages found in the provided messages list")
-        
-        # Execute Posey with context and get AgentExecutionResult
-        logger.info(f"Running Posey agent with {'messages' if run_request.messages else 'prompt'}")
-        if run_request.messages:
-            logger.info(f"Message count: {len(run_request.messages)}")
-            for idx, msg in enumerate(run_request.messages[-3:]):  # Log only the last 3 messages
-                logger.info(f"Message {idx}: {msg['role']} - {msg['content'][:100]}...")
-        else:
-            logger.info(f"Prompt: {run_request.prompt[:100]}...")
-        
+        # Derive prompt from messages (RunRequest validator handles this)
+        prompt = run_request.prompt
+        if not prompt and run_request.messages:
+             # Use attribute access (m.role) for MessageModel objects
+             user_messages = [m for m in run_request.messages if m.role == "user"]
+             if user_messages:
+                 # Use attribute access (user_messages[-1].content)
+                 prompt = user_messages[-1].content
+
+        if not prompt:
+             logger.error(f"[RUN_POSEY / {request_id}] Could not determine prompt from messages.")
+             raise HTTPException(status_code=400, detail="Could not determine prompt from messages.")
+
+        logger.info(f"[RUN_POSEY / {request_id}] Running Posey agent with messages and {len(files)} files.")
         start_time = time.time()
-        # The PoseyAgent.run method now handles both prompt and message-based inputs
-        execution_result = await posey_agent.run(run_request.prompt, context)
+        # Pass the prompt derived from messages (or originally provided)
+        execution_result = await posey_agent.run(prompt, context)
         end_time = time.time()
-        
+
         # Log the result
         logger.info(f"Posey agent execution completed in {end_time - start_time:.2f}s")
         logger.info(f"Result type: {type(execution_result)}")
-        
-        # Construct the API response
+
         response_data = {
             "answer": execution_result.answer,
             "confidence": execution_result.confidence,
             "sources": [
                 {
-                    "type": "agent_result", 
+                    "type": "agent_result",
                     "name": "posey",
                     "data": execution_result.metadata.get('sources', [])
                 }
@@ -312,9 +352,10 @@ async def run_posey(
             "success": True,
             "data": response_data
         }
-        
+
     except Exception as e:
         logger.error(f"[RUN_POSEY / {request_id}] Error running Posey: {str(e)}")
         logger.error(traceback.format_exc())
-        logger.info(f"[RUN_POSEY / {request_id}] Request: {json.dumps(run_request.model_dump(), indent=4)}")
+        # Log payload for debugging, be mindful of sensitive data/large files
+        logger.info(f"[RUN_POSEY / {request_id}] Payload (first 200 chars): {payload[:200]}...")
         raise HTTPException(status_code=500, detail=str(e))

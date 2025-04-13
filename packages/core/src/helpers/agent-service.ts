@@ -1,5 +1,6 @@
 import { AgentResponse, AgentState, AgentAbility } from '@/types/agent';
 import { FetchResponse, JsonFetchResponse } from '@/types/network';
+import { Message } from '@posey.ai/core';
 
 interface ErrorResponse {
   message: string;
@@ -36,12 +37,51 @@ export class AgentService {
   /**
    * Sends a message to the agent and gets its response
    */
-  async call(prompt: string): Promise<JsonFetchResponse> {
+  async call(payload: {
+    messages: Message[];
+    conversationId?: string;
+    metadata?: Record<string, any>;
+    files?: File[];
+  }): Promise<JsonFetchResponse> {
+    const { messages, conversationId, metadata, files } = payload;
+
+    // Always use FormData as the endpoint expects multipart/form-data
+    const formData = new FormData();
+    const headers: HeadersInit = {}; // Keep headers for credentials potentially
+
+    // Process messages to ensure metadata is a JSON string if it's an object
+    const processedMessages = messages.map(message => ({
+      ...message,
+      // Use the correct field name 'metadata' from the Message interface
+      metadata: (message.metadata !== null && typeof message.metadata === 'object') 
+            ? JSON.stringify(message.metadata) 
+            : message.metadata
+    }));
+
+    // Append JSON data as the 'payload' field, using processed messages
+    const jsonData = JSON.stringify({ 
+      messages: processedMessages, // Use the processed messages
+      conversation_id: conversationId, // Keep sending snake_case as server aliases it
+      metadata 
+    });
+    // Append the JSON string directly, not as a Blob
+    formData.append('payload', jsonData);
+
+    // Append files if they exist
+    if (files && files.length > 0) {
+      files.forEach((file) => {
+        formData.append(`files`, file, file.name);
+      });
+    }
+
+    // Browser sets Content-Type automatically for FormData with boundary
+    // No need to set headers['Content-Type']
+
     const response: FetchResponse = await fetch(`${this.baseUrl}/orchestrator/${this.agentName}/run`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers, // Pass potentially modified headers (e.g., for credentials)
       credentials: 'include',
-      body: JSON.stringify({ prompt }),
+      body: formData, // Always send FormData
     });
 
     if (!response.ok) {

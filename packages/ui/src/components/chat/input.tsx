@@ -48,7 +48,6 @@ export function ChatInput({
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-
   const submitHandler = (message: string) => {
     onSubmit({
       message: message,
@@ -104,7 +103,7 @@ export function ChatInput({
       if (e.shiftKey) {
         return; // Allow new line with Shift+Enter
       }
-      
+
       if (!_isDisabled) {
         e.preventDefault();
         submitHandler(e.currentTarget.value);
@@ -123,13 +122,13 @@ export function ChatInput({
       {hasActiveTasks && (
         <TaskIndicator count={1} />
       )}
-      
+
       {attachedFiles.length > 0 && (
         <div className="flex flex-wrap gap-2 p-2 bg-base-300 rounded-lg">
           {attachedFiles.map((file, index) => (
             <div key={index} className="flex items-center gap-2 bg-base-200 p-1 px-2 rounded">
               <span className="text-sm">{file.name}</span>
-              <button 
+              <button
                 onClick={() => removeFile(index)}
                 className="text-sm hover:text-error"
               >
@@ -139,7 +138,7 @@ export function ChatInput({
           ))}
         </div>
       )}
-      
+
       <div className="flex items-end gap-2 w-full border rounded-lg bg-base-200 px-4 py-4">
         <input
           type="file"
@@ -148,7 +147,7 @@ export function ChatInput({
           className="hidden"
           multiple
         />
-        
+
         <Button
           className="btn-sm flex-shrink-0"
           onClick={handleAttachClick}
@@ -172,7 +171,7 @@ export function ChatInput({
           disabled={_isDisabled || hasActiveTasks}
           value={input}
         />
-        
+
         <Button
           className="btn-sm flex-shrink-0"
           onClick={(e) => {

@@ -5,12 +5,16 @@ from langgraph.graph import Graph
 import json
 from dataclasses import asdict
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db import get_db
+
 from app.utils.prompt_helpers import getSystemPrompt
 from app.utils.ability_utils import execute_ability
 from app.config import logger
 from app.config.defaults import LLM_CONFIG, OLLAMA_URL
+from app.config.llm_loader import get_llm_config_from_db, LLMDatabaseConfig
 import httpx
-from app.utils.result_types import AgentExecutionResult  # Import from the new module
+from app.utils.result_types import AgentExecutionResult
 
 __all__ = ['create_agent', 'run_agent_with_messages']
 
@@ -83,17 +87,61 @@ async def test_ollama_connection(url: str) -> bool:
         logger.error(f"Failed to connect to Ollama: {str(e)}")
         return False
 
-def create_agent(
-    agent_type: str, 
+async def create_agent(
+    agent_type: str,
     abilities: List[str],
-    provider: str = LLM_CONFIG['default']['provider'],
-    model: str = LLM_CONFIG['default']['model']
+    db: AsyncSession,
+    config_key: Optional[str] = None,
 ) -> Agent:
-    """Create a PydanticAI agent with specified abilities"""
-    
-    logger.info(f"Creating agent of type '{agent_type}' with provider '{provider}' and model '{model}'")
-    logger.info(f"Abilities to register: {abilities}")
-    
+    """Create a PydanticAI agent with specified abilities, loading config from DB."""
+
+    # Use agent_type as default config_key if not provided
+    resolved_config_key = config_key or agent_type
+    logger.info(f"Attempting to create agent of type '{agent_type}' using config key '{resolved_config_key}'")
+
+    # 1. Try loading config from DB (with fallback to 'default' key within the function)
+    db_llm_config: Optional[LLMDatabaseConfig] = await get_llm_config_from_db(db, resolved_config_key)
+
+    # 2. Determine final config (DB or Hardcoded Fallback)
+    final_config: Dict[str, Any]
+    if db_llm_config:
+        logger.info(f"Using LLM configuration from database for key '{db_llm_config.config_key}'")
+        # Convert Pydantic model to dict for easier use
+        final_config = db_llm_config.model_dump()
+        # Add capabilities field expected by Agent instantiation?
+        # This depends on how pydantic-ai Agent uses params.
+        # For now, let's assume separate handling for tools/abilities
+        final_config['provider'] = db_llm_config.provider_name
+        final_config['model'] = db_llm_config.model_slug
+        final_config['base_url'] = db_llm_config.api_base_url
+        # Store model parameters separately
+        final_config['model_params'] = {
+            "temperature": db_llm_config.temperature,
+            "max_tokens": db_llm_config.max_tokens,
+            "top_p": db_llm_config.top_p,
+            "frequency_penalty": db_llm_config.frequency_penalty,
+            "presence_penalty": db_llm_config.presence_penalty,
+            **(db_llm_config.additional_settings or {}),
+        }
+    else:
+        logger.warning(
+            f"Could not load config for key '{resolved_config_key}' (or default) from DB. "
+            f"Falling back to hardcoded defaults."
+        )
+        # Use the 'fallback' or 'default' entry from the hardcoded config
+        hardcoded_fallback_config = LLM_CONFIG.get('fallback', LLM_CONFIG['default'])
+        final_config = hardcoded_fallback_config.copy()
+        # Add model_params for consistency
+        # Ensure all relevant params are included
+        final_config['model_params'] = {
+            k: v for k, v in final_config.items()
+            if k not in ['provider', 'model', 'capabilities'] # Removed base_url here as well
+        }
+
+    logger.info(f"Final config resolved: Provider='{final_config['provider']}', Model='{final_config['model']}'")
+    logger.debug(f"Final model params: {final_config['model_params']}")
+
+    # Prepare System Prompt (no change needed)
     system_prompt = f"""You are a specialized {agent_type} agent with the following abilities: {', '.join(abilities)}.
     Use these abilities when appropriate to accomplish tasks.
     Always think through your actions carefully and explain your reasoning.
@@ -102,38 +150,33 @@ def create_agent(
     If you're not using any specific format, just respond conversationally.
     Only use JSON or other special formats when specifically instructed to do so."""
     
+    # 3. Instantiate Agent based on final_config
     try:
+        provider = final_config['provider']
+        model_name = final_config['model']
+        model_params = final_config['model_params'].copy() # Copy to avoid modifying original
+
+        # Construct the model identifier string
+        model_identifier = f"{provider}:{model_name}"
+        logger.info(f"Using model identifier: {model_identifier}")
+
+        # Special handling for Ollama base_url - add it to params if present
         if provider == "ollama":
-            from pydantic_ai.models.openai import OpenAIModel
-            
-            # Log Ollama connection details
-            logger.info(f"Configuring Ollama connection to {OLLAMA_URL}")
-            # Create OpenAI-compatible model for Ollama
-            ollama_model_name = model
-            model = OpenAIModel(
-                model_name=ollama_model_name, # Use explicit Ollama model name
-                base_url=OLLAMA_URL
-            )
-            logger.info(f"Created Ollama model configuration with model name: {ollama_model_name}")
-            logger.info(f"Created Ollama model configuration: {model}")
-            
-            agent = Agent(
-                model,
-                system_prompt=system_prompt,
-                deps_type=dict,
-                result_type=AgentExecutionResult
-            )
-        else:
-            # Standard provider:model format for other providers
-            model_string = f"{provider}:{model}"
-            logger.info(f"Creating agent with model string: {model_string}")
-            
-            agent = Agent(
-                model_string,
-                system_prompt=system_prompt,
-                deps_type=dict,
-                result_type=AgentExecutionResult
-            )
+            ollama_base_url = final_config.get('base_url', OLLAMA_URL)
+            if ollama_base_url:
+                logger.info(f"Adding Ollama base_url to model params: {ollama_base_url}")
+                model_params['base_url'] = ollama_base_url
+
+        # Instantiate Agent directly with the model identifier string and parameters
+        logger.info(f"Instantiating Agent with identifier '{model_identifier}' and params: {model_params}")
+        agent = Agent(
+            model_identifier,
+            system_prompt=system_prompt,
+            deps_type=dict,
+            result_type=AgentExecutionResult,
+            **model_params # Pass parameters directly to the agent
+        )
+        logger.info(f"Successfully created agent instance for type '{agent_type}'")
 
         # Add helper method for message-based communication
         async def run_with_messages(self, messages: List[Dict[str, str]], **kwargs):
@@ -203,17 +246,32 @@ def create_agent(
                 logger.error(f"Failed to register tool '{tool_name}': {e}", exc_info=True)
                 raise
             
-        logger.info("Successfully created agent with all abilities registered")
+        logger.info("Successfully created and configured agent for type '{agent_type}'")
         return agent
-        
+
     except Exception as e:
-        logger.error(f"Error creating agent: {e}", exc_info=True)
-        logger.info(f"Falling back to default {LLM_CONFIG['default']['provider']} model")
+        logger.error(f"Error creating agent instance: {e}", exc_info=True)
+        logger.error("Falling back to absolute hardcoded default agent due to instantiation error.")
+        # Ultimate fallback if instantiation fails even with loaded config
+        fallback_provider = LLM_CONFIG['fallback']['provider']
+        fallback_model = LLM_CONFIG['fallback']['model']
+        fallback_model_string = f"{fallback_provider}:{fallback_model}"
+        # Extract fallback params
+        fallback_params = {
+            k: v for k, v in LLM_CONFIG['fallback'].items()
+            if k not in ['provider', 'model', 'capabilities']
+        }
+        # Add ollama base_url if provider is ollama
+        if fallback_provider == "ollama":
+             fallback_params['base_url'] = LLM_CONFIG['fallback'].get('base_url', OLLAMA_URL)
+            
+        logger.info(f"Creating fallback agent with identifier: {fallback_model_string} and params: {fallback_params}")
         return Agent(
-            f"{LLM_CONFIG['default']['provider']}:{LLM_CONFIG['default']['model']}",
+            fallback_model_string,
             system_prompt=system_prompt,
             deps_type=dict,
-            result_type=AgentExecutionResult
+            result_type=AgentExecutionResult,
+            **fallback_params # Pass fallback parameters
         )
 
 def serialize_context(obj: Any) -> Any:

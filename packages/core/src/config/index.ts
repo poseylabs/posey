@@ -30,3 +30,6 @@ export {
 }
 
 export default config;
+
+export { createSupertokensFrontendConfig } from './supertokens';
+export type { GetRedirectionURLContext } from './supertokens';

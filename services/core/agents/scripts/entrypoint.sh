@@ -61,7 +61,14 @@ fi
 # Initialize databases if needed
 if [ "$RUN_MIGRATIONS" = "true" ]; then
     echo "Running database migrations..."
-    python /app/service/app/scripts/init.py
+
+    echo "Running Alembic upgrade..."
+
+    cd /app/service
+    alembic upgrade head
+    cd /app # Change back to original directory
+
+
 else
     echo "Skipping database migrations..."
 fi

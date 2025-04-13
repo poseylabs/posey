@@ -1,12 +1,29 @@
 "use client";
 
-import { PageLoading } from '@posey.ai/ui';
+import { useRouter } from 'next/navigation';
+import Session from 'supertokens-web-js/recipe/session';
+import { useEffect, useState } from 'react';
 
 export default function HomePage() {
-  // Show loading indicator and let AuthProvider handle the redirects
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <PageLoading />
-    </div>
-  );
+  const router = useRouter();
+  const [didError, setDidError] = useState(false);
+
+  useEffect(() => {
+    void Session.attemptRefreshingSession()
+      .then((hasSession) => {
+        if (hasSession) {
+          router.replace('/dashboard');
+        } else {
+          console.log("B");
+          router.replace('/auth/login');
+        }
+      })
+      .catch((err: any) => {
+        setDidError(true);
+        console.log("Auth Error", err);
+      });
+  }, [router]);
+
+  return null;
+
 }

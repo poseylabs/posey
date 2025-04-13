@@ -152,14 +152,22 @@ deploy_service() {
 
   # Build Docker image
   log_info "Building Docker image $image_name:$IMAGE_TAG from context..."
+  
+  # --- Build Arguments --- 
+  local build_args=""
+  if [ "$service_name" == "agents" ]; then
+    build_args="--build-arg BASE_IMAGE_TAG=posey-agents-ml-base:$IMAGE_TAG"
+    log_info "  Setting build args for agents: $build_args"
+  fi
+
   if [ "$service_name" == "auth" ] || [ "$service_name" == "cron" ]; then
     log_info "  Using special build context for '$service_name': $WORKSPACE_ROOT"
-    if ! docker build -t "$image_name:$IMAGE_TAG" -f "$dockerfile_path" "$WORKSPACE_ROOT"; then
+    if ! docker build --no-cache -t "$image_name:$IMAGE_TAG" -f "$dockerfile_path" $build_args "$WORKSPACE_ROOT"; then
         log_error "Failed to build Docker image for $service_name."
     fi
   else
     log_info "  Using standard build context for '$service_name': $service_dir"
-    if ! docker build -t "$image_name:$IMAGE_TAG" -f "$dockerfile_path" "$service_dir"; then
+    if ! docker build --no-cache -t "$image_name:$IMAGE_TAG" -f "$dockerfile_path" $build_args "$service_dir"; then
         log_error "Failed to build Docker image for $service_name."
     fi
   fi
@@ -221,9 +229,27 @@ deploy_service() {
 # --- Main Execution ---
 log_info "Starting local deployment process..."
 
+# --- Build ML Base Image if needed ---
+build_ml_base_image() {
+  local ml_base_dockerfile_path="$SERVICES_DIR/core/agents/docker/ml-base/Dockerfile"
+  local ml_base_image_name="posey-agents-ml-base"
+  local ml_base_build_context="$SERVICES_DIR/core/agents/docker/ml-base"
+  log_info "Checking and building ML base image $ml_base_image_name:$IMAGE_TAG..."
+  if [ ! -f "$ml_base_dockerfile_path" ]; then
+    log_error "ML base Dockerfile not found at $ml_base_dockerfile_path. Cannot proceed."
+  fi
+  log_info "  Building ML base image from context $ml_base_build_context..."
+  if ! docker build --no-cache -t "$ml_base_image_name:$IMAGE_TAG" -f "$ml_base_dockerfile_path" "$ml_base_build_context"; then
+      log_error "Failed to build ML base Docker image $ml_base_image_name:$IMAGE_TAG."
+  fi
+  log_info "Successfully built ML base image $ml_base_image_name:$IMAGE_TAG."
+}
+
 if [ -n "$TARGET_APP" ]; then
-    # Deploy only the specified app
     log_info "Attempting to deploy single service: $TARGET_APP (Base: $SERVICE_NAME_BASE)"
+    # if [ "$SERVICE_NAME_BASE" == "agents" ]; then
+    #     build_ml_base_image
+    # fi
     SERVICE_FOUND=false
     # Check in data services
     SERVICE_PATH_DATA="$SERVICES_DIR/data/$SERVICE_NAME_BASE"
@@ -248,6 +274,7 @@ if [ -n "$TARGET_APP" ]; then
     fi
 else
     # Deploy all services (original logic)
+    build_ml_base_image # Build ML base first when deploying all
     log_info "Looking for data services in $SERVICES_DIR/data/* ..."
     for service_path in "$SERVICES_DIR"/data/*/; do
         if [ -d "$service_path" ]; then

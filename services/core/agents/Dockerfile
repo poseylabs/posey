@@ -1,4 +1,5 @@
-FROM docker.io/poseylabs/posey-agents-ml-base:latest AS builder
+ARG BASE_IMAGE_TAG=docker.io/poseylabs/posey-agents-ml-base:latest
+FROM ${BASE_IMAGE_TAG} AS builder
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -33,7 +34,7 @@ RUN if [ -s unique-requirements.txt ]; then \
     fi
 
 # Final production stage - also using the ML base image
-FROM docker.io/poseylabs/posey-agents-ml-base:latest
+FROM ${BASE_IMAGE_TAG}
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -48,6 +49,9 @@ RUN if [ -d "/wheels" ] && [ "$(ls -A /wheels 2>/dev/null)" ]; then \
     pip install --no-index --find-links=/wheels --no-deps /wheels/*.whl; \
     fi && \
     rm -rf /wheels
+
+# Check installed packages 
+RUN echo "--- Installed packages after final pip install: ---" && pip freeze && echo "---------------------------------------------------"
 
 # Create necessary directories and set permissions
 RUN mkdir -p /app/models /app/data && \
@@ -66,8 +70,5 @@ COPY . /app/service/
 USER posey-agents
 
 EXPOSE 5555
-
-# HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-#     CMD curl -f http://localhost:5555/health || exit 1
 
 ENTRYPOINT ["/app/entrypoint.sh"]

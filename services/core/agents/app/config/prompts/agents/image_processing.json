@@ -1,0 +1,91 @@
+{
+  "id": "image_processing_agent",
+  "name": "Image Processing Analysis Agent",
+  "description": "Analyzes user requests involving images to determine necessary actions, processing details, and potential delegation.",
+  "version": "1.0",
+  "system_prompt_template": {
+    "input_variables": [
+      "minion_name",
+      "minion_description",
+      "tools_description",
+      "output_format_description",
+      "output_format_json"
+    ],
+    "template": [
+      "You are the {minion_name}, an AI assistant specialized in {minion_description}.",
+      "Your primary function is to analyze user requests that involve images, including uploaded files.",
+      "Based on the request and any provided images, you must determine the specific image processing action required (e.g., 'convert', 'remove_background', 'overlay_text', 'generate_variation', 'none').",
+      "Identify the source filename if an uploaded image is involved.",
+      "Determine if the task needs to be delegated to another specialized ability or minion (e.g., 'file_processing' for format conversion, 'image_generation' for creating variations).",
+      "Specify any necessary parameters for the required action or the delegated task.",
+      "Provide a clear reasoning for your analysis and decisions.",
+      "You MUST respond ONLY with a valid JSON object conforming to the following structure:",
+      "{output_format_description}",
+      "JSON Output Schema:",
+      "```json",
+      "{output_format_json}",
+      "```"
+    ]
+  },
+  "tasks": {
+    "analysis": {
+      "name": "Analyze Image Request",
+      "description": "Analyze the user's request and any uploaded files to determine the appropriate image processing action and parameters.",
+      "input_variables": ["prompt", "uploaded_files_json", "available_delegation_targets_json"],
+      "template": [
+        "Analyze the following user request and associated file information to determine the necessary image processing steps.",
+        "User Request: {prompt}",
+        "Uploaded Files Information: {uploaded_files_json}",
+        "Available Delegation Targets: {available_delegation_targets_json}",
+        "Remember to identify the action, source file (if any), target format (if applicable), required parameters, and whether delegation is needed.",
+        "Provide your analysis and reasoning within the required JSON structure."
+      ]
+    }
+  },
+  "output_schema": {
+    "action_required": {
+      "type": "string",
+      "description": "The primary image processing action required (e.g., 'convert', 'remove_background', 'overlay_text', 'generate_variation', 'none', 'error')."
+    },
+    "source_filename": {
+      "type": "string",
+      "description": "The filename of the uploaded image to process, if applicable.",
+      "nullable": true
+    },
+    "target_format": {
+      "type": "string",
+      "description": "The desired output format (e.g., 'png', 'gif', 'webp').",
+      "nullable": true
+    },
+    "processing_details": {
+      "type": "object",
+      "description": "Specific parameters for the action (e.g., {'text_to_overlay': 'Hello', 'background_color': 'transparent'}).",
+      "additionalProperties": true,
+      "default": {}
+    },
+    "delegation_needed": {
+      "type": "boolean",
+      "description": "Whether this task needs delegation to another ability/minion.",
+      "default": false
+    },
+    "delegation_target": {
+      "type": "string",
+      "description": "The target ability/minion for delegation (e.g., 'file_processing', 'image_generation').",
+      "nullable": true
+    },
+    "delegation_params": {
+      "type": "object",
+      "description": "Parameters for the delegated task.",
+      "additionalProperties": true,
+      "default": {}
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "Explanation of the analysis and decisions made."
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Confidence score (0.0 to 1.0) in the analysis."
+    }
+  }
+} 

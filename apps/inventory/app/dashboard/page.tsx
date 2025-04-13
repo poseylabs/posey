@@ -26,9 +26,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Dashboard is protected by AuthProvider in the layout
-  // No need for additional checks here
-
   return (
     <div className="p-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">

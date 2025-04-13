@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { PageLoading } from '../status/page-loading';
 import { Sidebar } from '../navigation';
 import { ContentWrapper } from './content-wrapper';
 import { usePoseyState } from '@posey.ai/state';

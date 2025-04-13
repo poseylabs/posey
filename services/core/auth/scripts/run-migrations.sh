@@ -32,7 +32,8 @@ fi
 if [ -d "/app/services/auth/src/migrations" ]; then
     for f in /app/services/auth/src/migrations/[0-9]*.sql; do
         if [ -f "$f" ] && [ "$f" != DB_SCRIPTS_DIR ]; then
-            echo "Running migration: $f"
+            echo "Running migration: $f on database ${POSTGRES_DB_SUPERTOKENS}"
+            # Use the supertokens database for auth-specific migrations
             PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB_SUPERTOKENS}" -f "$f"
         fi
     done

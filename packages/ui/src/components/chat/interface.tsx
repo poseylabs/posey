@@ -22,71 +22,21 @@ interface Message {
 
 export function ChatInterface() {
 
-  // State
-  const [conversationId, setConversationId] = useState<string>('');
-  const [conversationTitle, setConversationTitle] = useState<string>('New Conversation');
-  const [input, setInput] = useState('');
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [status, setStatus] = useState<string>('idle');
-  const [statusMessage, setStatusMessage] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [hasSent, setHasSent] = useState(false);
-  // Add processingState to track different states more explicitly
-  const [processingState, setProcessingState] = useState<{
-    id: string | null;
-    status: 'pending' | 'processing' | 'completed' | 'error';
-  }>({ id: null, status: 'pending' });
-
-  // Add a ref to track if we've handled this conversation
-  const handledConversationRef = useRef<string | null>(null);
-
-  // const agent = useAgent('posey');
-  const currentConversation = usePoseyState((state) => state.chat.currentConversation);
-  const { callAgent, setConversation } = useConversation();
-
-  // Single ref to track processed conversations
-  const processedConversations = useRef(new Set<string>());
-
-  useEffect(() => {
-    if (currentConversation?.id) {
-      setConversation(currentConversation);
-    }
-  }, [currentConversation]);
-
   // Refs
   const titleInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const handleTitleClick = useCallback(() => {
-    setIsEditingTitle(true);
-    setTimeout(() => {
-      titleInputRef.current?.focus();
-      titleInputRef.current?.select();
-    }, 0);
-  }, []);
+  // State
+  const [conversationTitle, setConversationTitle] = useState<string>('New Conversation');
+  const [input, setInput] = useState<string>('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [status, setStatus] = useState<string>('idle');
 
-  const updateConversation = useCallback(async (id: string, updates: Partial<Conversation>) => {
-    // TODO: update conversation
-  }, []);
+  const currentConversation = usePoseyState((state) => state.chat.currentConversation);
+  const conversationId = currentConversation?.id;
 
-  const handleTitleUpdate = useCallback(async () => {
-    if (!conversationId) return;
-
-    try {
-      await updateConversation(conversationId, { title: conversationTitle });
-      setIsEditingTitle(false);
-    } catch (error) {
-      console.error('Error updating conversation:', error);
-    }
-  }, [conversationId, conversationTitle, updateConversation]);
-
-  const handleTitleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleTitleUpdate();
-    } else if (e.key === 'Escape') {
-      setIsEditingTitle(false);
-    }
-  }, [handleTitleUpdate]);
+  const { callAgent, setConversation } = useConversation();
 
   const handleSubmit = async (data: ChatFormData) => {
     try {
@@ -107,70 +57,45 @@ export function ChatInterface() {
     }
   };
 
-  useEffect(() => {
-    // Only process if:
-    // 1. We have a valid conversation
-    // 2. The conversation is NEW
-    // 3. It has exactly 1 message
-    // 4. We haven't processed this conversation before
-    // 5. We're not currently processing anything
-    if (
-      currentConversation?.id &&
-      currentConversation.status === ConversationStatus.NEW &&
-      currentConversation.messages?.length === 1 &&
-      !processedConversations.current.has(currentConversation.id) &&
-      processingState.status !== 'processing' && processingState.status !== 'error'
-    ) {
-      console.log("Starting to process conversation:", currentConversation.id);
+  const handleTitleClick = useCallback(() => {
+    setIsEditingTitle(true);
+    setTimeout(() => {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    }, 0);
+  }, []);
 
-      // Immediately mark as processing to prevent duplicate calls
-      setProcessingState({ id: currentConversation.id, status: 'processing' });
-      processedConversations.current.add(currentConversation.id);
-      setIsProcessing(true);
-      setStatus('loading');
-      setStatusMessage('Processing your message...');
-
-      const firstMessage = currentConversation.messages[0];
-      console.log("FIRST MESSAGE", firstMessage);
-
-      callAgent({
-        message: firstMessage?.content || '',
-        firstContact: true
-      })
-        .then((response: any) => {
-          console.log("AGENT RESPONSE", response);
-          setStatus('idle');
-          setStatusMessage('');
-          setProcessingState({ id: currentConversation.id, status: 'completed' });
-        })
-        .catch((error) => {
-          console.error('Error processing new conversation:', error);
-          setStatus('error');
-          setStatusMessage('Failed to process message. Please try again.');
-          // Remove from processed set on error to allow retry
-          processedConversations.current.delete(currentConversation.id);
-          setProcessingState({ id: currentConversation.id, status: 'error' });
-        })
-        .finally(() => {
-          setIsProcessing(false);
-        });
+  const handleTitleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleTitleUpdate();
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false);
     }
-  }, [
-    currentConversation?.id,
-    currentConversation?.status,
-    currentConversation?.messages?.length,
-    processingState.status,
-    setIsProcessing,
-    setStatus,
-    setStatusMessage,
-    callAgent,
-    setProcessingState
-  ]);
+  }, []);
+
+  const handleTitleUpdate = useCallback(async () => {
+    if (!conversationId) return;
+    try {
+      await updateConversation(conversationId, { title: conversationTitle });
+      setIsEditingTitle(false);
+    } catch (error) {
+      console.error('Error updating conversation:', error);
+    }
+  }, [conversationId, conversationTitle]);
+
+  const updateConversation = useCallback(async (id: string, updates: Partial<Conversation>) => {
+    // TODO: update conversation
+  }, []);
+
+  console.log('Chat Interface', {
+    currentConversation
+  });
 
   return (
-    <DrawerContent>
+    <div className="interface">
+
+      {/* Chat Header */}
       <div className="chat-header">
-        <Navbar />
         <div className="px-4 flex items-center">
           {isEditingTitle ? (
             <input
@@ -194,12 +119,15 @@ export function ChatInterface() {
         </div>
       </div>
 
+      {/* Chat Content */}
       <div
         ref={scrollAreaRef}
         className="chat-content-main pl-4 overflow-y-auto min-h-0 max-h-full"
       >
         <MessageList messages={currentConversation?.messages ?? []} />
-      </div>
+      </div>\
+
+      {/* Chat Footer */}
       <div className="chat-footer text-center p-4">
 
         <div>
@@ -214,6 +142,6 @@ export function ChatInterface() {
           value={input}
         />
       </div>
-    </DrawerContent>
+    </div>
   );
 }

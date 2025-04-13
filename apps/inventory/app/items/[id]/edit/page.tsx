@@ -45,7 +45,6 @@ export default function EditItemPage() {
     try {
       const session = await getSession();
       if (!session?.user) {
-        console.error('Unauthorized access, redirecting to login');
         router.push('/login');
         return;
       }

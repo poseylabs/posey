@@ -1,7 +1,8 @@
 'use server';
 
 import { cookies as nextCookies } from 'next/headers';
-import { ApiHelper, Conversation } from '@posey.ai/core';
+import { ApiHelper } from '@/helpers/api-helper';
+import type { Conversation } from '@posey.ai/core';
 
 const api: any = new ApiHelper({
   apiBase: process.env.NEXT_PUBLIC_AGENT_API_ENDPOINT
@@ -33,4 +34,5 @@ export async function getConversation(thread: string): Promise<Conversation | nu
     console.error('Failed to fetch conversation:', error);
     return null;
   }
+
 }

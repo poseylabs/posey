@@ -37,14 +37,25 @@ class BaseMinion:
         """Initialize minion-specific components"""
         pass
     
-    def create_agent(self, result_type: Optional[Type] = None, model_key: str = "default") -> Agent:
-        """Create a PydanticAI agent with configured prompts"""
+    def create_agent(self, result_type: Optional[Any] = None, model_key: str = "default") -> Agent:
+        """Create a properly configured agent with appropriate model and abilities"""
+        # Get model configuration for the agent
+        model_config = LLM_CONFIG.get(model_key, LLM_CONFIG["default"])
+        provider = model_config.get("provider", "anthropic")
+        model = model_config.get("model", "claude-3-7-sonnet-latest")
+        
+        # Enhanced logging for LLM adapter usage
+        adapter_module = f"app.llm.adapters.{provider}"
+        logger.info(f"[{self.name}] Creating agent with adapter: {provider} (module: {adapter_module})")
+        logger.info(f"[{self.name}] Using model: {model}")
+        logger.info(f"[{self.name}] Config reference: {model_key}")
+        
         # Get system prompt from prompts
         system_prompt = self.get_system_prompt()
         
         # Create and return the agent
         return Agent(
-            f"{LLM_CONFIG[model_key]['provider']}:{LLM_CONFIG[model_key]['model']}",
+            f"{provider}:{model}",
             system_prompt=system_prompt,
             result_type=result_type
         )

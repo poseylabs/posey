@@ -1,3 +1,6 @@
+# Explicitly require PyJWT >= 2.0.0 for SuperTokens compatibility
+PyJWT==2.8.0
+
 # Web Framework & API
 fastapi[all]>=0.115.8
 jwt>=1.3.1
@@ -24,7 +27,7 @@ python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.6
 python-dotenv>=1.0.0
-# supertokens-python>=0.28.0
+supertokens-python==0.19.0
 
 # Testing
 pytest>=7.4.3
@@ -33,7 +36,7 @@ pytest-cov>=4.1.0
 pytest-mock>=3.12.0
 
 # Utilities
-# alembic>=1.14.0
+alembic>=1.14.0
 beautifulsoup4>=4.12.3
 cryptography>=42.0.0
 datasets>=3.1.0
@@ -52,6 +55,7 @@ structlog>=24.1.0
 prometheus-client>=0.19.0
 
 # LLM Providers
+pydantic_ai==0.0.55
 openai>=1.53.0
 anthropic>=0.38.0
 

@@ -25,17 +25,17 @@ interface LabelSize {
 }
 
 const LABEL_SIZES: LabelSize[] = [
-  { 
-    name: '4x6', 
-    width: 152.4, 
-    height: 101.6, 
-    description: 'Shipping Label (4 x 6 inches)' 
+  {
+    name: '4x6',
+    width: 152.4,
+    height: 101.6,
+    description: 'Shipping Label (4 x 6 inches)'
   },
-  { 
-    name: '2x4', 
-    width: 101.6, 
-    height: 50.8, 
-    description: 'Small Label (2 x 4 inches)' 
+  {
+    name: '2x4',
+    width: 101.6,
+    height: 50.8,
+    description: 'Small Label (2 x 4 inches)'
   }
 ];
 
@@ -77,7 +77,6 @@ export default function PodLabelPage({ params }: { params: Promise<{ id: string 
         });
 
         if (response.status === 401) {
-          console.error('Unauthorized access, redirecting to login');
           localStorage.removeItem('authToken');
           router.push('/auth/login');
           return;
@@ -112,11 +111,11 @@ export default function PodLabelPage({ params }: { params: Promise<{ id: string 
     try {
       const session = await getSession();
       const authToken = localStorage.getItem('authToken');
-      
+
       if (!pod) {
         throw new Error('Pod data not available');
       }
-      
+
       const response = await fetch(`/api/inventory/pods/${podId}/generate-label-svg`, {
         method: 'POST',
         headers: {
@@ -133,11 +132,11 @@ export default function PodLabelPage({ params }: { params: Promise<{ id: string 
           height: selectedSize.height
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to generate label');
       }
-      
+
       // Get the SVG content as text
       const svgContent = await response.text();
       setLabelSvgContent(svgContent);
@@ -151,13 +150,13 @@ export default function PodLabelPage({ params }: { params: Promise<{ id: string 
 
   const handlePrint = () => {
     if (!labelSvgContent) return;
-    
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert('Please allow pop-ups to print the label');
       return;
     }
-    
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -238,7 +237,7 @@ export default function PodLabelPage({ params }: { params: Promise<{ id: string 
           <h1 className="text-3xl font-bold">Pod Label</h1>
         </div>
         <div className="flex items-center gap-2">
-          <select 
+          <select
             className="select select-bordered"
             value={selectedSize.name}
             onChange={(e) => {
@@ -277,7 +276,7 @@ export default function PodLabelPage({ params }: { params: Promise<{ id: string 
       {/* Label Preview */}
       <div className="mb-8 flex justify-center">
         {labelSvgContent ? (
-          <div 
+          <div
             className="border border-gray-300 bg-white"
             dangerouslySetInnerHTML={{ __html: labelSvgContent }}
           />

@@ -55,6 +55,25 @@ console.log('Environment Configuration:', {
 });
 
 // Initialize SuperTokens first
+console.log("--- SuperTokens Config BEFORE init ---");
+console.log(JSON.stringify(supertokensConfig, (key, value) =>
+  typeof value === 'function' ? `[Function ${value.name || 'anonymous'}]` : value, 2));
+// Specifically log the override function reference
+try {
+    // Find the EmailPassword recipe config by checking for signUpFeature
+    const emailPasswordRecipe = supertokensConfig.recipeList.find((r: any) => r.config?.signUpFeature);
+    if (emailPasswordRecipe && emailPasswordRecipe.config?.override?.apis) {
+        // Temporarily call the apis function to inspect the returned object
+        const tempOriginalImpl = { signUpPOST: () => console.log("Original signUpPOST called"), /* other methods */ };
+        const apisResult = emailPasswordRecipe.config.override.apis(tempOriginalImpl);
+        console.log("EmailPassword signUpPOST override function exists in config:", typeof apisResult.signUpPOST === 'function');
+    } else {
+        console.log("EmailPassword override or apis function NOT found in config object.");
+    }
+} catch (e) {
+    console.error("Error inspecting SuperTokens config override structure:", e);
+}
+console.log("--- Initializing SuperTokens NOW ---");
 supertokens.init(supertokensConfig);
 
 // Then setup CORS with SuperTokens headers
@@ -174,6 +193,38 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+// Placeholder Admin Check Middleware (replace with actual logic)
+const isAdmin = async (req: SessionRequest, res: express.Response, next: express.NextFunction) => {
+  if (!req.session) {
+    return res.status(401).send("Unauthorized: No session");
+  }
+  const userId = req.session.getUserId();
+  try {
+    // Query the database for the user's role
+    const query = `SELECT role FROM public.users WHERE id = $1`;
+    const result = await poseyPool.query(query, [userId]);
+
+    if (result.rows.length === 0) {
+      console.warn(`Admin check failed: User ${userId} not found in database.`);
+      return res.status(403).send("Forbidden: User not found");
+    }
+
+    const userRole = result.rows[0].role;
+
+    // Check if the user has the 'admin' role
+    if (userRole === 'admin') {
+      console.log(`Admin access granted for user ${userId}`);
+      next(); // User is an admin, proceed
+    } else {
+      console.warn(`Admin access denied for user ${userId}. Role: ${userRole}`);
+      return res.status(403).send("Forbidden: Admin access required");
+    }
+  } catch (error) {
+    console.error(`Error checking admin status for user ${userId}:`, error);
+    return res.status(500).send("Internal server error checking admin status");
+  }
+};
+
 // Then SuperTokens error handler
 app.use(errorHandler());
 
@@ -214,20 +265,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Add helper function to format user data
-function formatUserData(userId: string, userInfo: any, data: any): any {
+// Updated helper function to accept dbRole
+function formatUserData(userId: string, userInfo: any, metadataResult: any, dbRole?: string): any {
+  // Prioritize dbRole if provided, otherwise fallback to metadata or default
+  const role = dbRole || metadataResult?.metadata?.role || 'anonymous';
+
   return {
     id: userId,
     email: userInfo?.emails[0],
-    username: data?.metadata?.username || userInfo?.emails[0].split('@')[0],
-    role: data?.metadata?.role || 'anonymous',
-    lastLogin: new Date(),
+    username: metadataResult?.metadata?.username || userInfo?.emails[0].split('@')[0],
+    role: role, // Use the determined role
+    lastLogin: new Date(), // Consider fetching this from DB too if needed
     createdAt: new Date(userInfo?.timeJoined),
     metadata: {
-      preferences: data?.metadata?.preferences || {},
-      profile: data?.metadata?.profile || {}
+      preferences: metadataResult?.metadata?.preferences || {},
+      profile: metadataResult?.metadata?.profile || {}
     }
-
   };
 }
 
@@ -235,7 +288,7 @@ function formatUserData(userId: string, userInfo: any, data: any): any {
 app.get("/auth/session", verifySession({
   sessionRequired: false,
   antiCsrfCheck: false
-}), async (req: SessionRequest, res) => {
+}), async (req: SessionRequest, res, next) => { // Added next for error handling
   try {
     console.log("Session request received, session exists:", !!req.session);
 
@@ -248,65 +301,44 @@ app.get("/auth/session", verifySession({
 
     const session = req.session;
     const userId = session.getUserId();
-    console.log("Session userId:", userId);
 
+    // Fetch user info and metadata from SuperTokens
     const userInfo = await SuperTokens.getUser(userId);
-    console.log("User info retrieved:", !!userInfo);
+    const metadataResult = await UserMetadata.getUserMetadata(userId);
 
-    if (!userInfo?.emails?.[0]) {
-      console.log("Invalid user data - no email found");
-      return res.status(400).json({
-        status: "ERROR",
-        message: "Invalid user data"
-      });
-    }
-
-    // Get metadata first to use existing username if available
-    const metadata = await UserMetadata.getUserMetadata(userId);
-    console.log("User metadata retrieved:", !!metadata);
-
-    // First check if user already exists in our database
+    // Fetch role from database
+    let dbRole: string | undefined;
     try {
-      const checkQuery = `
-        SELECT id FROM public.users WHERE id = $1;
-      `;
-      const existingResult = await poseyPool.query(checkQuery, [userId]);
-      const userExists = existingResult.rows.length > 0;
-
-      if (userExists) {
-        // User already exists, just update last login timestamp
-        console.log("User exists in database, updating last login");
-        await updateLastLogin(userId);
-      } else {
-        // New user, perform full sync to create the user
-        console.log("User doesn't exist in database, performing full sync");
-        await syncUserToDatabase(
-          userId,
-          userInfo.emails[0],
-          {
-            username: metadata?.metadata?.username || userInfo.emails[0].split('@')[0]
-          }
-        );
+      const roleQuery = `SELECT role FROM public.users WHERE id = $1`;
+      const roleResult = await poseyPool.query(roleQuery, [userId]);
+      if (roleResult.rows.length > 0) {
+        dbRole = roleResult.rows[0].role;
       }
-    } catch (error) {
-      console.error("Error checking user existence:", error);
-      // Continue anyway to not block login process
+    } catch (dbError) {
+      console.error(`Failed to fetch role from DB for user ${userId}:`, dbError);
+      // Decide how to handle DB error - maybe still return user data without role?
+      // For now, we'll let it fall back in formatUserData
     }
 
-    // Even if sync fails, we still want to return user data if we have it
-    return res.json({
+    // Format user data including the database role
+    const user = formatUserData(userId, userInfo, metadataResult, dbRole);
+
+    // Update last login time in the background (fire and forget)
+    updateLastLogin(userId).catch(err => console.error(`Failed to update last login for ${userId}:`, err));
+
+    res.status(200).json({
       status: "OK",
-      user: formatUserData(userId, userInfo, metadata),
+      user: user,
       session: {
+        userId: userId,
         sessionHandle: session.getHandle(),
+        accessTokenPayload: session.getAccessTokenPayload(),
       }
     });
   } catch (error) {
-    console.error("Session error:", error);
-    return res.status(500).json({
-      status: "ERROR",
-      message: "Failed to get session information"
-    });
+    console.error('Error in /auth/session:', error);
+    // Use the global error handler
+    next(error);
   }
 });
 
@@ -433,6 +465,82 @@ app.get("/auth/test-cookie", (req, res) => {
     sameSite: "lax"
   });
   res.json({ success: true });
+});
+
+// Invite Code Management Routes
+
+// POST /admin/invite-codes - Add a new invite code (Admin only)
+app.post("/admin/invite-codes", verifySession(), isAdmin, async (req, res, next) => {
+  const { inviteCode } = req.body;
+  if (!inviteCode || typeof inviteCode !== 'string') {
+    return res.status(400).json({ status: "ERROR", message: "inviteCode (string) is required in body" });
+  }
+
+  try {
+    const insertQuery = `INSERT INTO invite_codes (code) VALUES ($1) ON CONFLICT (code) DO NOTHING`;
+    const result = await poseyPool.query(insertQuery, [inviteCode]);
+    if (result.rowCount !== null && result.rowCount > 0) {
+      console.log(`Admin added invite code: ${inviteCode}`);
+      res.status(201).json({ status: "OK", message: "Invite code added successfully" });
+    } else {
+      res.status(409).json({ status: "ERROR", message: "Invite code already exists" });
+    }
+  } catch (error) {
+    console.error("Error adding invite code:", error);
+    next(error); // Pass error to global handler
+  }
+});
+
+// GET /admin/invite-codes - List all invite codes (Admin only)
+app.get("/admin/invite-codes", verifySession(), isAdmin, async (req, res, next) => {
+  try {
+    const selectQuery = `SELECT code, created_at FROM invite_codes ORDER BY created_at DESC`;
+    const result = await poseyPool.query(selectQuery);
+    res.status(200).json({ status: "OK", inviteCodes: result.rows });
+  } catch (error) {
+    console.error("Error fetching invite codes:", error);
+    next(error); // Pass error to global handler
+  }
+});
+
+// DELETE /admin/invite-codes - Delete an invite code (Admin only)
+app.delete("/admin/invite-codes", verifySession(), isAdmin, async (req, res, next) => {
+  const { inviteCode } = req.body;
+  if (!inviteCode || typeof inviteCode !== 'string') {
+    return res.status(400).json({ status: "ERROR", message: "inviteCode (string) is required in body" });
+  }
+
+  try {
+    const deleteQuery = `DELETE FROM invite_codes WHERE code = $1`;
+    const result = await poseyPool.query(deleteQuery, [inviteCode]);
+    if (result.rowCount !== null && result.rowCount > 0) {
+      console.log(`Admin deleted invite code: ${inviteCode}`);
+      res.status(200).json({ status: "OK", message: "Invite code deleted successfully" });
+    } else {
+      res.status(404).json({ status: "ERROR", message: "Invite code not found" });
+    }
+  } catch (error) {
+    console.error("Error deleting invite code:", error);
+    next(error); // Pass error to global handler
+  }
+});
+
+// GET /auth/verify-invite - Verify an invite code (Public)
+app.get("/auth/verify-invite", async (req, res, next) => {
+  const inviteCode = req.query.code as string;
+  if (!inviteCode) {
+    return res.status(400).json({ status: "ERROR", message: "code query parameter is required" });
+  }
+
+  try {
+    const verifyQuery = `SELECT code FROM invite_codes WHERE code = $1`;
+    const verifyResult = await poseyPool.query(verifyQuery, [inviteCode]);
+    const isValid = verifyResult.rows.length > 0;
+    res.status(200).json({ status: "OK", isValid });
+  } catch (error) {
+    console.error("Error verifying invite code:", error);
+    next(error); // Pass error to global handler
+  }
 });
 
 const port = config.port;
