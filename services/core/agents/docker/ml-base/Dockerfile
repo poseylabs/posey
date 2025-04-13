@@ -67,14 +67,15 @@ RUN grep "^langchain" ml-requirements.txt | xargs pip install --no-cache-dir --v
 # Install Auth packages separately
 RUN echo "--- Installing Auth packages ---" && \
   pip install --no-cache-dir PyJWT==2.8.0 supertokens-python==0.19.0 --verbose && \
-  echo "------------------------------"
+  echo \"------------------------------\"\n
 
 # Install all remaining packages (except explicitly handled ones)
 # Filter out auth packages as well now
-RUN cat ml-requirements.txt | grep -v "^#\|^torch\|^transformers\|^sentence-transformers\|^langchain\|^numpy\|^pandas\|^scipy\|^PyJWT\|^supertokens-python" | grep -v "^\\s*$\" | xargs -r pip install --no-cache-dir --verbose || (echo "Failed to install remaining ML packages" && exit 1)
+# Use single quotes for echo message to avoid Docker quote issues
+RUN cat ml-requirements.txt | grep -v \"^#\|^torch\|^transformers\|^sentence-transformers\|^langchain\|^numpy\|^pandas\|^scipy\|^PyJWT\|^supertokens-python\" | grep -v \"^\\s*$\" | xargs -r pip install --no-cache-dir --verbose || (echo 'Failed to install remaining ML packages' && exit 1)
 
 # Verify that installation succeeded
-RUN python -c "import torch; import transformers; import langchain; import jwt; import supertokens_python; print('PyTorch version:', torch.__version__); print('CUDA available:', torch.cuda.is_available()); print('Transformers version:', transformers.__version__); print('PyJWT version:', jwt.__version__); print('SuperTokens version:', supertokens_python.VERSION); print('ML dependencies installed successfully')"
+RUN python -c \"import torch; import transformers; import langchain; import jwt; import supertokens_python; print('PyTorch version:', torch.__version__); print('CUDA available:', torch.cuda.is_available()); print('Transformers version:', transformers.__version__); print('PyJWT version:', jwt.__version__); print(\'SuperTokens version:\', supertokens_python.VERSION); print('ML dependencies installed successfully')\"
 
 # Clean up build files
 RUN rm -rf /tmp/build
