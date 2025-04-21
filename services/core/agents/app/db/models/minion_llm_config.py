@@ -22,7 +22,8 @@ class MinionLLMConfig(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    model = relationship("LLMModel", back_populates="configurations")
+    # Relationship: Use 'llm_model' for the attribute name to match back_populates in LLMModel
+    llm_model = relationship("LLMModel", back_populates="minion_configs")
 
     def __repr__(self):
-        return f"<MinionLLMConfig(key='{self.config_key}', model={self.model.slug if self.model else 'N/A'})>"
+        return f"<MinionLLMConfig(key='{self.config_key}', model={self.llm_model.model_id if self.llm_model else 'N/A'})>"

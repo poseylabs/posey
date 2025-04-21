@@ -71,6 +71,8 @@ const defaultConfig: any = () => {
           'next/navigation',
           'react-router-dom',
           'zustand',
+          '@posey.ai/state',
+          '@posey.ai/core',
           'ollama',
           'node:fs',
           'node:path',

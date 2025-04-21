@@ -47,13 +47,14 @@ spec:
               value: {{ .Values.config.clusterName | quote }}
 
             # Admin credentials from secret (adjust names based on image)
+            # This injects SPECIFIC variables needed potentially by the image itself
             {{- if .Values.adminCredentials.secretName }}
-            - name: COUCHBASE_ADMINISTRATOR_USERNAME
+            - name: COUCHBASE_ADMINISTRATOR_USERNAME # Standard var often used by Couchbase images
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.adminCredentials.secretName }}
                   key: {{ .Values.adminCredentials.usernameKey }}
-            - name: COUCHBASE_ADMINISTRATOR_PASSWORD
+            - name: COUCHBASE_ADMINISTRATOR_PASSWORD # Standard var often used by Couchbase images
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.adminCredentials.secretName }}
@@ -62,11 +63,11 @@ spec:
             # Add other explicit config env vars if needed
             # - name: COUCHBASE_SERVICES
             #   value: {{ .Values.config.services | default "data,index,query,fts" | quote }}
-            {{- if and .Values.envFromSecret .Values.envFromSecret.enabled }}
-            envFrom:
-              - secretRef:
-                  name: {{ required "envFromSecret.secretName must be provided if envFromSecret.enabled is true" .Values.envFromSecret.secretName }}
-            {{- end }}
+
+          # Correct indentation: envFrom is a sibling to env, resources etc.
+          envFrom:
+            - secretRef:
+                name: {{ .Values.adminCredentials.secretName | default "posey-prod-data-env-vars" }} # Use the secret name defined in values.yaml
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:

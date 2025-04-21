@@ -22,6 +22,8 @@ import os
 import traceback
 from app.config.settings import settings
 import asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.config.database import db as global_db, Database # Import Database class and db instance
 
 # LangChain/LangGraph imports
 from langchain_community.vectorstores import Qdrant
@@ -33,8 +35,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.retrievers import TimeWeightedVectorStoreRetriever
 from langchain.retrievers.document_compressors import EmbeddingsFilter
 from langchain.storage import LocalFileStore
-from qdrant_client import QdrantClient, AsyncQdrantClient
-from qdrant_client.http import models as rest
+from qdrant_client import AsyncQdrantClient, models as rest
 from qdrant_client.http.models import Filter, PointStruct
 
 # Update imports for langchain-qdrant if available
@@ -63,65 +64,59 @@ class MemoryResponse(BaseModel):
 
 class MemoryMinion(BaseMinion):
     """Memory management minion using LangGraph memory"""
+    agent: Optional[Agent] = None # Type hint requires Agent
 
-    def __init__(self, db_conn):
-        # Assign db connection *before* calling super().__init__ which calls setup()
-        self.db = db_conn 
-        # Note: BaseMinion.__init__() calls self._load_prompts() which requires PromptLoader
-        super().__init__(
-            name="memory",
-            description="Analyze, store and retrieve memory information"
-        )
-        self.vector_store = None
-        self.semantic_memory = None
-        self.episodic_memory = None
-        self.procedural_memory = None
-        
-    async def setup(self):
-        """Initialize the memory minion with LangGraph memory components (async)"""
+    vector_store: Optional[Qdrant] = None # Keep type hint
+    semantic_memory = None
+    episodic_memory = None # Keep if used elsewhere, otherwise remove
+    procedural_memory = None
+    semantic_retriever = None # Keep, initialized in setup
+    embeddings: Optional[Embeddings] = None
+
+    async def setup(self) -> None:
+        """Initialize the memory minion with LangGraph memory components (async setup)"""
         logger.info("Initializing memory minion with LangGraph (async setup)")
-        
+
         # Setup ability and store (keeping original components for compatibility)
         self.ability = MemoryAbility()
-        self.store = MemoryStore()
-        
+        self.store = MemoryStore() # Keep if used
+
         # Get base prompt with default context for initialization (keeping original prompt system)
         base_prompt = generate_base_prompt(get_default_context())
-        
+
         # Override system prompt to include base prompt (keeping original prompt system)
         custom_system_prompt = "\n".join([
             base_prompt,  # Start with shared base prompt
             self.get_system_prompt()
         ])
-        
+
         # Initialize embeddings - using the project's configured embedding model
         embedding_model = os.environ.get("EMBEDDING_MODEL", "thenlper/gte-large")
         cache_dir = os.environ.get("EMBEDDING_CACHE_DIR", "./models")
-        
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name=embedding_model,
-            cache_folder=cache_dir,
-        )
-        logger.info(f"Initialized embeddings with model: {embedding_model}")
-        
-        # Initialize vector store for long-term memory
-        try:
-            # Use the shared Qdrant client from the db object
-            # Check the underlying client directly first, like in health check
-            if not self.db._qdrant_client:
-                logger.warning("Qdrant client not found during MemoryMinion setup. Attempting connection...")
-                connection_successful = await self.db.connect_qdrant() # Attempt connection
-                # Check again after attempting connection
-                if not connection_successful or not self.db._qdrant_client:
-                    logger.error("Qdrant client connection failed after explicit attempt in MemoryMinion setup.")
-                    # Match the error type raised by the property for consistency
-                    raise RuntimeError("Qdrant not initialized even after connection attempt")
-                else:
-                    logger.info("Qdrant connection successful after explicit attempt in MemoryMinion setup.")
 
-            # Now we are sure _qdrant_client exists and is an AsyncQdrantClient
-            client: AsyncQdrantClient = self.db._qdrant_client
-            collection_name = settings.QDRANT_COLLECTION_NAME # Use setting for consistency
+        # Ensure embeddings are initialized only once or handle re-initialization
+        if not self.embeddings:
+            self.embeddings = HuggingFaceEmbeddings(
+                model_name=embedding_model,
+                cache_folder=cache_dir,
+            )
+            logger.info(f"Initialized embeddings with model: {embedding_model}")
+        else:
+            logger.info("Embeddings already initialized.")
+
+        # Initialize vector store for long-term memory using global_db
+        try:
+            # --- FIX: Get Qdrant client from shared global_db instance ---
+            client: Optional[AsyncQdrantClient] = global_db.qdrant
+            # ------------------------------------------------
+
+            if not client:
+                 logger.error("Qdrant client not found in the global Database instance.")
+                 raise RuntimeError("Qdrant client not available via global_db during MemoryMinion setup")
+
+            # Now we are sure client exists and is an AsyncQdrantClient
+            collection_name = settings.QDRANT_COLLECTION_NAME.strip('"')
+            collection_name = settings.QDRANT_COLLECTION_NAME.strip("'")
 
             # Check if collection exists using the async client
             try:
@@ -155,7 +150,7 @@ class MemoryMinion(BaseMinion):
                         collections_response = await client.get_collections()
                         collection_names = [c.name for c in collections_response.collections]
                         if collection_name not in collection_names:
-                             raise RuntimeError(f"Failed to create or find Qdrant collection '{collection_name}'") from e
+                             raise RuntimeError(f"Failed to create or find Qdrant collection '{collection_name}' after retry") from e
                         else:
                             logger.warning(f"Qdrant collection '{collection_name}' found after initial creation error (possibly concurrent creation).")
                     except Exception as check_e:
@@ -163,50 +158,14 @@ class MemoryMinion(BaseMinion):
             else:
                  logger.info(f"Using existing Qdrant collection '{collection_name}'")
 
-            # Initialize the vector store with the async client
-            # NOTE: Switching to langchain_qdrant.Qdrant is highly recommended for async client usage.
-            # Using langchain_community.vectorstores.Qdrant might lead to blocking calls or errors.
-            # For now, we proceed with langchain_community, but be aware of potential issues.
-            self.vector_store = Qdrant(
-                client=client, # Pass the AsyncQdrantClient instance
-                collection_name=collection_name,
-                embeddings=self.embeddings
-                # async_client=True # This argument likely doesn't exist in langchain_community version
-            )
-            logger.info(f"Successfully initialized Langchain Qdrant vector store wrapper for MemoryMinion with Async Client")
-
-            # Initialize time-weighted retriever
-            # NOTE: TimeWeightedVectorStoreRetriever is likely synchronous and may block.
-            self.semantic_retriever = TimeWeightedVectorStoreRetriever(
-                vectorstore=self.vector_store,
-                search_kwargs={"k": 5},
-                decay_rate=0.01,
-                k=5
-            )
-
-            # Initialize semantic memory
-            # NOTE: VectorStoreRetrieverMemory and as_retriever() are likely synchronous.
-            self.semantic_memory = VectorStoreRetrieverMemory(
-                retriever=self.vector_store.as_retriever(search_kwargs={"k": 5}),
-                memory_key="semantic_memory",
-                input_key="query"
-            )
-
-            # Create file storage for episodic memory (sync is fine here)
-            fs = LocalFileStore("./data/episodic_memory")
-
-            # Initialize procedural memory
-            # NOTE: VectorStoreRetrieverMemory and as_retriever() are likely synchronous.
-            self.procedural_memory = VectorStoreRetrieverMemory(
-                retriever=self.vector_store.as_retriever(
-                    search_kwargs={"filter": {"memory_type": "procedural"}} # Qdrant filter format might differ
-                ),
-                memory_key="procedural_memory"
-            )
-
-            # Create agent
-            self.agent = self.create_agent(result_type=MemoryResponse, model_key="memory")
-            logger.info(f"Memory agent initialized with model: {LLM_CONFIG['memory']['model']}")
+            # --- REMOVED Initialization of Langchain Wrappers --- 
+            # These wrappers expect a sync client, but we are using the async client directly
+            # in the core methods (store, retrieve, analyze, search_recent).
+            # Keeping them caused a ValueError due to the async client mismatch.
+            # If Langchain memory patterns (like conversational relevance) are needed later,
+            # they would need to be implemented using the async client directly or by
+            # introducing a separate sync client specifically for Langchain components.
+            # --- END REMOVED --- 
 
         except RuntimeError as re: # Catch the specific error raised earlier
              logger.critical(f"MemoryMinion Qdrant setup failed critically: {re}")
@@ -216,7 +175,7 @@ class MemoryMinion(BaseMinion):
             logger.error(traceback.format_exc())
             # Depending on the error, decide whether to raise or allow degraded functionality
             raise RuntimeError(f"Memory Minion setup failed: {e}") from e
-        
+
     def create_prompt_context(self, context: Dict[str, Any], extra_memory_data: Dict[str, Any] = None) -> BasePromptContext:
         """Create a prompt context object for memory operations
         
@@ -272,81 +231,78 @@ class MemoryMinion(BaseMinion):
         )
     
     async def store_memory(self, content: str, context: Dict[str, Any]) -> MemoryResponse:
-        """Store a new memory using LangGraph memory concepts (async)"""
+        """Store a new memory using the direct async Qdrant client for upsert."""
         start_time = time.time()
-        if not self.vector_store:
-             return MemoryResponse(status="error", operation="store", error="Vector store not initialized")
+        # Check for embeddings and Qdrant client from global_db
+        if not self.embeddings:
+             return MemoryResponse(status="error", operation="store", error="Embeddings not initialized")
+        if not global_db.qdrant:
+             return MemoryResponse(status="error", operation="store", error="Qdrant client not available")
 
         try:
             user_id = context.get("user_id", "anonymous")
             memory_type = self.classify_memory_type(content)
-            memory_id = str(uuid4())
+            memory_id = str(uuid4()) # Generate UUID for the point ID
 
-            doc = Document(
-                page_content=content,
-                metadata={
+            # --- Create the payload structure with nested metadata ---
+            payload = {
+                "page_content": content, # Store actual content
+                "metadata": {
                     "user_id": user_id,
-                    "agent_id": "memory",
+                    "agent_id": "memory", # Or context.get("agent_id")?
                     "timestamp": datetime.now().isoformat(),
                     "memory_type": memory_type,
-                    "id": memory_id # Use the generated UUID as ID
-                    # Ensure metadata keys match Qdrant indexing/filtering needs
+                    "id": memory_id # Include ID in metadata if useful
+                    # Add other relevant context metadata here
                 }
+            }
+            # --- End payload structure ---
+
+            # Embed the content (synchronous call, blocks event loop briefly)
+            try:
+                vector = self.embeddings.embed_query(content)
+            except Exception as embed_e:
+                logger.error(f"Failed to embed content for memory {memory_id}: {embed_e}")
+                return MemoryResponse(status="error", operation="store", error=f"Embedding failed: {embed_e}")
+
+            # Create Qdrant PointStruct
+            point = PointStruct(
+                id=memory_id,
+                vector=vector,
+                payload=payload # Use the structured payload
             )
 
-            # Store in vector store
-            # NOTE: add_documents in langchain_community.Qdrant is SYNC.
-            # This will block the event loop. For true async, use client.upsert directly
-            # or switch to langchain_qdrant which might have an async version.
+            # --- Upsert the point using the async client from global_db ---
             try:
-                # Example using client directly (preferred for async):
-                # point = PointStruct(
-                #     id=memory_id,
-                #     vector=self.embeddings.embed_query(content), # Embed synchronously for now
-                #     payload=doc.metadata
-                # )
-                # await self.db._qdrant_client.upsert(
-                #     collection_name=settings.QDRANT_COLLECTION_NAME,
-                #     points=[point],
-                #     wait=True # Or False for fire-and-forget
-                # )
-                # logger.debug(f"Upserted memory {memory_id} directly via async client.")
-
-                # Using Langchain wrapper (potential blocking call):
-                ids_added = self.vector_store.add_documents([doc], ids=[memory_id])
-                logger.debug(f"Added document via Langchain wrapper: {ids_added}")
+                await global_db.qdrant.upsert(
+                    collection_name=settings.QDRANT_COLLECTION_NAME,
+                    points=[point],
+                    wait=True # Wait for operation to complete
+                )
+                logger.debug(f"Upserted memory {memory_id} directly via async client.")
 
             except Exception as store_e:
-                 logger.error(f"Failed to add document to Qdrant: {store_e}")
-                 return MemoryResponse(status="error", operation="store", error=f"Failed to store memory in vector database: {store_e}")
+                 logger.error(f"Failed to upsert point to Qdrant: {store_e}")
+                 return MemoryResponse(status="error", operation="store", error=f"Failed to store memory in Qdrant: {store_e}")
+            # --- End async upsert ---
 
-            # Create memory-specific context for prompt
+            # Create memory-specific context for logging/potential prompt use (if needed later)
             memory_data = {
                 "current_operation": "store",
                 "memory_type": memory_type,
                 "memory_id": memory_id
             }
-            
-            # Create proper prompt context
             prompt_context = self.create_prompt_context(context, memory_data)
-            
-            # Get task prompt from configuration with proper context
-            user_prompt = self.get_task_prompt(
-                "store_memory",
-                context=prompt_context,
-                content=content,
-                current_time=datetime.now().isoformat(),
-                memory_type=memory_type
-            )
-            
+            # user_prompt = self.get_task_prompt(...) # Optional
+
             execution_time = time.time() - start_time
             logger.info(f"Memory storage completed in {execution_time:.2f}s for ID {memory_id}")
-            
+
             return MemoryResponse(
                 operation="store",
                 result={
                     "memory_id": memory_id,
-                    "content": content[:100] + "..." if len(content) > 100 else content,
+                    "content_stored_preview": content[:100] + "..." if len(content) > 100 else content,
                     "memory_type": memory_type,
                     "execution_time": execution_time
                 }
@@ -379,7 +335,7 @@ class MemoryMinion(BaseMinion):
     async def retrieve_memory(self, params: Dict[str, Any], context: Dict[str, Any]) -> MemoryResponse:
         """Retrieve memories based on query or filters using LangGraph memory (async)"""
         start_time = time.time()
-        if not self.vector_store or not self.db._qdrant_client:
+        if not self.vector_store or not global_db.qdrant:
              return MemoryResponse(status="error", operation="retrieve", error="Vector store or Qdrant client not initialized")
 
         try:
@@ -418,7 +374,7 @@ class MemoryMinion(BaseMinion):
                      # Embed query synchronously for now
                      query_vector = self.embeddings.embed_query(query)
                      # Use async search
-                     retrieved_points = await self.db._qdrant_client.search(
+                     retrieved_points = await global_db.qdrant.search(
                          collection_name=settings.QDRANT_COLLECTION_NAME,
                          query_vector=query_vector,
                          query_filter=qdrant_filter,
@@ -437,7 +393,7 @@ class MemoryMinion(BaseMinion):
                  try:
                       # Fallback to search with a dummy vector (less efficient than scroll)
                       dummy_vector = [0.0] * len(self.embeddings.embed_query("dummy")) # Get correct dimension
-                      retrieved_points = await self.db._qdrant_client.search(
+                      retrieved_points = await global_db.qdrant.search(
                           collection_name=settings.QDRANT_COLLECTION_NAME,
                           query_vector=dummy_vector, # Required for search
                           query_filter=qdrant_filter,
@@ -526,7 +482,7 @@ class MemoryMinion(BaseMinion):
     async def analyze_memory(self, params: Dict[str, Any], context: Dict[str, Any]) -> MemoryResponse:
         """Analyze memories for patterns, insights, or specific information (async)"""
         start_time = time.time()
-        if not self.vector_store or not self.db._qdrant_client:
+        if not self.vector_store or not global_db.qdrant:
              return MemoryResponse(status="error", operation="analyze", error="Vector store or Qdrant client not initialized")
 
         try:
@@ -542,7 +498,7 @@ class MemoryMinion(BaseMinion):
             if memory_ids:
                 try:
                      # Use async client retrieve by IDs
-                     points = await self.db._qdrant_client.retrieve(
+                     points = await global_db.qdrant.retrieve(
                          collection_name=settings.QDRANT_COLLECTION_NAME,
                          ids=memory_ids,
                          with_payload=True,
@@ -671,7 +627,7 @@ class MemoryMinion(BaseMinion):
         Retrieve the most recent memories for a user using Qdrant directly (async).
         Memories are primarily sorted by a 'timestamp' field in the metadata.
         """
-        if not self.db._qdrant_client:
+        if not global_db.qdrant:
              logger.error("Qdrant client not available for search_recent")
              return []
 
@@ -708,7 +664,7 @@ class MemoryMinion(BaseMinion):
             # NOTE: Requires the 'timestamp' field in metadata to be indexed appropriately in Qdrant
             #       and ideally be of a type that supports ordering (e.g., ISO format string, integer timestamp).
             try:
-                scroll_response, _ = await self.db._qdrant_client.scroll(
+                scroll_response, _ = global_db.qdrant.scroll(
                     collection_name=settings.QDRANT_COLLECTION_NAME,
                     scroll_filter=qdrant_filter,
                     limit=limit, # Fetch the exact limit needed
@@ -727,7 +683,7 @@ class MemoryMinion(BaseMinion):
                  try:
                      # Search requires a vector; use a dummy one
                       dummy_vector = [0.0] * len(self.embeddings.embed_query("dummy"))
-                      search_results = await self.db._qdrant_client.search(
+                      search_results = await global_db.qdrant.search(
                           collection_name=settings.QDRANT_COLLECTION_NAME,
                           query_vector=dummy_vector,
                           query_filter=qdrant_filter,
@@ -788,10 +744,10 @@ class MemoryMinion(BaseMinion):
 
         try:
             # Check Qdrant connection status first
-            if self.db._qdrant_client:
+            if global_db.qdrant:
                  try:
                       # Simple check like getting collections
-                      await self.db._qdrant_client.get_collections()
+                      await global_db.qdrant.get_collections()
                       status_info["qdrant_status"] = "connected"
                       logger.debug("Qdrant connection confirmed for status check.")
 
@@ -839,11 +795,11 @@ class MemoryMinion(BaseMinion):
     
     async def _get_vector_count(self) -> int:
         """Get count of vectors in the Qdrant collection (async)"""
-        if not self.db._qdrant_client:
+        if not global_db.qdrant:
              logger.warning("Qdrant client not available for _get_vector_count")
              return 0
         try:
-            collection_info = await self.db._qdrant_client.count(
+            collection_info = await global_db.qdrant.count(
                 collection_name=settings.QDRANT_COLLECTION_NAME
             )
             return collection_info.count
@@ -858,7 +814,7 @@ class MemoryMinion(BaseMinion):
     async def _get_memory_type_counts(self) -> Dict[str, int]:
         """Get counts of each memory type from Qdrant (async)"""
         memory_types_counts = { "semantic": 0, "episodic": 0, "procedural": 0, "unknown": 0}
-        if not self.db._qdrant_client:
+        if not global_db.qdrant:
             logger.warning("Qdrant client not available for _get_memory_type_counts")
             return memory_types_counts
 
@@ -877,7 +833,7 @@ class MemoryMinion(BaseMinion):
                  )
                  # Create an async task for each count
                  tasks.append(
-                     self.db._qdrant_client.count(
+                     global_db.qdrant.count(
                          collection_name=settings.QDRANT_COLLECTION_NAME,
                          count_filter=type_filter,
                          exact=True # Use exact count
@@ -916,7 +872,7 @@ class MemoryMinion(BaseMinion):
     async def _get_sample_memories(self, limit_per_type: int = 1) -> List[Dict[str, Any]]:
         """Get sample memories from Qdrant for each type (async)"""
         samples = []
-        if not self.db._qdrant_client:
+        if not global_db.qdrant:
             logger.warning("Qdrant client not available for _get_sample_memories")
             return samples
 
@@ -929,7 +885,7 @@ class MemoryMinion(BaseMinion):
                   )
                   # Use scroll to get samples based on filter
                   tasks.append(
-                       self.db._qdrant_client.scroll(
+                       global_db.qdrant.scroll(
                             collection_name=settings.QDRANT_COLLECTION_NAME,
                             scroll_filter=type_filter,
                             limit=limit_per_type,

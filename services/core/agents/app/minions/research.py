@@ -17,6 +17,7 @@ from datetime import datetime
 import time
 from app.minions.base import BaseMinion
 import traceback
+from sqlalchemy.ext.asyncio import AsyncSession
 
 class ResearchStrategy(BaseModel):
     """Configuration for research strategy"""
@@ -64,32 +65,10 @@ class ResearchResponse(BaseModel):
 
 class ResearchMinion(BaseMinion):
     """Research minion for conducting thorough research"""
-    
-    def __init__(self):
-        super().__init__(
-            name="research",
-            description="Conduct thorough research on topics using various sources and strategies"
-        )
-        
-    def setup(self):
-        """Initialize minion-specific components"""
-        # Get base prompt with default context for initialization
-        base_prompt = generate_base_prompt(get_default_context())
-        
-        # Override system prompt to include base prompt
-        custom_system_prompt = "\n".join([
-            base_prompt,  # Start with shared base prompt
-            self.get_system_prompt()
-        ])
-        
-        logger.debug(f"System prompt configured for research minion")
-
-        # Create agents for different research stages
-        self.planning_agent = self.create_agent(model_key="reasoning")
-        self.analysis_agent = self.create_agent(model_key="reasoning")
-        self.synthesis_agent = self.create_agent(result_type=ResearchResponse, model_key="reasoning")
-        
-        logger.info(f"Research minion initialized with model: {LLM_CONFIG['reasoning']['model']}")
+    # Add type hints for agents
+    planning_agent: Optional[Agent] = None
+    analysis_agent: Optional[Agent] = None
+    synthesis_agent: Optional[Agent] = None
     
     def create_prompt_context(self, context: Dict[str, Any], research_data: Dict[str, Any] = None) -> BasePromptContext:
         """Create a properly structured prompt context for research operations

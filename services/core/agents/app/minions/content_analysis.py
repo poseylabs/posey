@@ -1,35 +1,21 @@
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
 from pydantic_ai import RunContext, Agent
-from app.utils.result import AgentResult
-from app.utils.agent import run_agent_with_messages
-from app.utils.message_handler import prepare_system_user_messages, extract_messages_from_context, get_last_user_message
 from app.config import logger
-from app.config.prompts.base import ( generate_base_prompt, get_default_context, BasePromptContext, UserContext, MemoryContext, SystemContext )
-from app.config.defaults import LLM_CONFIG
+from app.config.prompts.base import ( generate_base_prompt, BasePromptContext, UserContext, MemoryContext, SystemContext )
 import json
 import time
 from datetime import datetime
 import pytz
-from app.models.analysis import ContentAnalysis, ContentIntent, DelegationConfig
+from app.models.analysis import ContentAnalysis
 from app.minions.base import BaseMinion
 import traceback
-from app.config.abilities import AbilityRegistry
+from app.utils.ability_registry import AbilityRegistry
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.system import LocationInfo
+from app.config.database import Database
 
 class ContentAnalysisMinion(BaseMinion):
     """Content Analysis Minion - analyzes content, determines intent and required abilities"""
-
-    def __init__(self):
-        super().__init__(
-            name="content_analysis",
-            description="Analyze user requests to determine intent and required abilities"
-        )
-
-    def setup(self):
-        """Initialize minion-specific components"""
-        # Create agent with content analysis result type
-        self.agent = self.create_agent(result_type=ContentAnalysis, model_key="reasoning")
-        logger.info(f"Content analysis agent initialized with model: {LLM_CONFIG['reasoning']['model']}")
 
     def create_prompt_context(self, context: Dict[str, Any], analysis_data: Dict[str, Any] = None) -> BasePromptContext:
         """Create a properly structured prompt context for content analysis operations
@@ -54,20 +40,30 @@ class ContentAnalysisMinion(BaseMinion):
         
         formatted_time = now.strftime("%Y-%m-%d %H:%M:%S %Z")
         
-        # Extract location info
-        location_info = "Unknown"
+        # Extract location info - Assign None if not properly found
+        location_obj: Optional[LocationInfo] = None # Initialize as None
         if context.get('system', {}).get('location'):
-            loc = context['system']['location']
-            if loc.get('city') and loc.get('country'):
-                location_info = f"{loc.get('city', '')}, {loc.get('region', '')}, {loc.get('country', '')}"
+            loc_data = context['system']['location']
+            # Ensure loc_data is a dict before creating LocationInfo
+            if isinstance(loc_data, dict):
+                try:
+                    # Create LocationInfo object if possible
+                    location_obj = LocationInfo(**loc_data)
+                except Exception as loc_e:
+                    logger.warning(f"Failed to create LocationInfo from context data: {loc_data}, Error: {loc_e}")
+            else:
+                logger.warning(f"Location data in context is not a dict: {loc_data}")
         
-        # Create user context
+        # Create user context using the consolidated model from app.models.context
         user_context = UserContext(
-            id=user_id,
-            name=user_name,
+            user_id=user_id, # Correct field name
+            username=user_name, # Map user_name to username
+            name=user_name, # Also set name for now, consider consolidating later
+            email=context.get("email"), # Add email if available
             preferences=context.get("preferences", {}),
-            location=location_info,
-            timezone=user_tz
+            location=location_obj, # Use the LocationInfo object or None
+            timezone=user_tz, # Use extracted timezone
+            language=context.get("language", "en-US") # Add language
         )
         
         # Create memory context
@@ -87,9 +83,9 @@ class ContentAnalysisMinion(BaseMinion):
         
         # Add analysis-specific data to the appropriate context
         if analysis_data:
-            # Add query-related info to user context
-            if "query" in analysis_data:
-                user_context.query = analysis_data["query"]
+            # Add query-related info to user context - THIS IS NO LONGER NEEDED
+            # if "query" in analysis_data:
+            #     user_context.query = analysis_data["query"]
                 
             # Add analysis-specific fields to system context
             if "operation" in analysis_data:
@@ -114,6 +110,10 @@ class ContentAnalysisMinion(BaseMinion):
         determination_tasks = "\n".join(self.prompts["system"]["determination_tasks"])
         response_instruction = self.prompts["system"]["response_instruction"]
         
+        # --- Log the Base Prompt --- 
+        logger.debug(f"[CON_ANA_PREP] Base Prompt Content:\n---\n{base_prompt}\n---")
+        # --- End Log --- 
+        
         # Get current time in user's timezone or UTC
         user_tz = context.get('timezone', 'UTC')
         try:
@@ -136,24 +136,29 @@ class ContentAnalysisMinion(BaseMinion):
         
         logger.info("========================================")
         
-        # Extract location info for context
+
         location_info = "Unknown"
         if context.get('system', {}).get('location'):
             loc = context['system']['location']
             if loc.get('city') and loc.get('country'):
                 location_info = f"{loc.get('city', '')}, {loc.get('region', '')}, {loc.get('country', '')}"
 
-        # Format the system context template
+        conversation_id = context.get('conversation_id', 'N/A')
+        uploaded_files = context.get('uploaded_files', [])
+        uploaded_files_json = json.dumps(uploaded_files, indent=2)
+
         context_section = context_template.format(
             formatted_time=formatted_time,
-            now=now,
             user_tz=user_tz,
             location_info=location_info,
-            context=context
+            conversation_id=conversation_id,
+            uploaded_files_json=uploaded_files_json 
+            # context=context # Remove the raw context dictionary from format args
         )
-        
+
         # Format ability information
-        abilities_section = abilities_template.format(json=json, available_abilities=available_abilities)
+        abilities_json = json.dumps(available_abilities, indent=2) # Pre-format the JSON string
+        abilities_section = abilities_template.format(abilities_json=abilities_json)
         
         # Combine all components into a complete system prompt
         complete_system_prompt = f"""{base_prompt}
@@ -182,32 +187,54 @@ Determine:
     async def run(self, context: RunContext) -> ContentAnalysis:
         """Execute content analysis"""
         start_time = time.time()
-        request_id = context.context.get("request_id", "unknown")
-        logger.info(f"Starting content analysis for request ID: {request_id}")
+        # Access request_id from context.deps
+        request_id = context.deps.get("request_id", "unknown") # Use context.deps
+        logger.info(f"[CON_ANA_RUN / {request_id}] Starting content analysis")
         
+        # --- DEBUG: Log incoming context and deps ---
+        # logger.debug(f"[CON_ANA_RUN] Incoming RunContext.context keys: {list(context.context.keys())}") # This was the error source
+        logger.debug(f"[CON_ANA_RUN] Incoming RunContext.deps keys: {list(context.deps.keys())}")
+        # --- END DEBUG ---
+
         try:
-            # Extract user query from context
+            # Extract user query from context.deps
             query = context.deps.get("query", "")
+            logger.info(f"[CON_ANA_RUN / {request_id}] Extracted query: '{query if query else '[EMPTY]'}'")
             if not query:
+                logger.warning(f"[CON_ANA_RUN / {request_id}] No query found in context.deps. Returning default analysis.")
                 return ContentAnalysis(
                     intent={"primary_intent": "unknown", "secondary_intents": []},
-                    delegation={"should_delegate": False, "abilities": []},
+                    delegation={"should_delegate": False, "delegated_abilities": []},
                     reasoning="No query provided for analysis",
                     confidence=0.0
                 )
             
+            # Get the database session from context.deps
+            db_session = context.deps.get("db", None)
+            logger.debug(f"[CON_ANA_RUN / {request_id}] Database session present: {db_session is not None}")
+            
             # Get available abilities
             available_abilities = await fetch_available_abilities()
+            logger.debug(f"[CON_ANA_RUN / {request_id}] Fetched {len(available_abilities)} available abilities: {list(available_abilities.keys())}")
+            
+            # Enhanced logging for available abilities
+            logger.info(f"[CONTENT_ANALYSIS] Found {len(available_abilities)} abilities for consideration:")
+            for ability_name, ability_info in available_abilities.items():
+                capabilities = ability_info.get("capabilities", [])
+                logger.info(f"[CONTENT_ANALYSIS] - {ability_name}: {ability_info.get('description', 'No description')} | Capabilities: {capabilities}")
             
             # Create analysis-specific context data
             analysis_data = {
-                "query": query,
+                # DEBUG: Log the data being added
+                # "query": query, # Query is already in context.deps
                 "operation": "content_analysis",
                 "available_abilities": available_abilities
             }
+            logger.debug(f"[CON_ANA_RUN / {request_id}] Created analysis_data for prompt context: {analysis_data}")
             
-            # Create proper prompt context
-            prompt_context = self.create_prompt_context(context.context, analysis_data)
+            # Create proper prompt context using context.deps
+            prompt_context = self.create_prompt_context(context.deps, analysis_data) # Pass context.deps here
+            logger.debug(f"[CON_ANA_RUN / {request_id}] Created BasePromptContext.")
             
             # Get task prompt from configuration with the structured context
             user_prompt = self.get_task_prompt(
@@ -216,58 +243,71 @@ Determine:
                 prompt=query,
                 abilities=json.dumps(available_abilities, indent=2)
             )
+            logger.debug(f"[CON_ANA_RUN] Generated user_prompt for analysis task (length: {len(user_prompt)} chars)") # DEBUG
             
-            # Create message array for the agent - still using the existing method for compatibility
+            # Create message array for the agent - Pass context.deps to helper
             messages = self._prepare_system_user_messages(
                 generate_base_prompt(prompt_context), 
                 user_prompt, 
-                context.context, 
+                context.deps, # Pass context.deps here
                 available_abilities
             )
+            logger.debug(f"[CON_ANA_RUN / {request_id}] Prepared {len(messages)} messages for agent.")
             
             # Run the content analysis agent
-            logger.debug(f"Running content analysis agent for: {query}")
+            logger.info(f"[CON_ANA_RUN / {request_id}] Calling content analysis agent...")
+            if not self.agent:
+                logger.error(f"[CON_ANA_RUN / {request_id}] Content analysis agent is None! Cannot run.")
+                raise RuntimeError("ContentAnalysisMinion agent not initialized.")
+            logger.debug(f"[CON_ANA_RUN / {request_id}] Agent instance: {self.agent}")
             result = await self.agent.run_with_messages(messages)
             
             # Add enhanced logging for delegation decisions
             if hasattr(result, 'delegation') and result.delegation:
                 if result.delegation.should_delegate:
-                    logger.info(f"Content analysis decided to delegate to abilities: {result.delegation.abilities}")
-                    
+                    # Extract ability names for initial logging
+                    requested_ability_names = [req.ability_name for req in result.delegation.delegated_abilities]
+                    logger.info(f"[CONTENT_ANALYSIS] Analysis determined to delegate to abilities: {requested_ability_names}")
+
                     # Validate requested abilities against available abilities
                     registry = AbilityRegistry()
-                    valid_abilities = []
-                    invalid_abilities = []
-                    
-                    for ability in result.delegation.abilities:
-                        if registry.validate_ability(ability):
-                            valid_abilities.append(ability)
+                    valid_delegation_requests = []
+                    invalid_ability_names = []
+
+                    for delegation_request in result.delegation.delegated_abilities:
+                        ability_name = delegation_request.ability_name
+                        is_valid = await registry.validate_ability(ability_name, db=db_session)
+                        if is_valid:
+                            valid_delegation_requests.append(delegation_request)
+                            # Log the minion that handles this ability
+                            minion_name = await registry.get_minion_name_for_ability(ability_name, db=db_session)
+                            logger.info(f"[CONTENT_ANALYSIS] Ability '{ability_name}' will be handled by minion '{minion_name}'")
                         else:
-                            invalid_abilities.append(ability)
-                    
-                    if invalid_abilities:
-                        logger.warning(f"Requested abilities not found in registry: {invalid_abilities}")
-                        # Update the delegation with only valid abilities
-                        result.delegation.abilities = valid_abilities
-                        
-                        # Cleanup configs for invalid abilities
-                        if hasattr(result.delegation, 'configs'):
-                            for invalid_ability in invalid_abilities:
-                                if invalid_ability in result.delegation.configs:
-                                    del result.delegation.configs[invalid_ability]
-                    
-                    logger.info(f"Validated abilities for delegation: {valid_abilities}")
-                    logger.info(f"Delegation priority: {result.delegation.priority}")
-                    logger.debug(f"Delegation configs: {json.dumps(result.delegation.configs, indent=2, default=str)}")
-                    logger.info(f"Delegation reasoning: {result.reasoning}")
+                            invalid_ability_names.append(ability_name)
+
+                    if invalid_ability_names:
+                        logger.warning(f"[CONTENT_ANALYSIS] These requested abilities were not found in registry: {invalid_ability_names}")
+                        # Update the delegation with only valid requests
+                        result.delegation.delegated_abilities = valid_delegation_requests
+                        # Note: No need to separately clean up configs anymore, as they are part of the request object
+
+                    # Log final validated abilities and their configs
+                    final_validated_abilities = [req.ability_name for req in valid_delegation_requests]
+                    logger.info(f"[CONTENT_ANALYSIS] Final validated abilities for delegation: {final_validated_abilities}")
+                    logger.info(f"[CONTENT_ANALYSIS] Delegation priority: {result.delegation.priority}")
+                    # Log configs for each validated ability
+                    for req in valid_delegation_requests:
+                        # Convert List[Param] to a simple dict for logging readability
+                        config_dict_for_log = {param.key: param.value for param in req.config_params}
+                        logger.debug(f"[CONTENT_ANALYSIS] Config for '{req.ability_name}': {json.dumps(config_dict_for_log, indent=2, default=str)}")
                 else:
-                    logger.info("Content analysis decided NOT to delegate to any abilities")
-                    logger.info(f"Reasoning: {result.reasoning}")
+                    logger.info(f"[CONTENT_ANALYSIS] Analysis decided NOT to delegate to any abilities. Intent: {result.intent.primary_intent if hasattr(result.intent, 'primary_intent') else 'unknown'}")
+                    logger.info(f"[CONTENT_ANALYSIS] Reasoning: {result.reasoning}")
             else:
-                logger.warning("Content analysis result is missing delegation information")
+                logger.warning("[CONTENT_ANALYSIS] Analysis result is missing delegation information")
             
             execution_time = time.time() - start_time
-            logger.info(f"Content analysis completed in {execution_time:.2f}s")
+            logger.info(f"[CON_ANA_RUN / {request_id}] Content analysis completed in {execution_time:.2f}s")
             
             return result
             
@@ -278,7 +318,7 @@ Determine:
             # Return a fallback analysis
             return ContentAnalysis(
                 intent={
-                    "primary_intent": "error_fallback",
+                    "primary_intent": "error_fallback", 
                     "secondary_intents": [],
                     "requires_memory": False,
                     "memory_operations": {},
@@ -287,9 +327,8 @@ Determine:
                 },
                 delegation={
                     "should_delegate": False,
-                    "abilities": [],
+                    "delegated_abilities": [],
                     "priority": [],
-                    "configs": {},
                     "fallback_strategies": []
                 },
                 reasoning=f"Error occurred during analysis: {str(e)}",
@@ -325,7 +364,7 @@ Determine:
                     },
                     "delegation": {
                         "should_delegate": False,
-                        "abilities": []
+                        "delegated_abilities": []
                     },
                     "reasoning": "Error: Unable to process content analysis",
                     "confidence": 0.0,
@@ -352,7 +391,7 @@ Determine:
                 },
                 "delegation": {
                     "should_delegate": False,
-                    "abilities": []
+                    "delegated_abilities": []
                 },
                 "reasoning": f"Error occurred during analysis: {str(e)}",
                 "confidence": 0.0,
@@ -368,7 +407,7 @@ async def fetch_available_abilities() -> Dict[str, Dict[str, Any]]:
     """Fetch all available abilities and their configurations"""
     # Get abilities from the registry
     registry = AbilityRegistry()
-    abilities_list = registry.get_available_abilities()
+    abilities_list = await registry.get_available_abilities()
     
     # Convert to the expected format
     abilities_dict = {}

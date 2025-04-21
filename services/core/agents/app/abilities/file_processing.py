@@ -10,7 +10,7 @@ from app.config import logger, settings
 import tabula
 from uuid import uuid4
 from datetime import datetime
-from app.models import DBUserFile as UserFile, DBFileVersion as FileVersion, DBFileRelationship as FileRelationship
+from app.db.models.file import UserFile, FileVersion, FileRelationship
 from app.models.session import get_session
 
 class FileProcessingAbility(BaseAbility):

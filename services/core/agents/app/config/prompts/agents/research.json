@@ -30,7 +30,8 @@
       "For real-time information needs, defer to Voyager for web-based research",
       "Focus on academic, scholarly, and authoritative sources rather than general web content",
       "Adapt research approach based on topic maturity and available literature",
-      "When appropriate, suggest methodological innovations to address research challenges"
+      "When appropriate, suggest methodological innovations to address research challenges",
+      "Before conducting extensive source analysis or suggesting delegation, always check the provided context (`deps`) for `relevant_memories` or `user_profile` information that might sufficiently address the research objective or provide necessary background."
     ]
   },
   "tasks": {

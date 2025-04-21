@@ -1,4 +1,5 @@
 #!/bin/bash
+echo "--- Entrypoint Script Started ---"
 set -e
 
 # Debug: Print service type and environment
@@ -22,20 +23,23 @@ echo "POSTGRES_DB_POSEY=$POSTGRES_DB_POSEY"
 echo "Waiting for databases to be ready..."
 
 # Wait for PostgreSQL
+echo "--- Changing to /app directory ---"
 cd /app
-echo "Checking critical paths:"
-echo "Main app directory:"
+echo "--- In /app directory --- Check critical paths:"
+echo "Main app directory (/app/service):"
 ls -l /app/service
-echo "Scripts directory:"
+echo "Service scripts directory (/app/service/scripts):"
 ls -l /app/service/scripts
-
-echo "App Scripts directory:"
+echo "App scripts directory (/app/service/app/scripts):"
 ls -l /app/service/app/scripts
+echo "--- Finished Path Checks ---"
 
+echo "--- Checking PostgreSQL Connection --- START ---"
 while ! python /app/service/app/scripts/check_db.py; do
-    echo "Waiting for PostgreSQL at $POSTGRES_HOST..."
+    echo "Waiting for PostgreSQL at $POSTGRES_HOST... (python check_db.py failed)"
     sleep 3
 done
+echo "--- Checking PostgreSQL Connection --- END ---"
 
 echo "PostgreSQL is ready!"
 
@@ -45,11 +49,13 @@ if [ -z "$COUCHBASE_ADMIN_URL" ]; then
     exit 1
 fi
 
+echo "--- Checking Couchbase Connection --- START ---"
 # Wait for Couchbase
 until curl -s "$COUCHBASE_ADMIN_URL/pools" > /dev/null; do
-    echo "Waiting for Couchbase at $COUCHBASE_ADMIN_URL..."
+    echo "Waiting for Couchbase at $COUCHBASE_ADMIN_URL... (curl failed or timed out)"
     sleep 3
 done
+echo "--- Checking Couchbase Connection --- END ---"
 
 # Drop tables if enabled
 if [ "$DROP_TABLES" = "true" ]; then
@@ -73,7 +79,10 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
     unset POSTGRES_DSN_POSEY_EXTERNAL
     # --------------------
     
+    echo "--- Running Alembic Upgrade --- START ---"
     alembic upgrade head
+    echo "--- Running Alembic Upgrade --- END ---"
+    
     cd /app # Change back to original directory
 
 else
@@ -101,3 +110,6 @@ echo "Starting API server..."
 uvicorn app.main:app --host 0.0.0.0 --port 5555 &
 PID=$!
 wait $PID
+
+echo "--- Script finished or Uvicorn exited, sleeping infinitely to keep container alive for debugging ---"
+sleep infinity

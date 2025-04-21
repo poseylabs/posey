@@ -28,6 +28,7 @@ import os
 import asyncio
 import logging
 from threading import Semaphore
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -179,100 +180,45 @@ class VoyagerMinion(BaseMinion):
     It uses a combination of search APIs and web scraping to gather information.
     """
     
-    def __init__(self, llm_config: Dict[str, Any] = None):
-        """Initialize the Voyager minion with configuration"""
-        super().__init__(
-            name="voyager",
-            description="Web research specialist capable of searching and analyzing online content",
-            abilities=[
-                {
-                    "name": "search",
-                    "description": "Search the web for information",
-                    "parameters": {
-                        "query": "The search query to execute",
-                        "max_results": "Maximum number of results to return (default: 5)",
-                        "strategy": "Search strategy configuration"
-                    }
-                },
-                {
-                    "name": "scrape",
-                    "description": "Scrape and extract content from a specific URL",
-                    "parameters": {
-                        "url": "The URL to scrape",
-                        "cache_policy": "Configuration for caching behavior"
-                    }
-                }
-            ],
-            llm_config=llm_config or LLM_CONFIG
-        )
-        
-        # Initialize HTTP client
-        self.client = httpx.AsyncClient(timeout=30.0, follow_redirects=True)
-        self.scrape_semaphore = asyncio.Semaphore(5)  # Limit concurrent scraping
-        
-        # Search provider setup
-        self.search_provider = os.environ.get("SEARCH_PROVIDER", "duckduckgo")
-        self.search_api_key = os.environ.get("SEARCH_API_KEY", "")
-        
-        # Initialize browser instance for content extraction
-        self.browser = WebContentExtractor()
-        
-        # List of known credible domains (example list - would be more extensive in production)
-        self.known_credible_domains = [
-            "wikipedia.org",
-            "bbc.com",
-            "reuters.com",
-            "nature.com",
-            "sciencedirect.com",
-            "nih.gov",
-            "edu",
-            "gov"
-        ]
-        
-        # List of suspicious TLDs (example list)
-        self.suspicious_tlds = [
-            ".xyz",
-            ".info",
-            ".biz",
-            ".cc",
-            ".tk"
-        ]
-        
-        # Setup base prompts
-        self._setup_prompts()
+    # __init__ removed - BaseMinion.__init__ called by registry
+    # Initialize attributes previously set in __init__ at class level or in setup
+    task_planner_agent: Optional[Agent] = None
+    execution_agent: Optional[Agent] = None
+    search_agent: Optional[Agent] = None
+    analysis_agent: Optional[Agent] = None
+    credibility_agent: Optional[Agent] = None
+    available_tools = ["web_search", "web_crawling", "content_scraping"]
+    client: Optional[httpx.AsyncClient] = None # Initialize in setup
+    scrape_semaphore: asyncio.Semaphore = asyncio.Semaphore(5)
+    search_provider: str = os.environ.get("SEARCH_PROVIDER", "duckduckgo") # Default, may be overridden by voyager service itself
+    search_api_key: str = os.environ.get("SEARCH_API_KEY", "") # May be needed if directly calling API, less likely if using service
+    browser: WebContentExtractor = WebContentExtractor() # Instantiate here
+    # Construct the voyager service URL from environment variables
+    voyager_domain: str = os.environ.get("VOYAGER_DOMAIN", "voyager")
+    voyager_port: str = os.environ.get("VOYAGER_PORT", "7777")
+    voyager_service_url: str = f"http://{voyager_domain}:{voyager_port}/voyager/search"
+    known_credible_domains = [
+        "wikipedia.org",
+        "bbc.com",
+        "reuters.com",
+        "nature.com",
+        "sciencedirect.com",
+        "nih.gov",
+        "edu",
+        "gov"
+    ]
+    suspicious_tlds = [
+        ".xyz", ".info", ".biz", ".cc", ".tk"
+    ]
 
-    def setup(self):
-        """Initialize minion-specific components"""
-        # Get base prompt with default context for initialization
-        base_prompt = generate_base_prompt(get_default_context())
-        
-        # Override system prompt to include base prompt
-        custom_system_prompt = "\n".join([
-            base_prompt,  # Start with shared base prompt
-            self.get_system_prompt()
-        ])
-        
-        logger.debug(f"System prompt configured for voyager minion")
+    async def setup(self) -> None:
+        """Initialize the httpx client."""
+        if not self.client:
+            self.client = httpx.AsyncClient(timeout=30.0)
+            logger.info("VoyagerMinion httpx client initialized.")
+        else:
+            logger.info("VoyagerMinion httpx client already initialized.")
 
-        # Create agents for different tasks
-        self.search_agent = self.create_agent(model_key="reasoning")
-        self.analysis_agent = self.create_agent(model_key="reasoning")
-        self.credibility_agent = self.create_agent(model_key="reasoning")
-        
-        # Initialize HTTP client for web operations
-        self.client = httpx.AsyncClient(
-            timeout=30.0,
-            follow_redirects=True,
-            headers={
-                "User-Agent": "Mozilla/5.0 (compatible; VoyagerBot/1.0; research-assistant)"
-            }
-        )
-        
-        # Initialize semaphores for concurrent operations
-        self.search_semaphore = Semaphore(3)
-        
-        logger.info(f"Voyager minion initialized with model: {LLM_CONFIG['reasoning']['model']}")
-    
     def create_prompt_context(self, context: Dict[str, Any], search_data: Dict[str, Any] = None) -> BasePromptContext:
         """Create a properly structured prompt context for web search operations
         
@@ -481,69 +427,149 @@ class VoyagerMinion(BaseMinion):
             return [base_query]
     
     async def search_web(self, query: str, strategy: SearchStrategy = None, context: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Perform a web search with the given query"""
+        """Perform a web search with the given query by calling the voyager service"""
         start_time = time.time()
-        
+
+        # Ensure client is initialized
+        if not self.client:
+            await self.setup()
+            if not self.client: # Check again after setup attempt
+                logger.error("VoyagerMinion client failed to initialize.")
+                return {
+                    "status": "error",
+                    "query": query,
+                    "results": [],
+                    "error": "HTTP client not initialized",
+                    "error_type": "configuration_error",
+                    "attempted_operation": "search_web",
+                    "metadata": {"execution_time": time.time() - start_time, "minion": "voyager"}
+                }
+
         try:
             # Default strategy if not provided
             if strategy is None:
                 strategy = SearchStrategy()
-            
-            # Create search-specific context data
+
+            # Create search-specific context data (optional for logging/internal use)
             search_data = {
                 "query": query,
                 "strategy": strategy.model_dump() if hasattr(strategy, "model_dump") else vars(strategy),
                 "operation": "search_web"
             }
-            
-            # Create proper prompt context
+            # Create proper prompt context (optional for logging/internal use)
             prompt_context = self.create_prompt_context(context, search_data)
+            logger.debug(f"Voyager search prompt context created: {prompt_context.model_dump()}") # Log the context
             
-            # Generate query variations for better coverage
-            query_variations = await self._generate_query_variations(query)
+            # --- Enhance the query using the minion's LLM --- 
+            enhanced_query = query # Default to original query
+            if self.agent:
+                try:
+                    # Get the task prompt for query enhancement
+                    enhancement_prompt = self.get_task_prompt(
+                        "enhance_search_query",
+                        context=prompt_context, # Pass the full context
+                        original_query=query
+                    )
+                    
+                    if enhancement_prompt:
+                        logger.info(f"Enhancing search query for: '{query}' using LLM.")
+                        # Run the agent to get the enhanced query string
+                        llm_result = await self.agent.run(enhancement_prompt)
+                        
+                        # Expecting a simple string result from the LLM
+                        if isinstance(llm_result, str) and llm_result.strip():
+                            enhanced_query = llm_result.strip()
+                            logger.info(f"LLM enhanced query to: '{enhanced_query}'")
+                        else:
+                            logger.warning(f"LLM query enhancement did not return a valid string. Result: {llm_result}")
+                    else:
+                         logger.warning("Task prompt 'enhance_search_query' not found or invalid.")
+
+                except Exception as llm_err:
+                    logger.error(f"Error during LLM query enhancement: {llm_err}", exc_info=True)
+                    # Proceed with the original query on error
+            else:
+                 logger.warning("VoyagerMinion agent not available for query enhancement.")
+            # --- End Query Enhancement ---
+
+            # Prepare payload matching the voyager service's SearchRequest model
+            payload = {
+                "query": enhanced_query, # Use the enhanced query
+                "limit": strategy.max_results, # Use max_sources from strategy for limit
+                "time_range": strategy.time_period # Use time_period from strategy for time_range
+            }
             
-            # Mock search results (would integrate with real search API)
-            search_results = []
-            for q in query_variations[:3]:  # Limit to 3 variations
-                # Simulate different results for each variation
-                mock_results = self._mock_search_results(q, 3)  # 3 results per variation
-                search_results.extend(mock_results)
+            # --- Added Logging --- 
+            logger.info(f"[VOYAGER_SERVICE_CALL] Attempting POST to {self.voyager_service_url}")
+            logger.debug(f"[VOYAGER_SERVICE_CALL] Payload: {json.dumps(payload)}")
+            # --- End Logging ---
             
-            # Remove duplicates based on URL
-            unique_results = []
-            seen_urls = set()
-            for result in search_results:
-                if result["url"] not in seen_urls:
-                    unique_results.append(result)
-                    seen_urls.add(result["url"])
+            # Call the voyager service
+            response = await self.client.post(self.voyager_service_url, json=payload, timeout=60.0)
             
-            # Sort by relevance (mock implementation)
-            sorted_results = sorted(
-                unique_results,
-                key=lambda x: x.get("relevance_score", 0),
-                reverse=True
-            )
+            # --- Added Logging --- 
+            logger.info(f"[VOYAGER_SERVICE_CALL] Response Status Code: {response.status_code}")
+            try:
+                service_results = response.json()
+                logger.debug(f"[VOYAGER_SERVICE_CALL] Raw Response JSON: {json.dumps(service_results)}")
+            except json.JSONDecodeError:
+                logger.error(f"[VOYAGER_SERVICE_CALL] Failed to decode JSON response. Raw text: {response.text[:500]}...")
+                service_results = {} # Set to empty dict on decode error
+            # --- End Logging ---
+
+            response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+            
+            search_results = service_results.get("results", [])
+            if not isinstance(search_results, list):
+                logger.warning(f"Voyager service response for 'results' was not a list: {type(search_results)}")
+                search_results = [] # Default to empty list if type is wrong
             
             execution_time = time.time() - start_time
-            logger.info(f"Web search completed in {execution_time:.2f}s: {query}")
-            
+            logger.info(f"Web search via Voyager service completed in {execution_time:.2f}s for query: {query}. Found {len(search_results)} results.")
+
             return {
                 "status": "success",
                 "query": query,
-                "results": sorted_results[:10],  # Limit to top 10
+                "results": search_results,
                 "metadata": {
                     "execution_time": execution_time,
-                    "total_results": len(sorted_results),
+                    "total_results": len(search_results),
                     "strategy": strategy.model_dump() if hasattr(strategy, "model_dump") else vars(strategy),
+                    "service_response_metadata": service_results.get("metadata", {}), # Include service metadata if available
                     "minion": "voyager"
                 }
             }
-            
-        except Exception as e:
-            error_msg = f"Error in web search: {str(e)}"
+
+        except httpx.RequestError as req_err:
+            error_msg = f"Error calling Voyager service: {req_err}"
             logger.error(error_msg)
-            logger.error(traceback.format_exc())
-            
+            error_traceback = traceback.format_exc()
+            return {
+                "status": "error",
+                "query": query,
+                "results": [],
+                "error": f"Network error contacting search service: {req_err}",
+                "error_type": "service_connection_error",
+                "attempted_operation": "search_web",
+                "metadata": {"execution_time": time.time() - start_time, "traceback": error_traceback, "minion": "voyager"}
+            }
+        except httpx.HTTPStatusError as status_err:
+            error_msg = f"Voyager service returned error status {status_err.response.status_code}: {status_err.response.text}"
+            logger.error(error_msg)
+            error_traceback = traceback.format_exc()
+            return {
+                "status": "error",
+                "query": query,
+                "results": [],
+                "error": f"Search service error ({status_err.response.status_code}): {status_err.response.text[:200]}...", # Limit error text length
+                "error_type": "service_error",
+                "attempted_operation": "search_web",
+                "metadata": {"execution_time": time.time() - start_time, "status_code": status_err.response.status_code, "traceback": error_traceback, "minion": "voyager"}
+            }
+        except Exception as e:
+            error_msg = f"Unexpected error during web search: {str(e)}"
+            logger.error(error_msg)
+            error_traceback = traceback.format_exc()
             return {
                 "status": "error",
                 "query": query,
@@ -551,15 +577,12 @@ class VoyagerMinion(BaseMinion):
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "attempted_operation": "search_web",
-                "metadata": {
-                    "execution_time": time.time() - start_time,
-                    "traceback": traceback.format_exc(),
-                    "minion": "voyager"
-                }
+                "metadata": {"execution_time": time.time() - start_time, "traceback": error_traceback, "minion": "voyager"}
             }
-    
+
     async def scrape_url(self, url: str, cache_policy: Dict[str, Any] = None, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Scrape content from a specific URL"""
+        logger.info(f"[VOYAGER] Entering scrape_url method for URL: {url}") # Added Log
         start_time = time.time()
         
         try:
@@ -660,6 +683,7 @@ class VoyagerMinion(BaseMinion):
     
     async def search_and_analyze(self, params: Dict[str, Any]) -> WebResponse:
         """Perform a complete search and analysis operation"""
+        logger.info("[VOYAGER] Entering search_and_analyze method.") # Added Log
         start_time = time.time()
         
         try:
@@ -778,6 +802,7 @@ class VoyagerMinion(BaseMinion):
     async def execute(self, params: Dict[str, Any], context: RunContext) -> Dict[str, Any]:
         """Execute web research operations"""
         operation = params.get("operation", "search")
+        logger.info(f"[VOYAGER] Entering execute method. Operation: '{operation}'") # Added Log
         start_time = time.time()
         
         try:
@@ -788,10 +813,12 @@ class VoyagerMinion(BaseMinion):
             params["context"] = run_context
             
             if operation == "search":
+                logger.info("[VOYAGER] Executing 'search' operation branch.") # Added Log
                 response = await self.search_and_analyze(params)
                 return response.model_dump()
                 
             elif operation == "scrape":
+                logger.info("[VOYAGER] Executing 'scrape' operation branch.") # Added Log
                 url = params.get("url")
                 if not url:
                     return {
@@ -843,38 +870,8 @@ class VoyagerMinion(BaseMinion):
             }
     
     async def cleanup(self):
-        """Clean up resources"""
-        await self.client.aclose()
-    
-    def _mock_search_results(self, query: str, count: int = 5) -> List[Dict[str, Any]]:
-        """Generate mock search results for demonstration/testing purposes"""
-        results = []
-        
-        # Some domains for variety
-        domains = [
-            "wikipedia.org",
-            "nytimes.com",
-            "github.com",
-            "stackoverflow.com",
-            "medium.com",
-            "harvard.edu",
-            "nasa.gov",
-            "bbc.com",
-            "cnn.com",
-            "arxiv.org"
-        ]
-        
-        # Generate mock results based on the query
-        for i in range(min(count, 10)):
-            domain = domains[i % len(domains)]
-            result = {
-                "title": f"Result {i+1} for {query}",
-                "url": f"https://www.{domain}/search?q={query.replace(' ', '+')}",
-                "snippet": f"This is a mock result snippet for the query '{query}' with some relevant information...",
-                "source_type": "website",
-                "publish_date": datetime.now().isoformat(),
-                "relevance_score": 0.9 - (i * 0.05)  # Decreasing relevance
-            }
-            results.append(result)
-        
-        return results
+        """Clean up resources, close the httpx client."""
+        if self.client:
+            await self.client.aclose()
+            logger.info("VoyagerMinion httpx client closed.")
+            self.client = None

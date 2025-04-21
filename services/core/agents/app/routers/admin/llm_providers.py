@@ -26,9 +26,11 @@ class LLMProviderUpdate(BaseModel):
     slug: Optional[str] = None
     api_base_url: Optional[str] = None
     api_key_secret_name: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class LLMProviderResponse(LLMProviderBase):
     id: UUID
+    is_active: bool
     created_at: datetime
     updated_at: datetime
 

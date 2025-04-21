@@ -1,9 +1,9 @@
 .sidebar {
   transition: width 0.6s ease-in-out;
-  overflow: hidden;
   height: 100%;
   &.sidebar-open {
     width: 333px;
+    min-width: 333px;
   }
 
   &.sidebar-closed {

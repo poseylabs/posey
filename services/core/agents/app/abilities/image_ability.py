@@ -1,8 +1,6 @@
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any
 from app.abilities.base import BaseAbility
 from app.config import logger
-import os
-import aiohttp
 import asyncio
 import base64
 from hashlib import md5

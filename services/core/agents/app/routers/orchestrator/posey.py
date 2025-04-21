@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request, Depends, Form, UploadFile, File
+from fastapi import APIRouter, HTTPException, Request, Depends, Form, UploadFile, File, Body
 from typing import Optional, List, Any, Dict
 from pydantic import BaseModel, UUID4, Field, model_validator, ValidationError, ConfigDict
 from datetime import datetime
@@ -12,6 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import time
 import traceback
+from app.utils.minion_registry import MinionRegistry
+from app.utils.result_types import AgentExecutionResult
+from app.utils.message_handler import extract_messages_from_context
+from app.minions.base import BaseMinion
+from app.utils.context import enhance_run_context, RunContext
+from app.config.prompts.base import get_location_from_ip
+from app.models.system import LocationInfo
 
 router = APIRouter(
     prefix="/orchestrator/posey",
@@ -26,109 +33,6 @@ class AgentExecutionResponse(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     usage: Optional[Dict[str, Any]] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-def format_run_result(result) -> Dict[str, Any]:
-    """Format a RunResult into a standardized API response"""
-    try:
-        # If result is a string representation of RunResult, extract the AgentExecutionResult data
-        if isinstance(result, str) and 'AgentExecutionResult' in result:
-            # Extract the AgentExecutionResult portion using string manipulation
-            start_idx = result.find('AgentExecutionResult(')
-            end_idx = result.rfind(')')
-            if start_idx != -1 and end_idx != -1:
-                exec_result_str = result[start_idx:end_idx+1]
-                # Parse the relevant fields
-                answer = exec_result_str.split("answer='")[1].split("'")[0] if "answer='" in exec_result_str else ""
-                confidence = float(exec_result_str.split("confidence=")[1].split(",")[0]) if "confidence=" in exec_result_str else 0.0
-                abilities_used = []
-                if "abilities_used=" in exec_result_str:
-                    abilities_str = exec_result_str.split("abilities_used=")[1].split("]")[0] + "]"
-                    try:
-                        abilities_used = eval(abilities_str)
-                    except:
-                        pass
-                
-                metadata = {}
-                if "metadata=" in exec_result_str:
-                    metadata_str = exec_result_str.split("metadata=")[1].split("}")[0] + "}"
-                    try:
-                        metadata = eval(metadata_str)
-                    except:
-                        pass
-                
-                return {
-                    "answer": answer,
-                    "confidence": confidence,
-                    "sources": [
-                        {
-                            "type": "agent_result",
-                            "name": "posey",
-                            "data": metadata
-                        }
-                    ],
-                    "metadata": {
-                        "processing_time": metadata.get("processing_time", 0.0),
-                        "agent_count": metadata.get("agent_count", 0),
-                        "abilities_used": abilities_used
-                    },
-                    "memory_updates": [],
-                    "usage": None  # Usage info is lost in string representation
-                }
-
-        # Original handling for proper RunResult object
-        if hasattr(result, 'data'):
-            data = result.data
-            return {
-                "answer": data.answer if hasattr(data, 'answer') else str(data),
-                "confidence": data.confidence if hasattr(data, 'confidence') else 0.0,
-                "sources": [
-                    {
-                        "type": "agent_result",
-                        "name": "posey",
-                        "data": data.metadata if hasattr(data, 'metadata') else {}
-                    }
-                ],
-                "metadata": {
-                    "processing_time": data.metadata.get("processing_time", 0.0) if hasattr(data, 'metadata') else 0.0,
-                    "agent_count": len(data.abilities_used) if hasattr(data, 'abilities_used') else 0,
-                    "abilities_used": data.abilities_used if hasattr(data, 'abilities_used') else []
-                },
-                "memory_updates": data.memory_updates if hasattr(data, 'memory_updates') else [],
-                "usage": {
-                    "requests": result._usage.requests,
-                    "request_tokens": result._usage.request_tokens,
-                    "response_tokens": result._usage.response_tokens,
-                    "total_tokens": result._usage.total_tokens
-                } if hasattr(result, '_usage') else None
-            }
-        
-        # Fallback for unexpected result structure
-        return {
-            "answer": str(result),
-            "confidence": 0.0,
-            "sources": [{"type": "agent_result", "name": "posey", "data": {}}],
-            "metadata": {
-                "processing_time": 0.0,
-                "agent_count": 0,
-                "abilities_used": []
-            },
-            "memory_updates": [],
-            "usage": None
-        }
-    except Exception as e:
-        logger.error(f"Error formatting run result: {str(e)}")
-        return {
-            "answer": "Error processing response",
-            "confidence": 0.0,
-            "sources": [{"type": "agent_result", "name": "posey", "data": {}}],
-            "metadata": {
-                "processing_time": 0.0,
-                "agent_count": 0,
-                "abilities_used": []
-            },
-            "memory_updates": [],
-            "usage": None
-        }
 
 class AgentMetadata(BaseModel):
     name: str
@@ -251,6 +155,50 @@ async def run_posey(
             logger.error(f"[RUN_POSEY / {request_id}] Validation error for payload: {e}")
             raise HTTPException(status_code=400, detail=f"Payload validation failed: {e}")
 
+        # --- MODIFICATION START: Prioritize prefs from payload ---
+        logger.debug(f"[RUN_POSEY / {request_id}] Raw payload data before RunRequest model: {run_request_data}") # Log raw data
+        
+        # Try getting preferences directly from the parsed payload first
+        payload_prefs = run_request_data.get("metadata", {}).get("preferences")
+        
+        if payload_prefs and isinstance(payload_prefs, dict):
+            logger.info(f"[RUN_POSEY / {request_id}] Using preferences found in request payload's metadata.")
+            user_prefs = payload_prefs
+            config_source_log = "payload"
+        else:
+            logger.info(f"[RUN_POSEY / {request_id}] Preferences not found or invalid in payload metadata. Checking request state...")
+            # Fallback: Check request.state (populated by auth middleware?)
+            if hasattr(request.state, 'user') and isinstance(request.state.user.get("preferences"), dict):
+                logger.info(f"[RUN_POSEY / {request_id}] Using preferences found in request.state.user.")
+                user_prefs = request.state.user["preferences"]
+                config_source_log = "request.state"
+            else:
+                 # Fallback: Fetch from DB
+                 logger.warning(f"[RUN_POSEY / {request_id}] Preferences not found in request state. Fetching from DB.")
+                 try:
+                     query_prefs = text("SELECT preferences FROM users WHERE id = :user_id")
+                     result_prefs = await db_session.execute(query_prefs, {"user_id": request.state.user["id"]})
+                     row_prefs = result_prefs.fetchone()
+                     # The DB likely stores the preferences JSON object directly
+                     db_prefs_data = row_prefs[0] if row_prefs and row_prefs[0] else None 
+                     if isinstance(db_prefs_data, dict):
+                          logger.info(f"[RUN_POSEY / {request_id}] Using preferences fetched from database.")
+                          user_prefs = db_prefs_data # Use the dict directly
+                          config_source_log = "database"
+                     else:
+                          logger.warning(f"[RUN_POSEY / {request_id}] No preferences found in DB or DB value is not a dictionary. Using empty dict.")
+                          user_prefs = {}
+                          config_source_log = "none (defaulting)"
+                 except Exception as db_err:
+                      logger.error(f"[RUN_POSEY / {request_id}] Error fetching preferences from DB: {db_err}", exc_info=True)
+                      user_prefs = {}
+                      config_source_log = "none (db_error)"
+
+        # Log the final source and content of user_prefs being used
+        logger.debug(f"[RUN_POSEY / {request_id}] Final user_prefs source: {config_source_log}")
+        logger.debug(f"[RUN_POSEY / {request_id}] Final user_prefs content being passed to PoseyAgent.create: {user_prefs}")
+        # --- MODIFICATION END ---
+
         # Log file details
         uploaded_file_info = []
         for file in files:
@@ -263,37 +211,82 @@ async def run_posey(
             # Potential: Save files temporarily or process them here if needed before passing to agent
             # Example: content = await file.read()
 
-        # Instantiate agent using the async factory method
-        posey_agent = await PoseyAgent.create(db=db_session)
+        # Get registry from app state
+        try:
+            registry: MinionRegistry = request.app.state.minion_registry
+        except AttributeError:
+            logger.critical(f"[RUN_POSEY / {request_id}] MinionRegistry not found in app state. Ensure it's initialized correctly.")
+            raise HTTPException(status_code=500, detail="Internal server error: Orchestrator configuration failed.")
 
-        # Get user preferences
-        query = text("""
-            SELECT preferences FROM users WHERE id = :user_id
-        """)
-        result = await db_session.execute(query, {"user_id": request.state.user["id"]})
-        row = result.fetchone()
-        user_prefs = row[0] if row and row[0] else {}
+        # Get pre-initialized minions from app state
+        try:
+            initialized_minions: Dict[str, BaseMinion] = request.app.state.initialized_minions
+            if not initialized_minions:
+                logger.warning(f"[RUN_POSEY / {request_id}] No minions were pre-initialized during startup. Posey may lack capabilities.")
+        except AttributeError:
+             logger.critical(f"[RUN_POSEY / {request_id}] initialized_minions not found in app state. Startup initialization likely failed.")
+             raise HTTPException(status_code=500, detail="Internal server error: Orchestrator configuration failed (minions).")
 
-        # Build context - include uploaded file info
+        # Instantiate agent using the async factory method, passing initialized minions AND preferences
+        posey_agent = await PoseyAgent.create(
+            db=db_session, 
+            registry=registry, 
+            initialized_minions=initialized_minions,
+            user_preferences=user_prefs # Pass the fetched preferences
+        )
+
+        # --- Determine Location (Prefs or IP Fallback) --- 
+        final_location: Optional[Dict[str, Any]] = None
+        # 1. Check user preferences (assuming location might be stored directly)
+        prefs_location = user_prefs.get("location")
+        if prefs_location and isinstance(prefs_location, dict):
+             # Assuming it's already a dict matching LocationInfo structure
+             try:
+                  # Validate structure slightly
+                  LocationInfo(**prefs_location) 
+                  final_location = prefs_location
+                  logger.info(f"[RUN_POSEY / {request_id}] Using location from user preferences.")
+             except ValidationError:
+                  logger.warning(f"[RUN_POSEY / {request_id}] Location in preferences is not a valid LocationInfo structure: {prefs_location}. Proceeding without location from prefs.")
+        elif prefs_location: # If it exists but isn't a dict
+             logger.warning(f"[RUN_POSEY / {request_id}] Location in preferences is not a dictionary: {prefs_location}. Proceeding without location from prefs.")
+
+        # 2. Fallback to IP lookup if not found/valid in prefs
+        if final_location is None:
+             logger.info(f"[RUN_POSEY / {request_id}] Location not found in preferences, attempting IP lookup.")
+             try:
+                  location_from_ip: Optional[LocationInfo] = get_location_from_ip()
+                  if location_from_ip:
+                       final_location = location_from_ip.model_dump(exclude_none=True) # Convert model to dict
+                       logger.info(f"[RUN_POSEY / {request_id}] Using location determined from IP: {final_location.get('city')}, {final_location.get('region')}")
+                  else:
+                       logger.warning(f"[RUN_POSEY / {request_id}] IP lookup did not return location information.")
+             except Exception as ip_err:
+                  logger.error(f"[RUN_POSEY / {request_id}] Error during IP location lookup: {ip_err}", exc_info=True)
+        # --- End Determine Location --- 
+
+        # Build context - include uploaded file info AND determined location
         context = {
             "user_id": request.state.user["id"],
             "request_id": request_id,
             "conversation_id": run_request.conversation_id,
             "preferences": {
                 "llm": {
-                    "provider": user_prefs.get("llm", {}).get("provider", LLM_CONFIG["default"]["provider"]),
-                    "model": user_prefs.get("llm", {}).get("model", LLM_CONFIG["default"]["model"])
+                    "provider": user_prefs.get("preferred_provider", LLM_CONFIG["default"]["provider"]),
+                    "model": user_prefs.get("preferred_model", LLM_CONFIG["default"]["model"])
                 },
                 "image": {
-                    "provider": user_prefs.get("image", {}).get("provider", "openai"),
-                    "model": user_prefs.get("image", {}).get("model", "dalle-3")
-                }
+                    "provider": user_prefs.get("preferred_image_provider", "openai"), # Assuming keys like these
+                    "model": user_prefs.get("preferred_image_model", "dall-e-3")
+                },
+                 # Include other relevant preferences from user_prefs
+                 **{k: v for k, v in user_prefs.items() if k not in ['preferred_provider', 'preferred_model', 'preferred_image_provider', 'preferred_image_model', 'location']} # Exclude location here
             },
+            "location": final_location, # Add the determined location object/dict
             "metadata": run_request.metadata,
-            "messages": run_request.messages, # Use messages from parsed payload
+            # Convert MessageModel objects to dicts for downstream compatibility
+            "messages": [m.model_dump() if hasattr(m, "model_dump") else dict(m) for m in run_request.messages] if run_request.messages else [],
             "uploaded_files": uploaded_file_info # Add info about uploaded files
-            # Potential: Pass file objects or paths if saved temporarily
-            # "file_objects": files # Be careful with large files in memory
         }
 
         # Derive prompt from messages (RunRequest validator handles this)
@@ -312,44 +305,77 @@ async def run_posey(
         logger.info(f"[RUN_POSEY / {request_id}] Running Posey agent with messages and {len(files)} files.")
         start_time = time.time()
         # Pass the prompt derived from messages (or originally provided)
-        execution_result = await posey_agent.run(prompt, context)
+        # --- Use the enhanced context --- 
+        execution_result: AgentExecutionResult = await posey_agent.run(prompt, context)
         end_time = time.time()
 
         # Log the result
         logger.info(f"Posey agent execution completed in {end_time - start_time:.2f}s")
         logger.info(f"Result type: {type(execution_result)}")
 
+        # Initialize response data with default values
         response_data = {
-            "answer": execution_result.answer,
-            "confidence": execution_result.confidence,
-            "sources": [
+            "answer": "Error processing response.",
+            "confidence": 0.0,
+            "sources": [],
+            "metadata": {
+                "processing_time": end_time - start_time,
+                "agent_count": 0,
+                "abilities_used": [],
+                "model": context["preferences"]["llm"]["model"],
+                "provider": context["preferences"]["llm"]["provider"],
+                "request_id": request_id,
+                "status": "error" # Default to error, update on success
+            },
+            "memory_updates": []
+        }
+
+        # Safely extract data from execution_result
+        if isinstance(execution_result, AgentExecutionResult):
+            response_data["answer"] = execution_result.answer
+            response_data["confidence"] = execution_result.confidence
+            response_data["sources"] = [
                 {
                     "type": "agent_result",
                     "name": "posey",
                     "data": execution_result.metadata.get('sources', [])
                 }
-            ],
-            "metadata": {
+            ]
+            # Merge metadata carefully, prioritizing specific fields
+            merged_metadata = {
+                # Base metadata from context/timing
                 "processing_time": end_time - start_time,
-                "agent_count": execution_result.metadata.get("agent_count", 0),
-                "abilities_used": execution_result.abilities_used,
+                "request_id": request_id,
                 "model": context["preferences"]["llm"]["model"],
-                "provider": context["preferences"]["llm"]["provider"]
-            },
-            "memory_updates": execution_result.metadata.get("memory_updates", [])
-        }
-        
-        # Add LLM usage data if available
-        if hasattr(execution_result, '_usage'):
-            response_data["metadata"]["usage"] = {
-                'requests': execution_result._usage.requests if hasattr(execution_result._usage, 'requests') else 0,
-                'request_tokens': execution_result._usage.request_tokens if hasattr(execution_result._usage, 'request_tokens') else 0,
-                'response_tokens': execution_result._usage.response_tokens if hasattr(execution_result._usage, 'response_tokens') else 0,
-                'total_tokens': execution_result._usage.total_tokens if hasattr(execution_result._usage, 'total_tokens') else 0
+                "provider": context["preferences"]["llm"]["provider"],
+                # Fields from execution_result.metadata
+                **execution_result.metadata,
+                # Fields from execution_result directly
+                "abilities_used": execution_result.abilities_used,
+                "status": "success" # Update status
             }
-        
+            response_data["metadata"] = merged_metadata
+            response_data["memory_updates"] = execution_result.metadata.get("memory_updates", [])
+            
+            # Add LLM usage data if available inside execution_result.metadata
+            if execution_result.metadata.get("usage"):
+                 response_data["metadata"]["usage"] = execution_result.metadata["usage"]
+            # Check for _usage attribute as a fallback (might be set by pydantic-ai Agent)
+            elif hasattr(execution_result, '_usage'):
+                 response_data["metadata"]["usage"] = {
+                    'requests': execution_result._usage.requests if hasattr(execution_result._usage, 'requests') else 0,
+                    'request_tokens': execution_result._usage.request_tokens if hasattr(execution_result._usage, 'request_tokens') else 0,
+                    'response_tokens': execution_result._usage.response_tokens if hasattr(execution_result._usage, 'response_tokens') else 0,
+                    'total_tokens': execution_result._usage.total_tokens if hasattr(execution_result._usage, 'total_tokens') else 0
+                 }
+        else:
+             # Handle unexpected result type (e.g., string)
+             logger.warning(f"[RUN_POSEY / {request_id}] Unexpected result type: {type(execution_result)}. Attempting to parse string.")
+             response_data["answer"] = str(execution_result) # Use the raw string as answer
+             response_data["metadata"]["status"] = "partial_success" # Indicate potential issue
+
         return {
-            "success": True,
+            "success": True, # Indicate API call succeeded, check metadata.status for agent status
             "data": response_data
         }
 
@@ -358,4 +384,126 @@ async def run_posey(
         logger.error(traceback.format_exc())
         # Log payload for debugging, be mindful of sensitive data/large files
         logger.info(f"[RUN_POSEY / {request_id}] Payload (first 200 chars): {payload[:200]}...")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return error structure consistent with successful run data shape
+        error_data = {
+             "answer": f"An internal error occurred: {str(e)}",
+             "confidence": 0.0,
+             "sources": [],
+             "metadata": {
+                "processing_time": time.time() - start_time if 'start_time' in locals() else 0,
+                "agent_count": 0,
+                "abilities_used": [],
+                "request_id": request_id,
+                "status": "failed",
+                "error_message": str(e)
+             },
+             "memory_updates": []
+        }
+        return {
+             "success": False,
+             "data": error_data
+        }
+
+@router.post(
+    "/run", 
+    response_model=AgentExecutionResult,
+    summary="Run the Posey Orchestrator Agent",
+    description="Executes the main Posey orchestration pipeline with the given prompt or messages."
+)
+async def run_posey_orchestration(
+    fastapi_request: Request,
+    payload: Dict[str, Any] = Body(...),
+    db_session: AsyncSession = Depends(get_db),
+):
+    """Endpoint to run the full Posey agent orchestration."""
+    start_time = time.time()
+    request_id = str(uuid4())
+
+    try:
+        registry: MinionRegistry = fastapi_request.app.state.minion_registry
+    except AttributeError:
+        logger.critical("MinionRegistry not found in app state. Ensure it's initialized correctly.")
+        raise HTTPException(status_code=500, detail="Internal server error: Orchestrator configuration failed.")
+        
+    try:
+        user_id: str = fastapi_request.state.user_id 
+    except AttributeError:
+        logger.error(f"Request {request_id} failed: User ID not found in request state.")
+        raise HTTPException(status_code=401, detail="Authentication required or user context missing.")
+
+    logger.info(f"Received request {request_id} for Posey orchestration from user {user_id}")
+
+    # Prepare context using the raw payload dictionary
+    initial_context = payload.get("context", {}) or {} # Get context dict or default to empty
+    initial_context["user_id"] = user_id
+    initial_context["request_id"] = request_id
+    
+    # Extract prompt and messages directly from the payload dict
+    prompt = payload.get("prompt")
+    messages_data = payload.get("messages") # Messages might be passed directly
+    
+    # Use extract_messages_from_context which handles None prompt/messages
+    messages = extract_messages_from_context(initial_context, prompt, messages_data)
+
+    if not messages:
+        logger.error(f"Request {request_id} failed: No prompt or messages could be determined from payload.")
+        raise HTTPException(status_code=400, detail="Prompt or messages list is required in payload.")
+
+    try:
+        # Get pre-initialized minions from app state
+        try:
+            initialized_minions: Dict[str, BaseMinion] = fastapi_request.app.state.initialized_minions
+            if not initialized_minions:
+                 logger.warning(f"Request {request_id}: No minions were pre-initialized during startup. Posey may lack capabilities.")
+        except AttributeError:
+            logger.critical(f"Request {request_id}: initialized_minions not found in app state. Startup initialization likely failed.")
+            raise HTTPException(status_code=500, detail="Internal server error: Orchestrator configuration failed (minions).")
+            
+        # Get user preferences
+        query = text("""
+            SELECT preferences FROM users WHERE id = :user_id
+        """)
+        result = await db_session.execute(query, {"user_id": user_id})
+        row = result.fetchone()
+        user_prefs = row[0] if row and row[0] else {}
+
+        # Create PoseyAgent instance, passing the registry and session
+        posey_agent = await PoseyAgent.create(
+            db=db_session, 
+            registry=registry,
+            initialized_minions=initialized_minions,
+            user_preferences=user_prefs
+        )
+        
+        # Run the orchestration
+        result: AgentExecutionResult = await posey_agent.run_with_messages(
+            messages=messages,
+            context=initial_context
+        )
+        
+        end_time = time.time()
+        logger.info(f"Posey orchestration request {request_id} completed internally in {end_time - start_time:.2f} seconds.")
+
+        # Add request_id and processing_time to metadata if not present
+        if not result.metadata:
+             result.metadata = {}
+        result.metadata.setdefault("request_id", request_id)
+        result.metadata.setdefault("processing_time", end_time - start_time)
+
+        # Check if the result indicates a pending background task
+        if result.metadata and result.metadata.get("status") == "pending" and result.metadata.get("task_id"):
+            logger.info(f"Orchestration resulted in a pending background task: {result.metadata['task_id']}")
+            # Return the AgentExecutionResult containing the pending status and task_id
+            # The schema already supports this via the metadata field.
+            return result
+        else:
+            # Return the final computed result directly
+            logger.info(f"Orchestration completed with a direct result.")
+            return result
+
+    except ValueError as ve:
+        logger.error(f"Request {request_id} failed due to value error: {ve}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Request {request_id} failed due to unexpected error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred during orchestration.")

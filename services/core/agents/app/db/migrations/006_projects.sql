@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS user_tags (
     UNIQUE(user_id, name)
 );
 
+-- Ensure user_id column exists before indexing
+ALTER TABLE user_tags ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id);
+-- Add NOT NULL constraint if needed (assuming it should always be there)
+ALTER TABLE user_tags ALTER COLUMN user_id SET NOT NULL;
+
 CREATE TABLE IF NOT EXISTS projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
@@ -65,6 +70,17 @@ CREATE TABLE IF NOT EXISTS projects (
     UNIQUE(user_id, title)
 );
 
+-- Ensure key columns exist before indexing or adding constraints
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS status project_status DEFAULT 'active';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS focus project_focus DEFAULT 'DEFAULT';
+-- Add NOT NULL constraints if needed
+ALTER TABLE projects ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE projects ALTER COLUMN title SET NOT NULL;
+ALTER TABLE projects ALTER COLUMN status SET NOT NULL;
+ALTER TABLE projects ALTER COLUMN focus SET NOT NULL;
+
 CREATE TABLE IF NOT EXISTS project_tags (
     project_id UUID REFERENCES projects(id) NOT NULL,
     tag_id UUID NOT NULL,
@@ -72,6 +88,15 @@ CREATE TABLE IF NOT EXISTS project_tags (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (project_id, tag_id)
 );
+
+-- Ensure columns exist before indexing
+ALTER TABLE project_tags ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id);
+ALTER TABLE project_tags ADD COLUMN IF NOT EXISTS tag_id UUID;
+ALTER TABLE project_tags ADD COLUMN IF NOT EXISTS is_system_tag BOOLEAN;
+-- Add NOT NULL constraints if needed
+ALTER TABLE project_tags ALTER COLUMN project_id SET NOT NULL;
+ALTER TABLE project_tags ALTER COLUMN tag_id SET NOT NULL;
+ALTER TABLE project_tags ALTER COLUMN is_system_tag SET NOT NULL;
 
 CREATE TABLE IF NOT EXISTS project_collaborators (
     project_id UUID REFERENCES projects(id) NOT NULL,
@@ -82,6 +107,15 @@ CREATE TABLE IF NOT EXISTS project_collaborators (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (project_id, user_id)
 );
+
+-- Ensure columns exist before indexing
+ALTER TABLE project_collaborators ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id);
+ALTER TABLE project_collaborators ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id);
+ALTER TABLE project_collaborators ADD COLUMN IF NOT EXISTS role TEXT;
+-- Add NOT NULL constraints if needed
+ALTER TABLE project_collaborators ALTER COLUMN project_id SET NOT NULL;
+ALTER TABLE project_collaborators ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE project_collaborators ALTER COLUMN role SET NOT NULL;
 
 -- Add foreign key constraints
 DO $$ 

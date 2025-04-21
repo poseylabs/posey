@@ -22,8 +22,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@posey.ai/core": "workspace:^",
-    "@posey.ai/state": "workspace:^",
     "axios": "^1.8.4",
     "clsx": "^2.1.1",
     "lodash": "^4.17.21",
@@ -91,7 +89,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "^4.1.3",
-    "zustand": "^5.0.3"
+    "zustand": "^5.0.3",
+    "@posey.ai/state": "workspace:^",
+    "@posey.ai/core": "workspace:^"
   },
   "exports": {
     ".": {

@@ -28,6 +28,12 @@ CREATE TABLE IF NOT EXISTS agents (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Explicitly add columns if they don't exist, before creating indexes
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS provider_id UUID REFERENCES llm_providers(id);
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS model_id UUID REFERENCES llm_models(id);
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS type agent_type DEFAULT 'default';
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS status agent_status DEFAULT 'active';
+
 -- Add indexes
 CREATE INDEX IF NOT EXISTS idx_agents_provider_id ON agents(provider_id);
 CREATE INDEX IF NOT EXISTS idx_agents_model_id ON agents(model_id);

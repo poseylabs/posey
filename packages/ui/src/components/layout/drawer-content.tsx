@@ -61,13 +61,13 @@ export function DrawerContent({
   }, [conversations, hasFetched]);
 
   return (
-    <ContentWrapper className={mergeClasses('posey-drawer', className, drawerClass)}>
+    <div className={mergeClasses('posey-drawer', className, drawerClass)}>
       <div className={mergeClasses('posey-sidebar', drawerClass)}>
         {sidebar}
       </div>
       <div className={mergeClasses('posey-drawer-content', drawerClass, stickyFooterClass)}>
         {children}
       </div>
-    </ContentWrapper>
+    </div>
   );
 }

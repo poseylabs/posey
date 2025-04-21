@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AgentResponse, AgentService, AgentState } from '@posey.ai/core';
+import { AgentResponse, AgentService, AgentState, Message } from '@posey.ai/core';
 
 interface ErrorResponse {
   message: string;
@@ -19,9 +19,13 @@ class Agent {
     throw new Error(error.message || 'Agent service request failed');
   }
 
-  async call(prompt: string): Promise<AgentResponse> {
-    const response = await this.service.call(prompt) as unknown as AgentResponse;
-    return response;
+  async call(params: {
+    messages: Message[];
+    conversationId?: string;
+    metadata?: Record<string, any>;
+    files?: File[];
+  }): Promise<AgentResponse> {
+    return await this.service.call(params) as AgentResponse;
   }
 
   async checkHealth(): Promise<boolean> {

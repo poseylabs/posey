@@ -174,8 +174,6 @@ deploy_service() {
   log_info "Successfully built $image_name:$IMAGE_TAG"
 
   # Uninstall previous releases to avoid conflicts
-  log_info "Attempting to uninstall existing Helm release matching directory name '$service_name' if it exists..."
-  helm uninstall "$service_name" -n "$NAMESPACE" --wait --timeout 1m || true # Clean up old naming scheme
   log_info "Attempting to uninstall existing Helm release matching target name '$helm_release_name' if it exists..."
   helm uninstall "$helm_release_name" -n "$NAMESPACE" --wait --timeout 1m || true # Clean up current naming scheme
 

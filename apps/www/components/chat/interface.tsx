@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePoseyState } from '@posey.ai/state';
-import { Conversation, ConversationStatus, Message } from '@posey.ai/core';
+import { Conversation, ConversationStatus } from '@posey.ai/core';
+import type { Message } from "@posey.ai/core";
 
 import {
   ChatInput,
@@ -12,8 +13,21 @@ import {
 } from '@posey.ai/ui';
 
 import './interface.css';
+import { isEqual } from 'lodash';
 
-export function ChatInterface() {
+interface ChatInterfaceProps {
+  initialConversation: Conversation | null;
+}
+
+// Define a type for the location data
+interface LocationData {
+  latitude?: number; // Make optional
+  longitude?: number; // Make optional
+  city?: string; // Optional: if reverse geocoding is done later
+  error?: string; // To store potential errors
+}
+
+export function ChatInterface({ initialConversation }: ChatInterfaceProps) {
 
   // Refs
   const processedConversations = useRef(new Set<string>());
@@ -22,7 +36,7 @@ export function ChatInterface() {
 
   // State
   const [conversationTitle, setConversationTitle] = useState<string>('New Conversation');
-  const [input, setInput] = useState<string>('');
+  const [input, setInput] = useState<string>("what's the weather this weekend?");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingState, setProcessingState] = useState<{
@@ -31,15 +45,45 @@ export function ChatInterface() {
   }>({ id: null, status: 'pending' });
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [status, setStatus] = useState<string>('idle');
+  const [browserLocation, setBrowserLocation] = useState<LocationData | null>(null);
 
-  // Select the whole chat slice
-  const chat = usePoseyState((state) => state.chat);
-  // Derive conversation and messages from the chat slice
-  const currentConversation = chat.currentConversation;
+  const state = usePoseyState();
+  const messages = state.chat.currentConversation?.messages || [];
+
+  const currentConversation = usePoseyState((state) => state.chat.currentConversation);
   const conversationId = currentConversation?.id;
-  const messages = currentConversation?.messages ?? [];
+  const conversationStatus = usePoseyState((state) => state.chat.currentConversation?.status);
+  const updateConversation = usePoseyState((state) => state.updateConversation);
 
-  const { callAgent, setConversation } = useConversation();
+  const { callAgent } = useConversation({
+    initialConversationId: initialConversation?.id,
+  });
+
+  // --- Fetch Browser Location on Mount --- 
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setBrowserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+          console.log('Browser location acquired:', position.coords);
+        },
+        (error) => {
+          console.warn(`Geolocation error: ${error.message}`);
+          // Now valid as lat/lon are optional
+          setBrowserLocation({ error: error.message });
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 } // Options: low accuracy, 10s timeout, cache for 10min
+      );
+    } else {
+      console.log('Geolocation is not supported by this browser.');
+      // Now valid as lat/lon are optional
+      setBrowserLocation({ error: 'Geolocation not supported' });
+    }
+  }, []); // Run only once on mount
+  // --- End Fetch Browser Location --- 
 
   const handleSubmit = async (data: any) => {
     const messageContent = data.message;
@@ -53,14 +97,18 @@ export function ChatInterface() {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         language: navigator.language,
         user_agent: navigator.userAgent,
+        // Add location data if available
+        location: browserLocation,
       };
 
-      await callAgent({
+      const response = await callAgent({
         message: messageContent,
         metadata: {
           browser: browserMetadata
         },
       });
+
+      console.log("AGENT RESPONSE", response);
 
       setInput('');
       setStatus('idle');
@@ -98,9 +146,7 @@ export function ChatInterface() {
     }
   }, [conversationId, conversationTitle]);
 
-  const updateConversation = useCallback(async (id: string, updates: Partial<Conversation>) => {
-    // TODO: update conversation
-  }, []);
+  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
     // Only process if:
@@ -111,64 +157,78 @@ export function ChatInterface() {
     // 5. We're not currently processing anything
     if (
       currentConversation?.id &&
-      currentConversation.status === ConversationStatus.NEW &&
-      currentConversation.messages?.length === 1 &&
+      // currentConversation.status === ConversationStatus.NEW && // MODIFIED
+      // currentConversation.messages?.length === 1 && // MODIFIED
+      conversationStatus === ConversationStatus.NEW && // Use specific selector
+      messages?.length === 1 && // Use specific selector length
       !processedConversations.current.has(currentConversation.id) &&
       processingState.status !== 'processing' && processingState.status !== 'error'
     ) {
-      console.log("Starting to process conversation:", currentConversation.id);
 
-      // Immediately mark as processing to prevent duplicate calls
-      setProcessingState({ id: currentConversation.id, status: 'processing' });
-      processedConversations.current.add(currentConversation.id);
-      setIsProcessing(true);
-      setStatus('loading');
-      setStatusMessage('Processing your message...');
+      if (!hasFetched) {
+        setHasFetched(true);
+        console.log("Starting to process conversation:", currentConversation.id);
 
-      const firstMessage = currentConversation.messages[0];
-      console.log("FIRST MESSAGE", firstMessage);
+        // Immediately mark as processing to prevent duplicate calls
+        setProcessingState({ id: currentConversation.id, status: 'processing' });
+        processedConversations.current.add(currentConversation.id);
+        setIsProcessing(true);
+        setStatus('loading');
+        setStatusMessage('Processing your message...');
 
-      const browserMetadata = {
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        language: navigator.language,
-        user_agent: navigator.userAgent,
-      };
+        const firstMessage = messages?.[0];
+        console.log("FIRST MESSAGE", firstMessage);
 
-      callAgent({
-        message: firstMessage?.content || '',
-        metadata: {
-          browser: browserMetadata
-        },
-        firstContact: true
-      })
-        .then((response: any) => {
-          console.log("AGENT RESPONSE", response);
-          setStatus('idle');
-          setStatusMessage('');
-          setProcessingState({ id: currentConversation.id, status: 'completed' });
+        const browserMetadata = {
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          language: navigator.language,
+          user_agent: navigator.userAgent,
+          // Add location data if available
+          location: browserLocation,
+        };
+
+        callAgent({
+          message: firstMessage?.content || '',
+          metadata: {
+            browser: browserMetadata
+          },
+          firstContact: true
         })
-        .catch((error: any) => {
-          console.error('Error processing new conversation:', error);
-          setStatus('error');
-          setStatusMessage('Failed to process message. Please try again.');
-          // Remove from processed set on error to allow retry
-          processedConversations.current.delete(currentConversation.id);
-          setProcessingState({ id: currentConversation.id, status: 'error' });
-        })
-        .finally(() => {
-          setIsProcessing(false);
-        });
+          .then((response: any) => {
+            console.log("AGENT RESPONSE", response);
+            setStatus('idle');
+            setStatusMessage('');
+            setProcessingState({ id: currentConversation.id, status: 'completed' });
+          })
+          .catch((error: any) => {
+            console.error('Error processing new conversation:', error);
+            setStatus('error');
+            setStatusMessage('Failed to process message. Please try again.');
+            // Remove from processed set on error to allow retry
+            processedConversations.current.delete(currentConversation.id);
+            setProcessingState({ id: currentConversation.id, status: 'error' });
+            setHasFetched(false);
+          })
+          .finally(() => {
+            setIsProcessing(false);
+          });
+      }
+
     }
   }, [
     currentConversation?.id,
-    currentConversation?.status,
-    currentConversation?.messages?.length,
+    // currentConversation?.status, // REMOVED
+    // currentConversation?.messages?.length, // REMOVED
+    conversationStatus, // Use specific selector
+    messages?.length ?? 0, // Add fallback for initial undefined state
     processingState.status,
+    hasFetched,
     setIsProcessing,
     setStatus,
     setStatusMessage,
     callAgent,
-    setProcessingState
+    setProcessingState,
+    browserLocation
   ]);
 
   return (
@@ -204,7 +264,10 @@ export function ChatInterface() {
         className="chat-interface-content-main"
       >
         <div className="chat-interface-content">
-          <MessageList messages={messages as any as Message[]} />
+          <MessageList
+            key={`messages-${conversationId}-${messages.length}`}
+            messages={messages}
+          />
         </div>
       </div>
 

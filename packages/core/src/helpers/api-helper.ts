@@ -113,10 +113,29 @@ export class ApiHelper {
       headers,
     });
 
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    // Handle 204 No Content specifically
+    if (response.status === 204 || response.status === 200) {
+      return null; // Or return { success: true };
     }
 
+    // Handle other non-OK responses
+    if (!response.ok) {
+      let errorDetail = `API Error: ${response.status} ${response.statusText}`;
+      try {
+        // Attempt to parse error details from the response body
+        const errorData = await response.json();
+        errorDetail = errorData?.detail || errorDetail;
+      } catch (e) {
+        // Ignore if parsing fails (e.g., non-JSON error response)
+        console.error('Failed to parse error response body:', e);
+      }
+      // Throw an error object similar to how frontend expects it for better parsing
+      const error: any = new Error(errorDetail);
+      error.response = { data: { detail: errorDetail } }; // Mimic structure used in frontend catch blocks
+      throw error;
+    }
+
+    // For other successful responses (e.g., 200 OK with body), parse JSON
     return response.json();
   }
 }

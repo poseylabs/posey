@@ -10,10 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libc6-dev \
   && pip install --upgrade pip \
   && pip install wheel \
-  && pip wheel --only-binary :all: -r requirements.txt -w /wheels \
+  && pip wheel -r requirements.txt -w /wheels \
   && rm -rf /var/lib/apt/lists/*
 
-# Production stage
 FROM python:3.12-slim
 
 WORKDIR /src

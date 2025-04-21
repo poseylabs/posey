@@ -154,6 +154,7 @@ class Settings(BaseSettings):
     QDRANT_PORT: int = 6333 # Default REST port
     QDRANT_GRPC_PORT: int = 6334 # Default gRPC port
     QDRANT_HOST: str = "posey-qdrant" # Default to Kubernetes service name
+    QDRANT_COLLECTION_NAME: str = "posey-agent-memory" # Default collection for vector store
     ENABLE_QDRANT: bool = True
     QDRANT_API_KEY: Optional[str] = Field(None, alias='QDRANT__SERVICE__API_KEY') # Add Qdrant API Key
 

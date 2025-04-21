@@ -11,7 +11,7 @@
 }
 
 .posey-drawer-content {
-  align-items: center;
+  /* align-items: center; */
   display: grid;
   grid-template-rows: auto 1fr;
   opacity: 1;

@@ -10,11 +10,11 @@ export function ChatProvider({
 }: {
   conversation: Conversation | null
 }) {
-  // Add ref to track if we've already set this conversation
-  const hasSetConversation = useRef(false);
 
+  const hasSetConversation = useRef(false);
   const state = usePoseyState();
 
+  // Use custom select method
   const {
     currentConversation,
     setCurrentConversation,
@@ -24,24 +24,32 @@ export function ChatProvider({
   }));
 
   useEffect(() => {
-    // Only set the conversation if:
-    // 1. We have a valid conversation from the server
-    // 2. Either it's different from the current one OR we haven't set one yet
-    // 3. We haven't already handled this specific conversation (prevents double processing)
+    console.log('[ChatProvider useEffect] Running effect. Conversation prop:', conversation);
+    console.log('[ChatProvider useEffect] Current state conversation:', currentConversation);
+    console.log('[ChatProvider useEffect] Current state conversation (RAW):', state.chat.currentConversation);
+    console.log('[ChatProvider useEffect] Has already set conversation ref:', hasSetConversation.current);
+    // --- This useEffect might become redundant or act as a fallback --- 
+    // We keep it for now to handle potential updates if the conversation prop changes later
     if (
       conversation &&
       conversation.id &&
       (conversation.id !== currentConversation?.id || !currentConversation) &&
-      !hasSetConversation.current
+      !hasSetConversation.current // Check the ref again, though the above block should handle the initial set
     ) {
-      // Mark that we've handled this conversation
+      console.log(`[ChatProvider useEffect] Conditions met (Effect Fallback/Update). Setting conversation in state with ID: ${conversation.id}`);
+      // Mark that we've handled this conversation (redundant if render logic worked, but safe)
       hasSetConversation.current = true;
 
       // Set the conversation in state
       setCurrentConversation(conversation);
+    } else {
+      // Avoid logging "skipped" if the render logic already handled it.
+      if (!(conversation && conversation.id && hasSetConversation.current && currentConversation?.id === conversation.id)) {
+        console.log('[ChatProvider useEffect] Conditions NOT met or already handled. State update skipped.');
+      }
     }
-  }, [conversation, currentConversation, setCurrentConversation]);
+  }, [conversation, currentConversation, setCurrentConversation, state.chat.currentConversation]);
 
-  return <ChatInterface />;
+  return <ChatInterface initialConversation={currentConversation} />;
   // return <div>Chat Provider</div>;
 }

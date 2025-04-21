@@ -11,7 +11,12 @@
     "deploy:local:core": "bash lib/scripts/deploy-local-services.sh --app core",
     "deploy:agents": "bash lib/scripts/deploy-local-services.sh --app posey-agents",
     "deploy:auth": "bash lib/scripts/deploy-local-services.sh --app posey-auth",
-    "deploy:qdrant": "bash lib/scripts/deploy-local-services.sh --app posey-qdrant"
+    "deploy:couchbase": "bash lib/scripts/deploy-local-services.sh --app posey-couchbase",
+    "deploy:qdrant": "bash lib/scripts/deploy-local-services.sh --app posey-qdrant",
+    "deploy:voyager": "bash lib/scripts/deploy-local-services.sh --app posey-voyager",
+    "secrets": "yarn secrets:k8 && yarn secrets:circleci",
+    "secrets:k8": "bash lib/scripts/sync-secrets-k8.sh",
+    "secrets:circleci": "bash lib/scripts/sync-secrets-circleci.sh"
   },
   "devDependencies": {
     "husky": "^9.1.7",

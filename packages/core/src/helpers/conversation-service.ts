@@ -16,31 +16,34 @@ export class ConversationService {
   constructor({
     currentConversationId = '',
     conversation = undefined,
-    user = ''
+    user = '',
+    fetchData = false
   }: {
     currentConversationId?: string;
     conversation?: Conversation;
     user?: string;
+    fetchData?: boolean;
   }) {
 
     if (!user) {
-      // throw new Error('User ID is required');
       console.warn('Starting conversation with no user ID, assume it will be updated when JWT loads.');
     }
 
-    this.currentConversationId = currentConversationId;
-    this.userID = user;
+    this.currentConversationId = currentConversationId ?? '';
+    this.userID = user ?? '';
 
     if (typeof conversation === 'object') {
       this.conversation = conversation;
       this.isReady = true;
-    } else if (currentConversationId) {
-      this.getConversation(currentConversationId).then((conversation) => {
-        this.conversation = conversation;
+    } else if (fetchData && currentConversationId) {
+      this.getConversation(currentConversationId).then((_conversation) => {
+        this.conversation = _conversation;
         this.isReady = true;
+      }).catch(err => {
+        console.error(`Failed to fetch conversation ${currentConversationId} during construction:`, err);
+        this.isReady = false;
       })
     } else {
-      console.warn("Initialized without conversation ID or object");
       this.isReady = true;
     }
 
@@ -92,7 +95,8 @@ export class ConversationService {
 
     try {
       const response: FetchResponse = await fetch(`${this.apiBase}/${this.currentConversationId}/messages/${messageId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -109,7 +113,8 @@ export class ConversationService {
   async deleteConversation(conversationId: string) {
     try {
       const response: FetchResponse = await fetch(`${this.apiBase}/${conversationId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -147,7 +152,9 @@ export class ConversationService {
   }
 
   async getAllConversations(): Promise<Conversation[]> {
-    const response: FetchResponse = await fetch(`${this.apiBase}`);
+    const response: FetchResponse = await fetch(`${this.apiBase}`, {
+      credentials: 'include'
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch conversations');
     }
@@ -157,7 +164,9 @@ export class ConversationService {
   async getConversation(conversationId: string): Promise<Conversation> {
     try {
       this.currentConversationId = conversationId;
-      const response: FetchResponse = await fetch(`${this.apiBase}/${conversationId}`);
+      const response: FetchResponse = await fetch(`${this.apiBase}/${conversationId}`, {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch conversation');
       }
@@ -246,6 +255,14 @@ export class ConversationService {
       this.conversation = conversation;
       this.currentConversationId = conversation.id;
       this.isReady = true;
+      console.log('CONVERSATION SERVICE SET CONVERSATION:', conversation.id);
+    } else {
+      console.log('CONVERSATION SERVICE SET CONVERSATION: SKIPPED', {
+        conversationId: conversation?.id,
+        selfConversationId: self.currentConversationId,
+        selfConversation: self.conversation,
+        isReady: self.isReady
+      });
     }
   }
 
@@ -257,6 +274,7 @@ export class ConversationService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           title: this.generateTitle(),
           meta: {},
@@ -283,7 +301,17 @@ export class ConversationService {
         metadata: {}
       });
 
-      return messageResponse;
+      // Add the message response to the conversation object before returning
+      // Assuming the conversation object has a 'messages' array
+      if (this.conversation && messageResponse) {
+          if (!this.conversation.messages) {
+              this.conversation.messages = [];
+          }
+          this.conversation.messages.push(messageResponse);
+      }
+
+      // Return the full conversation object, including the ID and the newly added message
+      return this.conversation;
     } catch (error) {
       console.error('Error starting conversation:', error);
       throw error;
@@ -303,6 +331,7 @@ export class ConversationService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(conversation)
       });
 
@@ -328,6 +357,7 @@ export class ConversationService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(updates)
       });
 

@@ -1,26 +1,25 @@
-from typing import Dict, Any, Protocol, Optional, Type
+from typing import Dict, Any, Protocol, Optional
 from pydantic_ai import RunContext, Agent
 from app.config.prompts import PromptLoader
 from app.config import logger
-from app.config.defaults import LLM_CONFIG
-from app.utils.result_types import AgentExecutionResult
 import json
 
 class BaseMinion:
     """Base class for all minions with shared functionality"""
-    
     name: str
+    display_name: str
     description: str
     prompts: Dict[str, Any]
     agent: Optional[Agent] = None
+    prompt_category: str
     
-    def __init__(self, name: str, description: str, prompt_category: str = "agents"):
-        """Initialize minion with name, description and load prompts"""
+    def __init__(self, name: str, display_name: str, description: str, prompt_category: str = "agents"):
+        """Initialize minion with name, display_name, description and load prompts"""
         self.name = name
+        self.display_name = display_name
         self.description = description
         self.prompt_category = prompt_category
         self._load_prompts()
-        self.setup()
     
     def _load_prompts(self) -> None:
         """Load prompts from configuration files"""
@@ -33,32 +32,11 @@ class BaseMinion:
             # Initialize with empty dict to prevent errors
             self.prompts = {}
     
-    def setup(self) -> None:
-        """Initialize minion-specific components"""
+    async def setup(self, *args, **kwargs) -> None:
+        """Initialize minion-specific components. Should be overridden by subclasses.
+        Accepts *args and **kwargs for compatibility with calling patterns, even if not used by the base class.
+        """
         pass
-    
-    def create_agent(self, result_type: Optional[Any] = None, model_key: str = "default") -> Agent:
-        """Create a properly configured agent with appropriate model and abilities"""
-        # Get model configuration for the agent
-        model_config = LLM_CONFIG.get(model_key, LLM_CONFIG["default"])
-        provider = model_config.get("provider", "anthropic")
-        model = model_config.get("model", "claude-3-7-sonnet-latest")
-        
-        # Enhanced logging for LLM adapter usage
-        adapter_module = f"app.llm.adapters.{provider}"
-        logger.info(f"[{self.name}] Creating agent with adapter: {provider} (module: {adapter_module})")
-        logger.info(f"[{self.name}] Using model: {model}")
-        logger.info(f"[{self.name}] Config reference: {model_key}")
-        
-        # Get system prompt from prompts
-        system_prompt = self.get_system_prompt()
-        
-        # Create and return the agent
-        return Agent(
-            f"{provider}:{model}",
-            system_prompt=system_prompt,
-            result_type=result_type
-        )
     
     def get_system_prompt(self) -> str:
         """Get the system prompt from loaded configuration"""
@@ -133,14 +111,3 @@ class BaseMinion:
     async def execute(self, params: Dict[str, Any], context: RunContext) -> Dict[str, Any]:
         """Execute minion operation"""
         raise NotImplementedError("Minions must implement the execute method")
-
-# For backwards compatibility with Protocol interface
-class MinionProtocol(Protocol):
-    """Protocol definition for minions - for type checking"""
-    
-    name: str
-    description: str
-    
-    def setup(self) -> None: ...
-        
-    async def execute(self, params: Dict[str, Any], context: RunContext) -> Dict[str, Any]: ... 

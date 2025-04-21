@@ -3,9 +3,7 @@ from typing import Optional, AsyncGenerator, Dict, Any
 from uuid import UUID
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.engine.url import make_url
-from qdrant_client import QdrantClient
+from qdrant_client import AsyncQdrantClient
 from couchbase.cluster import Cluster
 from couchbase.auth import PasswordAuthenticator
 from couchbase.options import ClusterOptions, ClusterTimeoutOptions
@@ -27,7 +25,7 @@ class Database:
         self._session: Optional[AsyncSession] = None
         self._pg_pool: Optional[asyncpg.Pool] = None
         self._cb_cluster = None
-        self._qdrant_client = None
+        self._qdrant_client: Optional[AsyncQdrantClient] = None
         self.is_connected = False
 
     def _create_engine(self):
@@ -208,27 +206,36 @@ class Database:
             raise
 
     async def _init_qdrant(self):
-        """Initialize Qdrant connection"""
+        """Initialize Qdrant connection (using Async Client)"""
         try:
             # Ensure host is just the hostname, not a URL
             host = settings.QDRANT_HOST.replace('http://', '').replace('https://', '')
-            grpc_port = settings.QDRANT_PORT # Already defaults to 6333
-            logger.info(f"Connecting to Qdrant via gRPC: host='{host}', port={grpc_port}")
-            
-            self._qdrant_client = QdrantClient(
+            http_port = settings.QDRANT_PORT # Assuming REST port for HTTP connection if needed
+            grpc_port = settings.QDRANT_GRPC_PORT # Use separate GRPC port setting
+
+            logger.info(f"Attempting Qdrant Async connection: host='{host}', grpc_port={grpc_port}, port={http_port}")
+            logger.debug(f"Current self._qdrant_client before connection attempt: {self._qdrant_client}")
+
+            self._qdrant_client = AsyncQdrantClient(
                 host=host,
                 grpc_port=grpc_port,
-                prefer_grpc=True, # Explicitly prefer gRPC
-                timeout=5.0
+                port=http_port, # Provide HTTP port as well if needed by client
+                api_key=settings.QDRANT_SERVICE_API_KEY # Pass the API key from settings
             )
-            
-            # Test connection
-            self._qdrant_client.get_collections()
-            logger.info("Qdrant connection established via gRPC")
-            
+            logger.debug(f"AsyncQdrantClient object created: {self._qdrant_client}")
+
+            # Test connection using an async method
+            logger.info("Testing Qdrant connection with get_collections()...")
+            await self._qdrant_client.get_collections() # Use async method
+            logger.info("Qdrant Async connection established and tested successfully.")
+
         except Exception as e:
-            logger.error(f"Qdrant gRPC connection failed: {e}")
-            raise
+            # Log the full traceback for detailed debugging
+            logger.error(f"Qdrant Async connection failed: {e}", exc_info=True)
+            logger.debug(f"self._qdrant_client state after failure: {self._qdrant_client}")
+            self._qdrant_client = None # Ensure it's None on failure
+            logger.error("Setting self._qdrant_client to None due to connection failure.")
+            raise # Re-raise the exception to signal failure during startup
 
     async def disconnect(self):
         """Disconnect from database"""
@@ -239,9 +246,8 @@ class Database:
             if self._cb_cluster:
                 self._cb_cluster.close()
             
-            # Qdrant client doesn't have an async close method
             if self._qdrant_client:
-                self._qdrant_client.close()
+                await self._qdrant_client.close()
                 
             if self._engine:
                 await self._engine.dispose()
@@ -281,10 +287,8 @@ class Database:
             yield conn
 
     @property
-    def qdrant(self):
-        """Get Qdrant client"""
-        if not self._qdrant_client:
-            raise RuntimeError("Qdrant not initialized")
+    def qdrant(self) -> Optional[AsyncQdrantClient]:
+        """Get Async Qdrant client"""
         return self._qdrant_client
 
     @property

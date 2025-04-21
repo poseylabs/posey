@@ -19,7 +19,7 @@ redis>=5.0.1
 
 # Remaining Agent dependencies
 langgraph>=0.2.72
-mcp>=1.3.0
+mcp>=1.6.0
 py-rust-stemmers>=0.1.0,<0.3.0
 
 # Authentication & Security
@@ -52,6 +52,7 @@ apscheduler>=3.11.0
 # Monitoring & Logging
 structlog>=24.1.0
 prometheus-client>=0.19.0
+logfire>=0.27.0
 
 # LLM Providers
 pydantic_ai==0.0.55

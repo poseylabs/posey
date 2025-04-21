@@ -2,7 +2,9 @@
   "name": "@posey.ai/agents",
   "version": "1.0.0-beta.2",
   "type": "module",
-  "scripts": { 
+  "scripts": {
+    "alembic:upgrade": "alembic upgrade head",
+    "alembic:revision": "alembic revision",
     "migrate:generate": "bash ./scripts/generate-migration.sh"
   },
   "dependencies": {

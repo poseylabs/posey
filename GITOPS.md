@@ -12,7 +12,7 @@ For local development, sensitive information is stored in `.env` files (e.g., `.
 Since CircleCI and ArgoCD both rely on these secrets, we have a system to sync them:
 - Run `yarn sync:secrets` to update secrets in **both** CircleCI Contexts and ArgoCD (as SealedSecrets). This command executes the following sub-scripts:
   - `yarn sync:secrets:ci` (using `lib/scripts/sync-secrets-circleci.sh`): Updates CircleCI Contexts based on `.env` files mapped in the script (`posey-prod-core`, `posey-prod-data`, etc.).
-  - `yarn sync:secrets:cd` (using `lib/scripts/sync-secrets-argo.sh`): Creates/updates ArgoCD SealedSecret manifests in `k8s/secrets/env/` based on `.env` files mapped in the script.
+  - `yarn sync:secrets:cd` (using `lib/scripts/sync-secrets-k8.sh`): Creates/updates ArgoCD SealedSecret manifests in `k8s/secrets/env/` based on `.env` files mapped in the script.
 
 **Important:** Remember to run `yarn sync:secrets` and commit the resulting changes (especially the updated `*-sealed.yaml` files in `k8s/secrets/env/`) whenever you add or modify secrets in the relevant `.env` files.
 

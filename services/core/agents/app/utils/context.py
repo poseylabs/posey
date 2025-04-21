@@ -4,9 +4,12 @@ from datetime import datetime
 import platform as sys_platform
 import psutil
 from app.config import settings
-from app.utils.minion import get_minion
+from app.utils.minion_registry import MinionRegistry
+from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID, uuid4
 import pytz
+from app.models.context import UserContext
+from app.models.system import LocationInfo
 from app.config.prompts.base import get_location_from_ip
 import logging
 
@@ -31,17 +34,6 @@ class SystemInfo(BaseModel):
     environment: str = Field(default=settings.ENVIRONMENT)
     version: str = Field(default=settings.SYSTEM_VERSION)
     session_id: UUID = Field(default_factory=uuid4)
-
-class UserContext(BaseModel):
-    """User-specific context"""
-    user_id: str
-    username: Optional[str] = None
-    preferences: Dict[str, Any] = Field(default_factory=dict)
-    location: Optional[str] = None
-    timezone: Optional[str] = None
-    language: str = "en"
-    last_active: Optional[datetime] = None
-    session_start: datetime = Field(default_factory=datetime.utcnow)
 
 class MemoryContext(BaseModel):
     """Memory-related context"""
@@ -84,6 +76,8 @@ class RunContext(BaseModel, Generic[DepsT]):
 async def create_agent_context(
     user_id: str,
     request_id: str,
+    registry: MinionRegistry,
+    db: AsyncSession,
     conversation_id: Optional[str] = None,
     parent_request_id: Optional[str] = None,
     **kwargs
@@ -93,27 +87,48 @@ async def create_agent_context(
     # Get user info from database/cache
     user_info = await get_user_info(user_id)
     
-    # Get relevant memories
-    memory_minion = get_minion("memory")
-    memories = await memory_minion.search_recent(
-        user_id=user_id,
-        limit=5,
-        include_conversation=bool(conversation_id)
-    )
+    # Get relevant memories using the registry instance
+    memory_minion = await registry.get_minion("memory", db)
+    if not memory_minion:
+        logger.error("Memory minion not found or failed to initialize.")
+        memories = []
+    else:
+        memories = await memory_minion.search_recent(
+            user_id=user_id,
+            limit=5,
+            include_conversation=bool(conversation_id)
+        )
     
-    # Create context object
+    # --- Convert location string from get_user_info to LocationInfo if needed --- 
+    user_location_str = user_info.get("location")
+    user_location_obj: Optional[LocationInfo] = None
+    if isinstance(user_location_str, str):
+         # Attempt to parse the string (simple example, might need more robust parsing)
+         try:
+             parts = user_location_str.split(',')
+             if len(parts) >= 1:
+                 user_location_obj = LocationInfo(city=parts[0].strip()) 
+             # Add more parsing logic if region/country are expected
+         except Exception as parse_e:
+             logger.warning(f"Could not parse location string '{user_location_str}' into LocationInfo: {parse_e}")
+    elif isinstance(user_location_str, LocationInfo):
+         user_location_obj = user_location_str # It's already the correct type
+         
+    # Create context object using consolidated UserContext
     context = AgentContext(
         system=SystemInfo(
             timezone=user_info.get("timezone", "UTC"),
         ),
-        user=UserContext(
+        user=UserContext( # Use imported UserContext
             user_id=user_id,
             username=user_info.get("username"),
+            name=user_info.get("username"), # Populate name with username for now
             preferences=user_info.get("preferences", {}),
-            location=user_info.get("location"),
+            location=user_location_obj, # Use the LocationInfo object
             timezone=user_info.get("timezone"),
-            language=user_info.get("language", "en"),
+            language=user_info.get("language", "en-US"), # Match default in model
             last_active=user_info.get("last_active"),
+            session_start=datetime.utcnow() # Assuming session starts now
         ),
         memory=MemoryContext(
             recent_interactions=[], # Leave empty for now
@@ -133,6 +148,8 @@ async def enhance_run_context(
     run_ctx: "RunContext[DepsT]",
     user_id: str,
     request_id: str,
+    registry: MinionRegistry,
+    db: AsyncSession,
     **kwargs
 ) -> "RunContext[DepsT]":
     """Enhance a RunContext with additional context"""
@@ -141,6 +158,8 @@ async def enhance_run_context(
     agent_ctx = await create_agent_context(
         user_id=user_id,
         request_id=request_id,
+        registry=registry,
+        db=db,
         **kwargs
     )
     
@@ -174,25 +193,30 @@ async def enhance_run_context(
     
     # Ensure location information is accessible at the top level
     if "location" not in run_ctx.context:
-        # Try to get from user context first
-        user_location = run_ctx.context.get("user", {}).get("location")
-        system_location = run_ctx.context.get("system", {}).get("location")
+        # Try to get from user context first (now an object)
+        user_location = run_ctx.context.get("user", {}).get("location") # This is LocationInfo or None
+        system_location = run_ctx.context.get("system", {}).get("location") # This is LocationInfo or None
         
-        if user_location:
-            run_ctx.context["location"] = user_location
-            logger.debug(f"Added user location to context: {user_location}")
-        elif system_location:
-            run_ctx.context["location"] = system_location
-            logger.debug(f"Added system location to context: {system_location}")
+        final_location_obj: Optional[LocationInfo] = None
+        if user_location and isinstance(user_location, dict):
+            final_location_obj = LocationInfo(**user_location)
+        elif system_location and isinstance(system_location, dict):
+            final_location_obj = LocationInfo(**system_location)
+        
+        if final_location_obj:
+            run_ctx.context["location"] = final_location_obj.dict() # Store as dict
+            logger.debug(f"Added user/system location object to context: {final_location_obj}")
         else:
-            # Try to get location from IP as a fallback
+            # Restore fallback call to get_location_from_ip here
             try:
-                location = get_location_from_ip()
-                if location:
-                    run_ctx.context["location"] = location.dict()
-                    logger.debug(f"Added IP-based location to context: {location}")
+                location_ip = get_location_from_ip()
+                if location_ip:
+                    run_ctx.context["location"] = location_ip.dict() # Store as dict
+                    logger.debug(f"Added IP-based location to context: {location_ip}")
+                else:
+                    logger.warning("Location not found in user/system context and IP fallback returned None.")
             except Exception as e:
-                logger.warning(f"Failed to get location from IP: {e}")
+                logger.warning(f"Failed to get location from IP during fallback: {e}")
     
     return run_ctx
 

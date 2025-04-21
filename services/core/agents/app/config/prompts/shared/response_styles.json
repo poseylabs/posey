@@ -268,22 +268,5 @@
         }
       }
     }
-  },
-  "response_formats": {
-    "basic": {
-      "answer": "A friendly, natural language response that directly answers the user's query",
-      "confidence": 0.95,
-      "metadata": {
-        "sources": [],
-        "processing_time": "0.5s"
-      }
-    }
-  },
-  "response_examples": {
-    "time": "It's 3:45 PM.",
-    "weather": "72°F and sunny.",
-    "factual_answer": "The Great Wall of China is 13,171 miles long.",
-    "recommendation": "Based on your interests, I think you'd enjoy 'The Expanse' series.",
-    "joke": "What did the father bison say to his son on the first day of school? 'Bye, son!'"
   }
 }

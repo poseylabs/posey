@@ -11,24 +11,8 @@ from . import PromptLoader
 from ..posey import get_posey_config
 from app.config import logger
 
-class LocationInfo(BaseModel):
-    """Location information"""
-    city: Optional[str] = None
-    region: Optional[str] = None
-    country: Optional[str] = None
-    timezone: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-
-class UserContext(BaseModel):
-    """User context information"""
-    id: Optional[str] = None
-    name: Optional[str] = None
-    email: Optional[str] = None
-    timezone: Optional[str] = None
-    language: Optional[str] = "en-US"
-    preferences: Dict[str, Any] = {}
-    location: Optional[LocationInfo] = None
+from app.models.system import LocationInfo
+from app.models.context import UserContext
 
 class SystemContext(BaseModel):
     """System context information"""
@@ -36,6 +20,9 @@ class SystemContext(BaseModel):
     timezone: str = "UTC"
     location: Optional[LocationInfo] = None
     uploaded_files: list[Dict[str, Any]] = []
+    # Add fields for data assigned in content_analysis.py
+    current_operation: Optional[str] = None
+    available_abilities: Optional[Dict[str, Any]] = None
 
 class MemoryContext(BaseModel):
     """Memory context information"""
@@ -86,7 +73,7 @@ def generate_base_prompt(context: BasePromptContext) -> str:
     formatted_time = timestamp.strftime('%B %d, %Y %I:%M:%S %p %Z')
     
     # Get location info (prefer user location over system location)
-    location = None
+    location: Optional[LocationInfo] = None
     if context.user and context.user.location:
         location = context.user.location
     elif context.system.location:
@@ -106,17 +93,18 @@ def generate_base_prompt(context: BasePromptContext) -> str:
         "timestamp": formatted_time,
         "timezone": context.system.timezone,
         
-        # User Info (with defaults)
-        "user_id": context.user.id if context.user else "Unknown",
-        "user_name": context.user.name if context.user else "Unknown",
+        # User Info (with defaults, using consolidated UserContext fields)
+        "user_id": context.user.user_id if context.user else "Unknown",
+        "user_name": context.user.username if context.user and context.user.username else (context.user.name if context.user else "Unknown"),
         "user_email": context.user.email if context.user else "Unknown",
         "user_timezone": context.user.timezone if context.user else context.system.timezone,
         "user_language": context.user.language if context.user else "en-US",
         "user_preferences": json.dumps(context.user.preferences if context.user else {}, indent=2),
         
-        # Location Info
+        # Location Info (LocationInfo object)
         "user_location": (
-            f"{location.city}, {location.region}, {location.country}" if location
+            f"{location.city}, {location.region}, {location.country}" 
+            if location and location.city and location.region and location.country
             else "Unknown Location"
         ),
         
@@ -153,19 +141,16 @@ def generate_base_prompt(context: BasePromptContext) -> str:
     return "\n\n".join(sections) + "\n\nYou should use this contextual information to provide more personalized and temporally-aware responses while strictly adhering to the required JSON response format."
 
 def get_default_context() -> BasePromptContext:
-    """Get a default context with current time in UTC and approximate location"""
+    """Get a default context with current time in UTC"""
     now = datetime.now(pytz.UTC)
     
-    # Try to get location from IP
-    location = get_location_from_ip()
-    
-    # If we got location info, use its timezone
-    timezone = location.timezone if location and location.timezone else "UTC"
+    # Removed call to get_location_from_ip
+    # Location will be determined later in the request flow
     
     return BasePromptContext(
         system=SystemContext(
             timestamp=now.isoformat(),
-            timezone=timezone,
-            location=location
+            timezone="UTC", # Default to UTC
+            location=None # Default to None
         )
     )

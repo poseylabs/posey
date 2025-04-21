@@ -70,6 +70,11 @@ export default function UserButton({
           <li>
             <div className={dividerClass}>Settings</div>
             <ul>
+              {user?.role === 'admin' && (
+                <li className={liClass}>
+                  <button className={buttonClass} onClick={() => buttonLink('/admin')}>Admin</button>
+                </li>
+              )}
               {user?.id && (
                 <li className={liClass}>
                   <button className={buttonClass} onClick={handleLogout}>Logout</button>

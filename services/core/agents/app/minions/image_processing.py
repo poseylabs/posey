@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
-from pydantic_ai import RunContext
+from pydantic_ai import RunContext, Agent
 from app.utils.result import AgentResult
 from app.utils import prepare_system_user_messages
 from app.config import logger
@@ -10,6 +10,8 @@ from app.minions.base import BaseMinion
 import time
 import json
 import traceback
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 # Define expected output structure for analysis
 class ImageProcessingAnalysis(BaseModel):
@@ -25,34 +27,12 @@ class ImageProcessingAnalysis(BaseModel):
 
 class ImageProcessingMinion(BaseMinion):
     """Image Processing Minion - analyzes requests involving images and determines processing steps or delegates to generation."""
-
-    def __init__(self):
-        super().__init__(
-            name="image_processing",
-            description="Analyzes image-related requests and coordinates processing or generation."
-        )
-
-    def setup(self):
-        """Initialize minion-specific components."""
-        # Create an agent for analyzing the request and deciding the action
-        self.agent = self.create_agent(result_type=ImageProcessingAnalysis, model_key="reasoning")
-        logger.info(f"Image processing analysis agent initialized.")
-        # Define available abilities this minion might delegate *to*
-        self.available_abilities = ["file_processing", "image_generation"]
-        # Load prompt configuration using PromptLoader
-        try:
-            self.prompt_config = PromptLoader.get_agent_prompt("image_processing")
-            logger.info("Image processing prompt configuration loaded successfully.")
-        except Exception as e:
-            logger.error(f"Failed to load image processing prompt configuration: {e}", exc_info=True)
-            # Handle error appropriately - maybe raise or set config to None
-            raise ValueError("Missing or invalid prompt configuration for image_processing") from e
+    # Agent is inherited and defaults to None
 
     def create_prompt_context(self, context: Dict[str, Any], analysis_data: Dict[str, Any] = None) -> Dict[str, Any]:
         """Create prompt context dictionary for the image processing analysis task."""
         output_schema_json = ImageProcessingAnalysis.model_json_schema()
-        
-        # Create a dictionary with all required keys for formatting
+
         full_context = {
             "minion_name": self.name,
             "minion_description": self.description,

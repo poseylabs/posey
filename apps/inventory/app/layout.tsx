@@ -29,7 +29,7 @@ export default function RootLayout({
           supertokensConfig={supertokensConfig}
         >
           <DrawerContent sidebar={<Sidebar />}>
-            <Navbar withStartChat={false} content={false} />
+            <Navbar withStartChat={false} />
             <div className="drawer-content flex flex-col">
               <main className="flex-1 p-10">{children}</main>
             </div>

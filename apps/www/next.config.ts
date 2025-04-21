@@ -24,6 +24,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@posey.ai/ui", "@posey.ai/core", "@posey.ai/state"],
+  devIndicators: false,
   experimental: {
     serverActions: {
       bodySizeLimit: '20mb',

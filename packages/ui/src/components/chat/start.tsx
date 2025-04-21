@@ -57,9 +57,10 @@ export function StartChat({
   }
 
   return (
-    <label className={className}>
+    <label className={className} htmlFor="navbar-message">
       <input
         type="text"
+        id="navbar-message"
         className="grow"
         placeholder={placeholder}
         value={input}

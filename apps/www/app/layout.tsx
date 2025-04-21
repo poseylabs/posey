@@ -3,10 +3,11 @@
 import { Inter } from "next/font/google";
 import { SuperTokensProvider } from '@/providers/supertokens';
 import { createSupertokensFrontendConfig } from '@posey.ai/core';
-import { DrawerContent, Navbar } from '@posey.ai/ui';
+import { DrawerContent, Navbar, AdminNavbar, ContentWrapper } from '@posey.ai/ui';
 
 import "./globals.css";
 import "@posey.ai/ui/style.css";
+import Link from "next/link";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-geist-sans" });
 
@@ -19,6 +20,35 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  const adminLinks: any = [
+    {
+      label: 'Admin Tools',
+      href: '/admin',
+      isActive: false
+    },
+    {
+      label: 'Models',
+      href: '/admin/models',
+      isActive: false
+    },
+    {
+      label: 'Providers',
+      href: '/admin/providers',
+      isActive: false
+    },
+    {
+      label: 'Minions',
+      href: '/admin/minions',
+      isActive: false
+    },
+    {
+      label: 'Invites',
+      href: '/admin/invites',
+      isActive: false
+    }
+  ]
+
   return (
     <html lang="en">
       <head>
@@ -31,8 +61,14 @@ export default function RootLayout({
           ]}
           supertokensConfig={supertokensConfig}>
           <DrawerContent>
-            <Navbar withStartChat={false} />
-            {children}
+            <div>
+              <Navbar withStartChat={true} />
+              <AdminNavbar
+                links={adminLinks}
+                LinkComponent={Link}
+              />
+            </div>
+            <ContentWrapper className="flex-1">{children}</ContentWrapper>
           </DrawerContent>
         </SuperTokensProvider>
       </body>

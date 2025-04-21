@@ -60,7 +60,7 @@ persistence:
 
 envFromSecret:
   enabled: true # Assuming secrets are needed, adjust as necessary
-  secretName: posey-prod-core-env-vars # Match the context used in the orb
+  secretName: posey-prod-services-env-vars # Corrected secret name
 
 volumes: []
 volumeMounts: []

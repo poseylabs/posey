@@ -1,17 +1,12 @@
-import { useCallback, useEffect } from "react";
 import { ChatMessage } from "./message";
-import { usePoseyState } from '@posey.ai/state';
+// import { usePoseyState } from '@posey.ai/state';
 import { Message } from "@posey.ai/core";
 
 export function MessageList({
-  messages = []
+  messages
 }: {
-  messages?: Message[] | never[]
+  messages: Message[]
 }) {
-
-  useEffect(() => {
-    console.log('Render Message List - Messages Prop:', messages);
-  }, [messages]);
 
   if (messages.length === 0) {
     return <div className="message-list max-h-1">No messages</div>;

@@ -37,6 +37,11 @@ posey_deploy_key
 services/model/venv/
 logs
 
+# Python cache
+__pycache__/
+
+# Conda cache
+.conda/
 
 .nx/cache
 .nx/workspace-data
@@ -68,3 +73,6 @@ delete_me
 .yarn/cache
 
 keys
+
+# Voyager agent virtual environments
+services/core/voyager/agents/envs/

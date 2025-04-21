@@ -8,6 +8,13 @@ CREATE TABLE IF NOT EXISTS llm_providers (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Ensure columns exist before indexing
+ALTER TABLE llm_providers ADD COLUMN IF NOT EXISTS slug VARCHAR(255); -- Assuming slug was added later, check model
+ALTER TABLE llm_providers ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+ALTER TABLE llm_providers ADD COLUMN IF NOT EXISTS api_key_secret_name VARCHAR(255);
+-- Create Index (example, adjust based on actual indexes if any)
+-- CREATE INDEX IF NOT EXISTS ix_llm_providers_slug ON llm_providers(slug);
+
 CREATE TABLE IF NOT EXISTS llm_models (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     provider_id UUID REFERENCES llm_providers(id),
@@ -25,6 +32,14 @@ CREATE TABLE IF NOT EXISTS llm_models (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(provider_id, model_id)
 );
+
+-- Ensure columns exist before indexing
+ALTER TABLE llm_models ADD COLUMN IF NOT EXISTS provider_id UUID REFERENCES llm_providers(id);
+ALTER TABLE llm_models ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+ALTER TABLE llm_models ADD COLUMN IF NOT EXISTS model_id VARCHAR(255);
+-- Create Indexes (example, adjust based on actual indexes if any)
+-- CREATE INDEX IF NOT EXISTS ix_llm_models_provider_id ON llm_models(provider_id);
+-- CREATE INDEX IF NOT EXISTS ix_llm_models_model_id ON llm_models(model_id);
 
 CREATE TABLE IF NOT EXISTS llm_api_keys (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

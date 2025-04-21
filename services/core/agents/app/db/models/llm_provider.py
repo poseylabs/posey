@@ -11,13 +11,14 @@ class LLMProvider(Base):
     __tablename__ = 'llm_providers'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='llm_providers_pkey'),
-        UniqueConstraint('name', name='llm_providers_name_key'),
+        UniqueConstraint('slug', name='llm_providers_slug_key'),
     )
 
-    id = Column(PGUUID, primary_key=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), unique=False, nullable=False)
-    base_url = Column(String(255), nullable=True)
-    api_version = Column(String(50), nullable=True)
+    slug = Column(String(255), unique=True, nullable=False, index=True)
+    api_base_url = Column("base_url", String(255), nullable=True)
+    api_key_secret_name = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
@@ -25,4 +26,4 @@ class LLMProvider(Base):
     models = relationship("LLMModel", back_populates="provider", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<LLMProvider(name='{self.name}', active={self.is_active})>" 
+        return f"<LLMProvider(name='{self.name}', slug='{self.slug}', active={self.is_active})>" 

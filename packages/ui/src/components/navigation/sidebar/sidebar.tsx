@@ -471,14 +471,15 @@ export default function Sidebar({
 
   return (
     <div className={sidebarClass}>
-      <div className={`sidebar-content bg-base-300 text-base-content max-h-1 overflow-y-auto min-h-full p-4 ${sidebarClass}`}>
+      <div className={`sidebar-content bg-base-300 text-base-content overflow-y-auto p-4 ${sidebarClass}`}>
         {/* Base */}
         <section className={sectionClass} id="base-settings">
           <ul className="menu-vertical">
             <li>
-              <label className={style.label}>Jump to conversation</label>
+              <label className={style.label} htmlFor="conversationId">Jump to conversation</label>
               <select
                 className="select"
+                id="conversationId"
                 value={currentConversationId || ''}
                 onChange={(e) => handleConversationChange({
                   conversationId: e.target.value
@@ -506,8 +507,9 @@ export default function Sidebar({
 
             {/* Theme */}
             <li className={liClass}>
-              <label className={style.label}>Theme</label>
+              <label className={style.label} htmlFor="theme">Theme</label>
               <select
+                id="theme"
                 className="select select-bordered mb-1"
                 value={selectedTheme}
                 onChange={(e) => handleThemeChange(e.target.value)}
@@ -523,8 +525,9 @@ export default function Sidebar({
               <ul>
                 {/* Adapter Selector */}
                 <li className={liClass}>
-                  <label className={style.label}>Provider</label>
+                  <label className={style.label} htmlFor="provider">Provider</label>
                   <select
+                    id="provider"
                     className="select select-bordered mb-1"
                     value={selectedProvider}
                     onChange={(e) => handleAdapterChange(e.target.value)}
@@ -543,8 +546,9 @@ export default function Sidebar({
                 {/* Model Selector - Uses filteredModels */}
                 {selectedProvider && (
                   <li className={liClass}>
-                    <label className={style.label}>Model</label>
+                    <label className={style.label} htmlFor="model">Model</label>
                     <select
+                      id="model"
                       className="select select-bordered mb-1"
                       value={selectedModel}
                       onChange={(e) => handleModelChange(e.target.value)}
@@ -568,8 +572,9 @@ export default function Sidebar({
             {/* Image Generator Selector */}
             <li className={liClass} id="image-generator-settings">
               <div className="divider divider-neutral mb-0">Image Settings</div>
-              <label className={style.label}>Image Generator</label>
+              <label className={style.label} htmlFor="imageAdapter">Image Generator</label>
               <select
+                id="imageAdapter"
                 className="select select-bordered mb-1"
                 value={selectedImageAdapter}
                 onChange={handleImageAdapterChange}
@@ -593,6 +598,7 @@ export default function Sidebar({
                 {/* Model Selector (only show if models are available) */}
                 {availableImageModels.length > 0 && (
                   <select
+                    id="imageModel"
                     className="select select-bordered mt-1"
                     value={selectedImageModel}
                     onChange={handleImageModelChange}
@@ -609,6 +615,7 @@ export default function Sidebar({
                     <span className="label-text">Enable TTS</span>
                     <input
                       type="checkbox"
+                      id="ttsEnabled"
                       className="toggle toggle-primary"
                       checked={localPreferences.tts_enabled || false}
                       onChange={toggleTTS}
@@ -623,8 +630,9 @@ export default function Sidebar({
             {/* Language */}
             <li className={liClass}>
               <div className="divider divider-neutral mb-0">Localization Settings</div>
-              <label className={style.label}>Preferred Language</label>
+              <label className={style.label} htmlFor="language">Preferred Language</label>
               <select
+                id="language"
                 className="select select-bordered mb-1"
                 value={localPreferences.language || 'en'}
                 onChange={handleLanguageChange}
@@ -647,11 +655,13 @@ export default function Sidebar({
 
             {/* Username */}
             <li className={liClass}>
-              <label className="form-control w-full max-w-xs">
+              <label className="form-control w-full max-w-xs" htmlFor="username">
                 <div className="label">
                   <span className="label-text">Username</span>
                 </div>
                 <input
+                  id="username"
+                  autoComplete="on"
                   type="text"
                   placeholder="maxwell"
                   className="input input-bordered w-full max-w-xs"
@@ -664,11 +674,13 @@ export default function Sidebar({
 
             {/* Name */}
             <li className={liClass}>
-              <label className="form-control w-full max-w-xs">
+              <label className="form-control w-full max-w-xs" htmlFor="name">
                 <div className="label">
                   <span className="label-text">Name</span>
                 </div>
                 <input
+                  id="name"
+                  autoComplete="on"
                   type="text"
                   placeholder="Maxwell S. Hammer"
                   className="input input-bordered w-full max-w-xs"
@@ -681,11 +693,13 @@ export default function Sidebar({
 
             {/* Email */}
             <li className={liClass}>
-              <label className="form-control w-full max-w-xs">
+              <label className="form-control w-full max-w-xs" htmlFor="email">
                 <div className="label">
                   <span className="label-text">Email</span>
                 </div>
                 <input
+                  id="email"
+                  autoComplete="on"
                   type="email"
                   placeholder="max@hammered.io"
                   className="input input-bordered w-full max-w-xs"
@@ -703,6 +717,8 @@ export default function Sidebar({
                   <span className="label-text">Avatar</span>
                 </div>
                 <input
+                  id="avatar"
+                  autoComplete="off"
                   type="file"
                   className="file-input file-input-sm w-full max-w-xs"
                   onChange={handleAvatarChange}
@@ -714,7 +730,7 @@ export default function Sidebar({
 
             {/* Password Update */}
             <li className={liClass}>
-              <label className="form-control w-full max-w-xs">
+              <span className="form-control w-full max-w-xs">
                 <div className="label">
                   <span className="label-text">Password</span>
                 </div>
@@ -730,6 +746,7 @@ export default function Sidebar({
                 {showPasswordForm && (
                   <form onSubmit={handlePasswordUpdate} className="space-y-2">
                     <input
+                      id="currentPassword"
                       type={showPassword ? "text" : "password"}
                       placeholder="Current Password"
                       className="input input-bordered w-full max-w-xs mb-2"
@@ -738,6 +755,7 @@ export default function Sidebar({
                       disabled={isUpdating}
                     />
                     <input
+                      id="newPassword"
                       type={showPassword ? "text" : "password"}
                       placeholder="New Password"
                       className="input input-bordered w-full max-w-xs mb-2"
@@ -746,6 +764,7 @@ export default function Sidebar({
                       disabled={isUpdating}
                     />
                     <input
+                      id="confirmPassword"
                       type={showPassword ? "text" : "password"}
                       placeholder="Confirm New Password"
                       className="input input-bordered w-full max-w-xs mb-2"
@@ -757,6 +776,7 @@ export default function Sidebar({
                     <div className="flex items-center gap-2 mb-2">
                       <label className="label cursor-pointer">
                         <input
+                          id="showPassword"
                           type="checkbox"
                           className="checkbox checkbox-sm"
                           checked={showPassword}
@@ -796,7 +816,7 @@ export default function Sidebar({
                     </div>
                   </form>
                 )}
-              </label>
+              </span>
             </li>
 
           </ul>

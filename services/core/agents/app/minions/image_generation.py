@@ -10,7 +10,6 @@ from app.config.prompts.base import (
     MemoryContext,
     SystemContext
 )
-from app.config.defaults import LLM_CONFIG
 from app.minions.base import BaseMinion
 from typing import Dict, Any, List, Optional
 import time
@@ -37,31 +36,14 @@ class ImageResponse(BaseModel):
 
 class ImageGenerationMinion(BaseMinion):
     """AI Image Generation minion"""
+    agent: Optional[Agent] = None
 
-    def __init__(self):
-        super().__init__(
-            name="image_generation",
-            description="Generate images using AI models"
-        )
-
-    def setup(self):
-        """Initialize minion-specific components"""
-        self.ability = ImageAbility()
+    async def setup(self) -> None:
+        """Initialize minion-specific components (excluding the agent)."""
+        logger.info(f"Performing setup for '{self.name}' minion...")
+        self.ability = ImageAbility() 
+        logger.info(f"ImageAbility initialized for '{self.name}'.")
         
-        # Get base prompt with default context for initialization
-        base_prompt = generate_base_prompt(get_default_context())
-        
-        # Override system prompt to include base prompt
-        custom_system_prompt = "\n".join([
-            base_prompt,  # Start with shared base prompt
-            self.get_system_prompt()
-        ])
-        
-        logger.debug(f"System prompt configured for image generation minion")
-
-        # Create agent for prompt optimization
-        self.agent = self.create_agent(result_type=ImageRequest, model_key="reasoning")
-        logger.info(f"Image generation agent created with model: {LLM_CONFIG['reasoning']['model']}")
 
     def create_prompt_context(self, context: Dict[str, Any], image_data: Dict[str, Any] = None) -> BasePromptContext:
         """Create a properly structured prompt context for image generation operations"""

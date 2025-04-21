@@ -20,9 +20,9 @@ from .database import db
 from .defaults import LLM_CONFIG
 
 # Set log levels using Python's logging module
-python_logging.getLogger('app').setLevel(python_logging.INFO)
-python_logging.getLogger('app.utils').setLevel(python_logging.INFO)
-python_logging.getLogger('app.routers').setLevel(python_logging.INFO)
+python_logging.getLogger('app').setLevel(python_logging.DEBUG)
+python_logging.getLogger('app.utils').setLevel(python_logging.DEBUG)
+python_logging.getLogger('app.routers').setLevel(python_logging.DEBUG)
 
 # Set SQLAlchemy logging to ERROR level
 python_logging.getLogger('sqlalchemy.engine').setLevel(python_logging.ERROR)

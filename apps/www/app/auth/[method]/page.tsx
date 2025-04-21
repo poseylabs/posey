@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { AuthForm } from '@posey.ai/ui';
 import { userLogin, userRegister } from '@posey.ai/core';
 import { usePoseyState } from '@posey.ai/state';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 
 export default function AuthPage() {
   const { method } = useParams();
   const setUser = usePoseyState((state) => state.setUser);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -88,7 +89,12 @@ export default function AuthPage() {
 
         if (data?.status === 'OK' && data?.user) {
           await setUser({ user: data.user });
-          router.push('/');
+          const redirectUrl = searchParams.get('redirect');
+          if (redirectUrl && redirectUrl.startsWith('/')) {
+            router.push(redirectUrl);
+          } else {
+            router.push('/');
+          }
           return;
         } else {
           setErrorMessage(`Auth failed: ${data?.message || 'Unknown error'}`);
@@ -120,7 +126,12 @@ export default function AuthPage() {
         }
 
         await setUser({ user: session.user });
-        router.push('/');
+        const redirectUrl = searchParams.get('redirect');
+        if (redirectUrl && redirectUrl.startsWith('/')) {
+          router.push(redirectUrl);
+        } else {
+          router.push('/');
+        }
       } else {
         const errorMsg = method === 'register' ? 'Failed to register. Please check your information.' : 'Invalid email or password.';
         console.error(`Authentication failed:`, session);
@@ -132,15 +143,14 @@ export default function AuthPage() {
     }
   };
 
-  const formTitle = method === 'login' ? 'Login to Posey' : 'Register for Posey';
-  const formDescription = method === 'login' ? 'Enter your credentials to continue' : 'Create an account to get started';
-  const toggleMethodText = method === 'login' ? 'Create one' : 'Already have an account?';
-  const toggleMethodLink = method === 'login' ? '/auth/register' : '/auth/login';
-  const toggleMethodLabel = method === 'login' ? 'Register' : 'Login';
+  // Determine the mode, defaulting to 'login' if invalid
+  const mode = (method === 'register') ? 'register' : 'login';
 
-  if (!['login', 'register'].includes(method as string)) {
-    return null;
-  }
+  const formTitle = mode === 'login' ? 'Login to Posey' : 'Register for Posey';
+  const formDescription = mode === 'login' ? 'Enter your credentials to continue' : 'Create an account to get started';
+  const toggleMethodText = mode === 'login' ? 'Create one' : 'Already have an account?';
+  const toggleMethodLink = mode === 'login' ? '/auth/register' : '/auth/login';
+  const toggleMethodLabel = mode === 'login' ? 'Register' : 'Login';
 
   return (
     <div className="min-h-screen flex items-center justify-center">
@@ -157,7 +167,7 @@ export default function AuthPage() {
         )}
 
         <div className="mt-4" suppressHydrationWarning>
-          <AuthForm mode={method as 'login' | 'register'} onSubmit={handleSubmit} />
+          <AuthForm mode={mode} onSubmit={handleSubmit} />
         </div>
 
         <div className="mt-4 text-center">

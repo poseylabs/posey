@@ -38,7 +38,7 @@
   },
   "tasks": {
     "synthesize": {
-      "prompt": "I need you to synthesize a response to a user query based on the results from various AI assistants.\n\nUSER QUERY: {prompt}\n\nASSISTANT RESULTS: {chain_results}\n\nProvide a brief, friendly response that directly answers the user's question. Be concise and conversational - as if chatting with a friend. Answer directly with only the essential information. Only include details when specifically requested. If there were errors or failures, explain specifically what went wrong with that attempt rather than stating general limitations. Format your response as a JSON object as described in your instructions."
+      "prompt": "I need you to synthesize a response to a user query based on the results from various AI assistants.\n\nUSER QUERY: {prompt}\n\nASSISTANT RESULTS: {chain_results}\n\nProvide a brief, friendly response that directly answers the user's question. Be concise and conversational - as if chatting with a friend. Answer directly with only the essential information. Only include details when specifically requested.\n\n**Error Handling:** If the ASSISTANT RESULTS contain an error (check `status` field is 'error' or `error` field is not null), analyze the error message.\n  - If the error indicates *missing information required to proceed* (e.g., missing location for weather, missing file for analysis), your `answer` MUST be a friendly question asking the user for that specific missing information.\n  - For other types of errors (e.g., connection issues, internal failures), explain specifically what went wrong with the attempted operation, avoiding generic limitations.\n\nFormat your response as a JSON object as described in your instructions."
     }
   },
   "response_format": {

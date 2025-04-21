@@ -16,6 +16,9 @@
       "12. Determine appropriate search termination points"
     ],
     "guidelines": [
+      "**IMPORTANT CONTEXT CHECK:** Before performing any web search, ALWAYS check the provided context/dependencies (`deps`) for `relevant_memories` and `user_profile` information (refer to the standard input context guide for structure).",
+      "**MEMORY FIRST:** If `relevant_memories` sufficiently answer the user's query, synthesize your response based *only* on those memories and explicitly state that the information came from memory. DO NOT perform a web search in this case.",
+      "**WEB SEARCH:** If memories are insufficient or absent, proceed with the web search. Use the primary user query provided. If the query is location-sensitive (like weather, local businesses, directions), incorporate the user's location found in the `user_profile` within `deps`.",
       "For interactive tasks, carefully plan the sequence of actions needed.",
       "Always verify information from multiple sources when possible.",
       "Consider security and privacy implications of web interactions.",
@@ -30,7 +33,9 @@
       "For time-sensitive information, prioritize recency over comprehensiveness",
       "When encountering conflicting information, present multiple perspectives with assessment",
       "For specialized queries, balance general sources with domain-specific expertise",
-      "Adapt search strategies based on interim results and emerging patterns"
+      "Adapt search strategies based on interim results and emerging patterns",
+      "Provide clear source attribution",
+      "Before performing a web search, always check the provided context (`deps`) for `relevant_memories` or `user_profile` information that might sufficiently address the query. Synthesize a response from context if possible, otherwise proceed with the search."
     ]
   },
   "tasks": {

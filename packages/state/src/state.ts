@@ -98,7 +98,10 @@ const Partialize = (state: any) => {
       ...INITIAL_STATUS,  // Ensure all status fields have defaults
       ...state.status     // Override with current values
     },
-    chat: state.chat,
+    chat: {
+      agent: state.chat.agent,
+      conversations: state.chat.conversations,
+    },
     errors: state.errors,
     version: 2
   };
@@ -137,6 +140,10 @@ const formatUserForStore = (user: User) => {
   }
 }
 
+// Generate a unique ID for this store instance
+const storeInstanceId = `store-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+console.log(`[Zustand Store] CREATING NEW STORE INSTANCE: ${storeInstanceId}`);
+
 export const usePoseyState = create<PoseyState>()(
   persist(
     (set, get) => {
@@ -146,6 +153,7 @@ export const usePoseyState = create<PoseyState>()(
         status: INITIAL_STATUS,
         _cache: new Map(),
         errors: [],
+        hasHydrated: false,
 
         initState: async ({
           user,
@@ -581,18 +589,25 @@ export const usePoseyState = create<PoseyState>()(
             return;
           }
 
-          if (get().chat.currentConversation?.id === conversation.id) {
-            return;
+          // Check if the current value in state is already the same object or has the same ID
+          // Using get() ensures we read the absolute latest state before deciding
+          const currentState = get();
+          if (currentState.chat.currentConversation === conversation || currentState.chat.currentConversation?.id === conversation.id) {
+             console.log('[Zustand setCurrentConversation] Skipped update, conversation ID already set:', conversation.id);
+             return; 
           }
 
+          console.log('[Zustand setCurrentConversation] Updating state with conversation:', conversation.id);
           set((state: PoseyState) => ({
             ...state,
             chat: {
               ...state.chat,
-              currentConversation: { ...conversation }
-            }
+              // Ensure we set a copy, not the original object reference
+              currentConversation: { ...conversation },
+            },
+            // Clear the cache to potentially help selectors update
+            _cache: new Map() // Assign a NEW empty Map
           }));
-
         },
 
         setConversations: (conversations: Conversation[]) => {
