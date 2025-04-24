@@ -139,15 +139,20 @@ async def add_message(
             logger.error(f"Access denied - conversation belongs to {convo_user_id}, request from {current_user_id}")
             raise HTTPException(status_code=403, detail="Access denied")
 
-        # Extract content from AI response
+        # The raw content is already passed correctly from the frontend
+        # for both user and AI messages. No need for special AI handling here.
         content = message.content
-        if message.sender_type == "ai":
-            if hasattr(message.content, "data") and hasattr(message.content.data, "answer"):
-                content = message.content.data.answer
-            elif isinstance(message.content, dict) and "answer" in message.content:
-                content = message.content["answer"]
-            else:
-                content = str(message.content)
+        # if message.sender_type == "ai":
+        #     if hasattr(message.content, "data") and hasattr(message.content.data, "answer"):
+        #         content = message.content.data.answer
+        #     elif isinstance(message.content, dict) and "answer" in message.content:
+        #         content = message.content["answer"]
+        #     else:
+        #         content = str(message.content)
+
+        # Log the received metadata type and value before creating the DB object
+        logger.debug(f"Type of message.metadata before DB save: {type(message.metadata)}")
+        logger.debug(f"Value of message.metadata before DB save: {message.metadata!r}") # Use !r for repr
 
         # Create message
         db_message = ConversationMessage(
@@ -156,14 +161,54 @@ async def add_message(
             content=content,
             role=message.role,
             sender_type=message.sender_type,
-            metadata=message.metadata
+            meta=message.metadata
         )
         
         db.add(db_message)
         await db.commit()
         await db.refresh(db_message)
+
+        # Log the type AFTER refreshing from DB to see what SQLAlchemy loaded
+        logger.debug(f"Type of db_message.meta AFTER DB refresh: {type(db_message.meta)}")
+        logger.debug(f"Value of db_message.meta AFTER DB refresh: {db_message.meta!r}")
+
+        # --- Workaround for MetaData type issue --- 
+        # Attempt to convert db_message.meta to dict if it's not already one
+        response_metadata = db_message.meta
+        if not isinstance(response_metadata, dict) and response_metadata is not None:
+            logger.warning(f"db_message.meta is type {type(response_metadata)}, attempting conversion.")
+            try:
+                # Common ways to convert custom objects might involve .dict(), .model_dump(), vars()
+                if hasattr(response_metadata, 'model_dump'): # Pydantic V2
+                    response_metadata = response_metadata.model_dump()
+                elif hasattr(response_metadata, 'dict'): # Pydantic V1
+                    response_metadata = response_metadata.dict()
+                elif hasattr(response_metadata, '__dict__'): # Standard attribute dictionary
+                    response_metadata = vars(response_metadata)
+                else:
+                    logger.error("Cannot automatically convert db_message.meta to dict.")
+                    response_metadata = {} # Default to empty dict on failure
+            except Exception as conversion_err:
+                logger.error(f"Failed to convert db_message.meta to dict: {conversion_err}")
+                response_metadata = {} # Default to empty dict on error
+
+        # Final check if conversion worked
+        if not isinstance(response_metadata, dict) and response_metadata is not None:
+            logger.error("Conversion failed, metadata is still not a dict. Returning empty dict.")
+            response_metadata = {}
+        # --- End Workaround ---
         
-        return StandardResponse.success_response(MessageResponse.from_orm(db_message))
+        # Manually construct the response payload, ensuring metadata is a dict
+        response_payload = MessageResponse(
+            id=db_message.id,
+            content=db_message.content, 
+            role=db_message.role,
+            sender_type=db_message.sender_type,
+            created_at=db_message.created_at,
+            metadata=response_metadata # Use the explicitly prepared dictionary
+        )
+        
+        return StandardResponse.success_response(response_payload)
 
     except Exception as e:
         logger.error(f"Error adding message: {e}")

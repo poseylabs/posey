@@ -75,4 +75,5 @@ delete_me
 keys
 
 # Voyager agent virtual environments
+services/core/agents/envs/
 services/core/voyager/agents/envs/

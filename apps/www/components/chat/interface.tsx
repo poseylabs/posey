@@ -36,7 +36,7 @@ export function ChatInterface({ initialConversation }: ChatInterfaceProps) {
 
   // State
   const [conversationTitle, setConversationTitle] = useState<string>('New Conversation');
-  const [input, setInput] = useState<string>("what's the weather this weekend?");
+  const [input, setInput] = useState<string>("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingState, setProcessingState] = useState<{
@@ -56,12 +56,14 @@ export function ChatInterface({ initialConversation }: ChatInterfaceProps) {
   const updateConversation = usePoseyState((state) => state.updateConversation);
 
   const { callAgent } = useConversation({
-    initialConversationId: initialConversation?.id,
+    initialConversationId: initialConversation?.id || '',
   });
 
   // --- Fetch Browser Location on Mount --- 
   useEffect(() => {
     if ('geolocation' in navigator) {
+      console.log('Geolocation is supported, fetching current position...');
+
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setBrowserLocation({
@@ -75,7 +77,7 @@ export function ChatInterface({ initialConversation }: ChatInterfaceProps) {
           // Now valid as lat/lon are optional
           setBrowserLocation({ error: error.message });
         },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 } // Options: low accuracy, 10s timeout, cache for 10min
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 } // Options: Increased timeout, force fresh location
       );
     } else {
       console.log('Geolocation is not supported by this browser.');

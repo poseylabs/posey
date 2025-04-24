@@ -38,8 +38,8 @@ class ImageGenerationMinion(BaseMinion):
     """AI Image Generation minion"""
     agent: Optional[Agent] = None
 
-    async def setup(self) -> None:
-        """Initialize minion-specific components (excluding the agent)."""
+    async def setup(self, *args, **kwargs) -> None:
+        """Initialize minion-specific components (excluding the agent), accepting extra args."""
         logger.info(f"Performing setup for '{self.name}' minion...")
         self.ability = ImageAbility() 
         logger.info(f"ImageAbility initialized for '{self.name}'.")

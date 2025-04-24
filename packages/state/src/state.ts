@@ -130,7 +130,6 @@ const STORE_CONFIG = {
 }
 
 const formatUserForStore = (user: User) => {
-  console.log('formatUserForStore', user);
   return {
     ...user,
     metadata: {
@@ -139,10 +138,6 @@ const formatUserForStore = (user: User) => {
     }
   }
 }
-
-// Generate a unique ID for this store instance
-const storeInstanceId = `store-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-console.log(`[Zustand Store] CREATING NEW STORE INSTANCE: ${storeInstanceId}`);
 
 export const usePoseyState = create<PoseyState>()(
   persist(
@@ -597,7 +592,6 @@ export const usePoseyState = create<PoseyState>()(
              return; 
           }
 
-          console.log('[Zustand setCurrentConversation] Updating state with conversation:', conversation.id);
           set((state: PoseyState) => ({
             ...state,
             chat: {

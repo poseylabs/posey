@@ -20,13 +20,13 @@ class StableDiffusionProvider(ImageProvider):
     
     def __init__(self):
         """Initialize the Stable Diffusion provider"""
-        self.api_key = os.getenv("STABILITY_API_KEY")
-        self.api_base = os.getenv("STABILITY_API_BASE", "https://api.stability.ai")
+        self.api_key = os.getenv("STABLE_DIFFUSION_API_KEY")
+        self.api_base = os.getenv("STABLE_DIFFUSION_API_URL", "https://api.stability.ai")
         
     def validate_configuration(self) -> bool:
         """Check if the provider is properly configured"""
         if not self.api_key:
-            logger.warning("STABILITY_API_KEY not set - Stable Diffusion image generation will be unavailable")
+            logger.warning("STABLE_DIFFUSION_API_KEY not set - Stable Diffusion image generation will be unavailable")
             return False
         return True
     

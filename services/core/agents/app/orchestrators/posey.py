@@ -10,6 +10,8 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 from sqlalchemy import text
+import markdown
+import re
 
 from app.utils.agent import create_agent, AgentExecutionResult
 from app.utils.context import RunContext
@@ -43,36 +45,62 @@ class PoseyResponse(BaseModel):
     memory_updates: List[Dict[str, Any]] = []
     
     @classmethod
-    def from_str(cls, text: str) -> "PoseyResponse":
-        """Create a PoseyResponse from a string, parsing JSON if possible"""
-        # If it's already a PoseyResponse, return it
-        if isinstance(text, PoseyResponse):
-            return text
+    def from_str(cls, text_or_obj: Any) -> "PoseyResponse":
+        """Create a PoseyResponse from a string, AgentRunResult, or other object."""
 
-        # If it's a string that looks like JSON, try to parse it
-        if isinstance(text, str) and text.strip().startswith('{') and text.strip().endswith('}'):
-            try:
-                data = json.loads(text.strip())
-                # If the parsed JSON has the expected fields, create a PoseyResponse
-                if isinstance(data, dict) and 'answer' in data:
-                    return cls(
-                        answer=data.get('answer', ''),
-                        confidence=data.get('confidence', 0.5),
-                        sources=data.get('sources', []),
-                        metadata=data.get('metadata', {}),
-                        memory_updates=data.get('memory_updates', [])
-                    )
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse string as JSON: {text[:100]}...")
-                
-        # Default case: treat as plain text answer
-        return cls(
-            answer=text,
-            confidence=0.5,
-            sources=[],
-            metadata={},
-            memory_updates=[]
-        )
+        # Handle AgentRunResult directly
+        if isinstance(text_or_obj, AgentRunResult):
+            logger.debug(f"[PoseyResponse.from_str] Handling AgentRunResult object: {text_or_obj!r}")
+            extracted_text = None
+            # Prioritize .output if it's a non-empty string
+            if hasattr(text_or_obj, 'output') and isinstance(text_or_obj.output, str) and text_or_obj.output.strip():
+                extracted_text = text_or_obj.output.strip()
+                logger.debug(f"[PoseyResponse.from_str] Extracted text from AgentRunResult.output: '{extracted_text[:100]}...'")
+            # Fallback to .data if it's a non-empty string
+            elif hasattr(text_or_obj, 'data') and isinstance(text_or_obj.data, str) and text_or_obj.data.strip():
+                extracted_text = text_or_obj.data.strip()
+                logger.debug(f"[PoseyResponse.from_str] Extracted text from AgentRunResult.data: '{extracted_text[:100]}...'")
+            # Further fallback: if .data is a dict with an 'answer' key
+            elif hasattr(text_or_obj, 'data') and isinstance(text_or_obj.data, dict) and text_or_obj.data.get('answer'):
+                extracted_text = text_or_obj.data['answer']
+                logger.debug(f"[PoseyResponse.from_str] Extracted text from AgentRunResult.data['answer']: '{extracted_text[:100]}...'")
+
+            if extracted_text:
+                # Use the extracted text as the answer
+                return cls(answer=extracted_text, confidence=0.7) # Assign default higher confidence if text found
+            else:
+                logger.warning("[PoseyResponse.from_str] AgentRunResult provided, but no usable text found in .output or .data. Falling back.")
+                # Fallback to string representation if nothing useful extracted
+                text_or_obj = str(text_or_obj)
+
+        # Handle string input (original logic)
+        if isinstance(text_or_obj, str):
+            input_str = text_or_obj.strip()
+            logger.debug(f"[PoseyResponse.from_str] Handling string input: '{input_str[:100]}...'")
+            if input_str.startswith('{') and input_str.endswith('}'):
+                try:
+                    data = json.loads(input_str)
+                    if isinstance(data, dict) and 'answer' in data:
+                        logger.debug("[PoseyResponse.from_str] Parsed string as JSON PoseyResponse structure.")
+                        return cls(
+                            answer=data.get('answer', ''),
+                            confidence=data.get('confidence', 0.5),
+                            sources=data.get('sources', []),
+                            metadata=data.get('metadata', {}),
+                            memory_updates=data.get('memory_updates', [])
+                        )
+                    else:
+                        logger.debug("[PoseyResponse.from_str] Parsed string as JSON, but not a valid PoseyResponse structure.")
+                except json.JSONDecodeError:
+                    logger.warning(f"[PoseyResponse.from_str] Failed to parse string as JSON: {input_str[:100]}...")
+
+            # Default case: treat as plain text answer
+            logger.debug("[PoseyResponse.from_str] Treating string input as plain text answer.")
+            return cls(answer=input_str, confidence=0.5)
+
+        # Handle other types (fallback)
+        logger.warning(f"[PoseyResponse.from_str] Unexpected input type: {type(text_or_obj)}. Converting to string.")
+        return cls(answer=str(text_or_obj), confidence=0.3)
 
 class PoseyAgentState(BaseModel):
     """Represents the state of the Posey agent graph."""
@@ -116,7 +144,6 @@ class PoseyAgent:
     Use the async factory method `create` to instantiate.
     """
     orchestrator: Agent
-    synthesis_agent: Agent
     orchestrator_model_id: str
     content_analysis_minion: BaseMinion
     db: AsyncSession
@@ -130,7 +157,6 @@ class PoseyAgent:
     def __init__(
         self,
         orchestrator_agent: Agent,
-        synthesis_agent: Agent,
         orchestrator_model_id: str,
         content_analysis_minion: BaseMinion,
         db_session: AsyncSession,
@@ -141,7 +167,6 @@ class PoseyAgent:
     ):
         """Initialize PoseyAgent with necessary components."""
         self.orchestrator = orchestrator_agent
-        self.synthesis_agent = synthesis_agent
         self.orchestrator_model_id = orchestrator_model_id
         self.content_analysis_minion = content_analysis_minion
         self.db = db_session
@@ -152,6 +177,13 @@ class PoseyAgent:
         self.minion_llm_configs = minion_llm_configs
         self.available_abilities_list = []
         logger.info("PoseyAgent synchronous initialization complete.")
+
+    def _extract_location_from_query(self, query: str) -> str:
+        """Extract location from user query using regex (e.g., 'weather in Seattle')"""
+        match = re.search(r"(?:in|for) ([A-Za-z ,]+)", query, re.IGNORECASE)
+        if match:
+            return match.group(1).strip().rstrip("?.!")
+        return None
 
     @classmethod
     async def create(
@@ -197,7 +229,7 @@ class PoseyAgent:
                 available_abilities_list = ability_registry.get_available_abilities()
                 
                 # Log abilities immediately after fetching inside the try block
-                logger.info("AVAILABLE ABILITIES (within try):")
+                logger.info("AVAILABLE ABILITIES")
                 if available_abilities_list:
                     for ability in available_abilities_list:
                         display_name = ability.get('display_name', ability.get('name', 'Unknown Ability'))
@@ -314,17 +346,6 @@ class PoseyAgent:
         logger.info("Orchestrator agent created.")
         # --- End Orchestrator Config & Creation ---
 
-        # Create the synthesis agent using DB config OR user preferences
-        logger.info("Creating synthesis agent...")
-        synthesis_agent = await create_agent(
-            agent_type="synthesis",
-            abilities=[],
-            db=db,
-            user_preferences=user_preferences,
-            available_abilities_list=available_abilities_list # Pass fetched list
-        )
-        logger.info("Synthesis agent created.")
-
         # Get the Content Analysis minion (assuming it was pre-initialized)
         logger.info("Verifying ContentAnalysisMinion instance...") 
         content_analysis_minion = initialized_minions.get("content_analysis")
@@ -336,7 +357,6 @@ class PoseyAgent:
         # Create the PoseyAgent instance, passing the determined model ID
         instance = cls(
             orchestrator_agent=orchestrator_agent,
-            synthesis_agent=synthesis_agent,
             orchestrator_model_id=orchestrator_model_id_str, # Pass the string ID
             content_analysis_minion=content_analysis_minion,
             db_session=db,
@@ -349,17 +369,14 @@ class PoseyAgent:
         # Store the fetched abilities list on the instance
         instance.available_abilities_list = available_abilities_list
         
-        # Load prompts for Posey (orchestrator) and Synthesis agents
+        # Load prompts for Posey (orchestrator)
         try:
             prompt_loader = PromptLoader()
-            # Corrected method call
             instance.orchestrator_prompts = prompt_loader.get_prompt_with_shared_config("posey") 
-            instance.synthesis_prompts = prompt_loader.get_prompt_with_shared_config("synthesis")
-            logger.info("Loaded prompts for posey orchestrator and synthesis agents with shared configurations")
+            logger.info("Loaded prompts for posey orchestrator with shared configurations")
         except Exception as e:
-            logger.error(f"Failed to load prompts for Posey/Synthesis agents: {e}")
+            logger.error(f"Failed to load prompts for Posey agent: {e}")
             instance.orchestrator_prompts = {}
-            instance.synthesis_prompts = {}
 
         # Register tools AFTER instance is created
         await instance.register_minion_tools()
@@ -394,61 +411,14 @@ class PoseyAgent:
 
         llm_config = self.minion_llm_configs.get(minion_key)
         if not llm_config:
-            logger.error(f"[ORCHESTRATOR TOOL] LLM config for minion '{minion_key}' was not pre-fetched. Cannot execute task.")
-            return {"error": f"LLM configuration missing for minion '{minion_key}'."}
+            logger.warning(f"[ORCHESTRATOR TOOL] LLM config for minion '{minion_key}' was not pre-fetched. Proceeding, but minion might fail if LLM is required.")
             
         try:
-            # --- Instantiate Agent Just-in-Time --- 
-            agent_instance: Optional[Agent] = None
-            try:
-                logger.info(f"[ORCHESTRATOR TOOL] Instantiating agent for '{minion_key}'...")
-                # Validate config relationships before use
-                if not llm_config.llm_model or not llm_config.llm_model.provider:
-                     raise ValueError(f"LLM config for '{minion_key}' is missing model/provider relationship.")
-                     
-                # Construct model ID and settings from config
-                provider_slug = llm_config.llm_model.provider.slug
-                model_id = llm_config.llm_model.model_id
-                agent_model_id = f"{provider_slug}:{model_id}"
-                
-                agent_kwargs = {
-                    "temperature": llm_config.temperature,
-                    "max_tokens": llm_config.max_tokens,
-                    "top_p": llm_config.top_p,
-                    "frequency_penalty": llm_config.frequency_penalty,
-                    "presence_penalty": llm_config.presence_penalty,
-                    **(llm_config.additional_settings or {})
-                }
-                model_settings = {k: v for k, v in agent_kwargs.items() if v is not None}
-                system_prompt = minion_instance.get_system_prompt()
-                
-                # --- Determine result_type --- 
-                expected_result_type = None
-                if minion_key == 'voyager':
-                    expected_result_type = WebResponse
-                    logger.info(f"[ORCHESTRATOR TOOL] Setting expected result_type to WebResponse for voyager.")
-                # TODO: Add logic here later to get result_type from other minions
-                # --- End determine result_type ---
-                
-                # Instantiate the pydantic_ai.Agent
-                agent_instance = Agent(
-                    agent_model_id,
-                    system_prompt=system_prompt,
-                    # Use the determined result type
-                    result_type=expected_result_type, 
-                    model_settings=model_settings
-                )
-                logger.info(f"[ORCHESTRATOR TOOL] Successfully instantiated agent for '{minion_key}'.")
-
-            except Exception as agent_creation_exc:
-                logger.error(f"[ORCHESTRATOR TOOL] Failed to instantiate agent for '{minion_key}': {agent_creation_exc}", exc_info=True)
-                return {"error": f"Failed to create agent for minion '{minion_key}': {agent_creation_exc}"}
-            # --- End Agent Instantiation ---
-            
-            # --- Prepare Dependencies for Minion Run --- 
-            # Start with base deps available to the tool
+            # --- Prepare Dependencies for Minion Run ---
+            # Start with base deps available to the tool (passed via context.deps)
             merged_deps = context.deps.copy() if context.deps else {}
-            
+            original_user_id = merged_deps.get('user_id') # Store the original user_id if present
+
             # Merge/override with context provided explicitly in the request
             if request.context_override:
                 logger.info(f"[ORCHESTRATOR TOOL / {minion_key}] Merging context_override into deps: {list(request.context_override.keys())}")
@@ -478,54 +448,71 @@ class PoseyAgent:
                     logger.error(f"[ORCHESTRATOR TOOL / {minion_key}] Error fetching memories: {ctx_fetch_err}", exc_info=True)
 
             # Example: Add user profile if not already provided in override
-            if 'user_profile' not in merged_deps: 
+            if 'user_profile' not in merged_deps:
                 logger.info(f"[ORCHESTRATOR TOOL / {minion_key}] Adding user_profile data (not in context_override).")
-                if merged_deps: # Check if base deps exist
+                # Make sure we use the original user_id if it exists
+                current_user_id = merged_deps.get('user_id', original_user_id)
+                if current_user_id:
                     user_profile_data = {
-                        'user_id': merged_deps.get('user_id'),
-                        'username': merged_deps.get('user_name'), 
+                        'user_id': current_user_id, # Use the determined user_id
+                        'username': merged_deps.get('user_name'),
                         'location': merged_deps.get('location'), # Location might be here now if passed via override or base deps
                         'preferences': merged_deps.get('preferences')
                     }
                     user_profile_data = {k: v for k, v in user_profile_data.items() if v is not None}
                     if user_profile_data:
-                        merged_deps['user_profile'] = user_profile_data
+                        merged_deps['user_profile'] = user_profile_data # Adds it under 'user_profile' key
                         logger.info(f"[ORCHESTRATOR TOOL / {minion_key}] Added user profile data: {list(user_profile_data.keys())}")
                     else:
-                        logger.info(f"[ORCHESTRATOR TOOL / {minion_key}] No user profile components found in base deps.")
+                         logger.info(f"[ORCHESTRATOR TOOL / {minion_key}] No user profile components could be assembled.")
                 else:
-                    logger.warning(f"[ORCHESTRATOR TOOL / {minion_key}] Base context deps are empty, cannot add user profile.")
+                     logger.warning(f"[ORCHESTRATOR TOOL / {minion_key}] User ID not found in context or override. Cannot add user_profile.")
 
-            # --- Determine Location ---
-            user_prefs = context.get("user_preferences", {})
-            final_location = user_prefs.get("location")
+            # --- Enhanced Location Context ---
+            user_query = minion_prompt
+            location_context = {
+                "query": self._extract_location_from_query(user_query),
+                "user_profile": merged_deps.get("user_profile", {}).get("location"),
+                "geolocation": merged_deps.get("geolocation"),
+                "browser_ip": merged_deps.get("metadata", {}).get("browser", {}).get("location")
+            }
+            merged_deps["location"] = location_context
+            logger.info(f"[ORCHESTRATOR TOOL / {minion_key}] Injected location context: {location_context}")
 
-            browser_location_data = context.get("metadata", {}).get("browser", {}).get("location") # Safely get browser location
-            logger.debug(f"[{request_id}] Browser location data from context: {browser_location_data}")
+            # --- Ensure top-level user_id is present ---
+            if 'user_id' not in merged_deps and original_user_id:
+                 logger.info(f"[ORCHESTRATOR TOOL / {minion_key}] Ensuring top-level 'user_id' is present in context.")
+                 merged_deps['user_id'] = original_user_id
+            elif 'user_id' not in merged_deps:
+                 logger.warning(f"[ORCHESTRATOR TOOL / {minion_key}] Could not ensure top-level 'user_id' as it was not found initially.")
 
-            logger.info(f"[MINION_PROMPT_INPUT / {minion_key}] System Prompt Used:")
-            logger.info(f"-------------------- SYSTEM PROMPT START ({minion_key}) --------------------")
-            logger.info(system_prompt)
-            logger.info(f"-------------------- SYSTEM PROMPT END ({minion_key}) ----------------------")
-            logger.info(f"[MINION_PROMPT_INPUT / {minion_key}] Task Description (User Prompt) Passed to run():")
+            # Construct the RunContext needed by the minion's execute method
+            # Use the actual orchestrator model ID as the "model" in this context
+            minion_run_context = RunContext(
+                model=self.orchestrator_model_id, # Use orchestrator's model ID
+                usage={}, # Placeholder usage, minion execution doesn't directly track LLM usage here
+                prompt=minion_prompt, # Pass the specific task prompt
+                deps=merged_deps # Pass the fully prepared dependencies
+            )
 
-            logger.info(f"-------------------- TASK DESC START ({minion_key}) -----------------------")
-            logger.info(minion_prompt) 
-            logger.info(f"-------------------- TASK DESC END ({minion_key}) -------------------------")
-
-            logger.info(f"[ORCHESTRATOR TOOL] Executing task on '{minion_key}' agent.")
+            logger.info(f"[ORCHESTRATOR TOOL] Directly executing '{minion_key}'.execute method.")
             
             # --- ADDED DEBUG LOG --- 
-            logger.debug(f"[ORCHESTRATOR TOOL / {minion_key}] Final merged_deps being passed to agent.run():\n{pprint.pformat(merged_deps)}")
+            logger.debug(f"[ORCHESTRATOR TOOL / {minion_key}] Params being passed to execute():\n{pprint.pformat(params)}")
+            logger.debug(f"[ORCHESTRATOR TOOL / {minion_key}] RunContext being passed to execute():\n{minion_run_context}") # Log the context object
             # --- END DEBUG LOG --- 
 
-            agent_result = await agent_instance.run(minion_prompt, deps=merged_deps) 
+            # Directly call the minion's execute method
+            # Pass the original params dictionary (which might contain 'query', 'operation', etc.)
+            # Pass the constructed RunContext object
+            minion_result = await minion_instance.execute(params=params, context=minion_run_context)
             
-            logger.info(f"[RAW_MINION_RESULT / {minion_key}] Raw agent result received. Type: {type(agent_result)}")
-            logger.debug(f"[RAW_MINION_RESULT / {minion_key}] Raw Result repr():\n{repr(agent_result)}")
-            logger.info(f"[ORCHESTRATOR TOOL] Minion '{minion_key}' finished. Result type: {type(agent_result)}")
+            logger.info(f"[RAW_MINION_RESULT / {minion_key}] Raw result received from {minion_key}.execute. Type: {type(minion_result)}")
+            logger.debug(f"[RAW_MINION_RESULT / {minion_key}] Raw Result repr():\n{repr(minion_result)}")
+            logger.info(f"[ORCHESTRATOR TOOL] Minion '{minion_key}'.execute finished. Result type: {type(minion_result)}")
             
-            return self._serialize_result(agent_result, minion_key)
+            # Serialize the direct result from the execute method
+            return self._serialize_result(minion_result, minion_key)
 
         except Exception as e:
             logger.error(f"[ORCHESTRATOR TOOL] Error executing task on '{minion_key}': {e}", exc_info=True)
@@ -634,8 +621,15 @@ class PoseyAgent:
             user_id = context.get("user_id", "default_user")
             conversation_id = context.get("conversation_id", str(uuid.uuid4()))
             project_id = context.get("project_id")
+
+            # Initialize location variables to ensure they exist
+            final_location = None
+            browser_location_data = None
             
-            # --- Format Message History for LLM Prompt --- 
+            # TODO: Add the actual IP lookup and browser location extraction logic here
+            # For now, they are initialized to None.
+
+            # --- Format Message History for LLM Prompt ---
             def format_history_for_prompt(history: List[Dict[str, str]]) -> str:
                 formatted = []
                 for msg in history:
@@ -706,7 +700,6 @@ class PoseyAgent:
                 return AgentExecutionResult(answer=final_response, confidence=0.0, error_message=str(agent_init_error))
 
             # Prepare context for the analysis run
-            # --- MODIFIED: Pass formatted history and full context --- 
             analysis_run_deps = {
                 # Start with the full incoming context dictionary
                 **context, 
@@ -795,34 +788,50 @@ class PoseyAgent:
                 
                 # --- ADDED: Return error result immediately --- 
                 return AgentExecutionResult(
-                    success=False,
-                    answer=f"I encountered an error during the analysis phase: {str(analysis_error)}",
-                    error="ContentAnalysisError",
+                    answer="I encountered an error during the analysis phase. Please check the logs.",
+                    confidence=0.0,
+                    error_message=f"Analysis execution failed: {analysis_error}",
+                    request_id=request_id,
+                    execution_steps=[{"step": "Content Analysis", "status": "Error", "details": str(analysis_error)}],
                     run_id=request_id,
-                    start_time=total_start, 
+                    start_time=total_start,
+                    end_time=time.time(),
+                    duration=time.time() - total_start,
                     metadata={
                         "status": "error",
                         "error_message": str(analysis_error),
                         "traceback": traceback.format_exc().splitlines()
-                    },
-                    confidence=0.0
+                    }
                 )
-                # --- END ADDED --- 
-            
-            # Extract intent and reasoning for orchestrator context
-            intent = "unknown"
-            analysis_summary = "Analysis unavailable"
-            if hasattr(analysis, "intent") and analysis.intent:
-                intent = analysis.intent.primary_intent if hasattr(analysis.intent, "primary_intent") else str(analysis.intent)
-            if hasattr(analysis, "reasoning"):
-                analysis_summary = analysis.reasoning
-            
-            # --- REFACTOR START: Execute based on Content Analysis --- 
+            # --- END ADDED ---
+
+            execution_steps.append({
+                "step": "Content Analysis",
+                "status": "Success" if analysis and analysis.intent.primary_intent != "error" else "Completed with Internal Error",
+                "result": analysis.model_dump() if analysis else None,
+                "duration": time.time() - total_start # Or dedicated timer for this step
+            })
+
+            # --- ADDED: Persist analysis results and original query into context --- 
+            if analysis:
+                logger.info("[POSEY_RUN / POST-ANALYSIS] Adding analysis results and original query to context for subsequent steps.")
+                context['original_query'] = prompt # Add the original query string
+                # Convert analysis model to dict for easier passing/serialization if needed later
+                context['content_analysis'] = analysis.model_dump()
+                logger.debug(f"[POSEY_RUN / POST-ANALYSIS] Context updated with analysis keys: {['original_query', 'content_analysis']}")
+            else:
+                logger.error("[POSEY_RUN / POST-ANALYSIS] Analysis object is None after Step 1, subsequent steps may fail.")
+                # Optionally, handle this case - maybe skip execution/synthesis if analysis failed critically
+            # --- END ADDED --- 
+
+            # 2. Orchestration/Execution (Based on Analysis)
+            logger.info("STEP 2: ORCHESTRATION/EXECUTION")
             logger.info("=" * 80)
-            logger.info(f"[{request_id}] STEP 2: EXECUTE PLAN FROM ANALYSIS")
-            logger.info("=" * 80)
             
-            all_results = [] # Store results from minions and abilities
+            # --- ADDED: Initialize all_results before execution logic --- 
+            all_results: List[Dict[str, Any]] = [] # Ensure it's always initialized as a list of dicts
+            # --- END ADDED ---
+
             execution_error: Optional[str] = None
             final_metadata = {} # Initialize metadata dictionary
 
@@ -896,18 +905,21 @@ class PoseyAgent:
                             )
                             
                             # Store result
+                            # Check if error key exists AND is not None
+                            has_error = "error" in minion_result_dict and minion_result_dict.get("error") is not None
                             all_results.append({
                                 "target_key": target.target_key,
                                 "target_type": "minion",
-                                "status": "success" if "error" not in minion_result_dict else "error", # Infer status
-                                "result_data": minion_result_dict.get("result"), 
-                                "error": minion_result_dict.get("error")
+                                "status": "error" if has_error else "success", # Updated status inference
+                                "result_data": minion_result_dict.get("data"), # Get 'data' field from WebResponse dump
+                                "error": minion_result_dict.get("error") if has_error else None # Only store error if it's not None
                             })
-                            if "error" in minion_result_dict:
+                            # Log only if there's a non-None error
+                            if has_error:
                                 logger.error(f"[{request_id}] Minion '{target.target_key}' execution failed: {minion_result_dict.get('error')}")
-                                # Optional: Decide if we should stop execution 
-                                # execution_error = f"Minion {target.target_key} failed."
-                                # break 
+                                # Optional: Set execution_error flag to stop processing
+                                # execution_error = f"Minion {target.target_key} failed: {minion_result_dict.get('error')}"
+                                # break # Consider uncommenting if failure should halt the plan
 
                         elif target.target_type == 'ability':
                             # Construct AbilityRequest
@@ -975,103 +987,105 @@ class PoseyAgent:
             # C. Handle No Delegation Needed (Simple Response)
             else:
                 # No delegation needed, and no clarification needed.
-                logger.info(f"[{request_id}] No delegation required. Generating simple response (placeholder)...")
-                # TODO: Implement simple response generation using synthesis agent?
-                primary_intent = analysis.intent.primary_intent if hasattr(analysis, 'intent') else 'unknown'
-                simple_response = f"Okay, I understand your intent seems to be '{primary_intent}'. How can I help further?" # Placeholder
-                all_results.append({
-                    "target_key": "simple_response",
+                logger.info(f"[{request_id}] No delegation required according to analysis. Proceeding to synthesis with original context.")
+                # Ensure all_results is empty or contains only informational placeholders
+                # If all_results MUST contain something for synthesis, add an info entry:
+                all_results = [{
+                    "target_key": "orchestrator",
                     "target_type": "internal",
-                    "status": "success",
-                    "result_data": simple_response,
+                    "status": "info",
+                    "result_data": {"message": "No delegation required by Content Analysis."},
                     "error": None
-                })
-                # Set confidence based on analysis confidence
-                final_confidence = analysis.confidence if hasattr(analysis, 'confidence') else 0.6 
-                final_answer = simple_response # Ensure final_answer is set here
+                }]
+                # The flow will naturally proceed to Step 3 (Synthesis) after this block.
 
-            # --- REFACTOR END --- 
+            # --- ADDED: Persist execution results into context for Synthesis --- 
+            logger.info(f"[POSEY_RUN / POST-STEP-2] Adding execution results (all_results) to context under 'execution_results'. Results count: {len(all_results)}")
+            # Make sure we are adding the list of dicts to the context
+            context['execution_results'] = all_results
 
             # Step 3: Synthesize Final Response
             # Check if we should proceed with synthesis (no clarification, no simple response already generated)
             synthesis_needed = not execution_error and not (hasattr(analysis, 'intent') and analysis.intent.needs_clarification) and 'final_answer' not in locals()
             
-            if synthesis_needed:
-                 logger.info(f"[{request_id}] Step 3: Synthesizing final response...")
-                 try:
-                    # Prepare synthesis prompt input (Simplified construction)
-                    intent_str = analysis.intent.primary_intent if hasattr(analysis, 'intent') else 'Unknown'
-                    results_json = json.dumps(all_results, indent=2, default=str)
-                    synthesis_prompt_parts = [
-                        f"Original User Query: {prompt}",
-                        f"Analysis Intent: {intent_str}",
-                        f"Execution Results:\n{results_json}",
-                        "\nSynthesize a final, helpful response to the user based on the query and the execution results.",
-                        "If the results indicate an error or failure, acknowledge it appropriately."
-                    ]
-                    synthesis_prompt_input = "\n\n".join(synthesis_prompt_parts)
+            # Ensure all_results exists (it should always be initialized as a list now)
+            logger.info(f"[POSEY_RUN / POST-STEP-2] Adding execution results (all_results) to context under 'execution_results_summary'. Results count: {len(all_results)}")
+            context['execution_results_summary'] = all_results # Use the list directly
 
-                    # Prepare dependencies for synthesis agent run
-                    synthesis_deps = {
-                    "request_id": request_id,
-                        "db": self.db, 
-                        "conversation_id": conversation_id, 
-                        "user_id": user_id,
-                        # Pass results and analysis if the agent needs them structured
-                        "execution_results": all_results,
-                        "analysis": analysis.model_dump() if analysis else None,
-                        **context # Pass original context
-                    }
-                    
-                    logger.debug(f"[{request_id}] Synthesis Agent Input Prompt:\n{synthesis_prompt_input}")
-                    
-                    # Ensure synthesis agent is available
-                    if not self.synthesis_agent:
-                        raise ValueError("Synthesis agent is not initialized.")
-                        
-                    # Run synthesis agent - Pass prompt as positional arg
-                    synthesis_run_result = await self.synthesis_agent.run(
-                        synthesis_prompt_input, 
-                        deps=synthesis_deps
+            if synthesis_needed:
+                 logger.info(f"[{request_id}] Step 3: Synthesizing final response via SynthesisMinion...")
+                 try:
+                    # --- Delegate to Synthesis Minion ---
+                    synthesis_request = MinionDelegationRequest(
+                        minion_key="synthesis",
+                        task_description="Synthesize the final response based on the analysis and execution results.",
+                        params={
+                            "original_query": prompt,
+                            "analysis": analysis.model_dump() if analysis else {},
+                            "execution_results": all_results
+                        }
+                        # No context_override needed as synthesis minion doesn't require special context beyond standard deps
                     )
-                    
-                    raw_synthesis_output = None
-                    if isinstance(synthesis_run_result, AgentRunResult):
-                        # Prioritize .data if it exists and is meaningful (e.g., a structured object)
-                        if hasattr(synthesis_run_result, 'data') and synthesis_run_result.data:
-                            logger.info(f"[{request_id}] Using synthesis output from AgentRunResult.data (Type: {type(synthesis_run_result.data)})")
-                            raw_synthesis_output = synthesis_run_result.data # Could be a string or a Pydantic model
-                        # Fallback to .output if it's a non-empty string
-                        elif hasattr(synthesis_run_result, 'output') and isinstance(synthesis_run_result.output, str) and synthesis_run_result.output.strip():
-                            logger.info(f"[{request_id}] Using synthesis output from AgentRunResult.output")
-                            raw_synthesis_output = synthesis_run_result.output
-                        else:
-                            logger.warning(f"[{request_id}] Synthesis AgentRunResult had neither useful .data nor .output. Result: {synthesis_run_result!r}")
-                            raw_synthesis_output = str(synthesis_run_result) # Fallback to string representation
-                    elif isinstance(synthesis_run_result, str):
-                        # If the agent somehow returned a raw string directly
-                         logger.info(f"[{request_id}] Synthesis agent returned a raw string.")
-                         raw_synthesis_output = synthesis_run_result
+ 
+                    # Create a minimal RunContext for the minion call
+                    # Pass essential context deps
+                    synthesis_context_deps = {
+                        # --- MODIFIED: Pass the UPDATED context dictionary ---
+                        **context # This now includes original_query, content_analysis, etc.
+                        # Ensure core IDs override anything from the incoming context if needed
+                        # "user_id": user_id, # Already in context
+                        # "conversation_id": conversation_id, # Already in context
+                        # "run_id": request_id # Add run_id if not already present
+                    }
+                    # Add run_id if it wasn't in the initial context
+                    if 'run_id' not in synthesis_context_deps:
+                        synthesis_context_deps['run_id'] = request_id
+
+                    synthesis_run_context = RunContext(
+                        model="synthesis_minion_invocation", # Placeholder model ID
+                        usage={}, # Placeholder usage
+                        prompt=prompt, # Pass original prompt
+                        deps=synthesis_context_deps
+                    )
+ 
+                    logger.info(f"[{request_id}] Delegating to synthesis minion via _delegate_task_to_minion...")
+                    # Call the minion's execute method
+                    # --- MODIFIED CALL ---
+                    synthesis_result_dict: Dict[str, Any] = await self._delegate_task_to_minion(
+                        context=synthesis_run_context,
+                        request=synthesis_request
+                    )
+                    # --- END MODIFIED CALL ---
+                    logger.info(f"[{request_id}] SynthesisMinion delegation finished.")
+                     
+                    # Process the minion's response
+                    # Note: _delegate_task_to_minion already serializes the result and handles internal errors
+                    if synthesis_result_dict.get("error"):
+                        logger.error(f"[{request_id}] SynthesisMinion delegation reported an error: {synthesis_result_dict['error']}")
+                        # Use the error as part of the fallback message
+                        final_answer = f"I processed the request regarding '{analysis.intent.primary_intent if hasattr(analysis, 'intent') else 'unknown'}' but encountered an issue during the final synthesis step: {synthesis_result_dict['error']}"
+                        final_confidence = 0.3
+                    # Check for the specific key from SynthesisResponse
+                    elif synthesis_result_dict.get("synthesized_response"):
+                        # Keep the raw text response from the synthesis minion
+                        final_answer = synthesis_result_dict["synthesized_response"]
+                        
+                        # md = markdown.Markdown() # REMOVED: Don't convert here
+                        # # Process the text to HTML for the frontend
+                        # final_answer = md.convert(response_text) # REMOVED
+                        final_confidence = 0.8 # Assume higher confidence if minion succeeded
+                        logger.info(f"[{request_id}] Successfully received synthesized response from minion.")
                     else:
-                        # Handle unexpected types
-                         logger.warning(f"[{request_id}] Unexpected synthesis result type: {type(synthesis_run_result)}. Converting to string.")
-                         raw_synthesis_output = str(synthesis_run_result)
-                         
-                    logger.info(f"[{request_id}] Raw Synthesis Output to be parsed: {str(raw_synthesis_output)[:200]}...")
-                    # --- MODIFICATION END ---
-                    
-                    # Parse the synthesis output using PoseyResponse helper
-                    posey_response = PoseyResponse.from_str(raw_synthesis_output)
-                    final_answer = posey_response.answer
-                    final_confidence = posey_response.confidence
-                    # Merge metadata from synthesis response if any
-                    final_metadata.update(posey_response.metadata) 
-                    # TODO: Handle posey_response.sources and posey_response.memory_updates if needed
-                    
+                        logger.error(f"[{request_id}] SynthesisMinion delegation returned an unexpected result structure: {synthesis_result_dict}")
+                        final_answer = f"I processed the request regarding '{analysis.intent.primary_intent if hasattr(analysis, 'intent') else 'unknown'}' but the final synthesis step produced an unexpected result."
+                        final_confidence = 0.2
+                 
                  except Exception as synth_err:
-                      logger.error(f"[{request_id}] Error during synthesis: {synth_err}", exc_info=True)
-                      final_answer = f"I processed the request regarding '{analysis.intent.primary_intent if hasattr(analysis, 'intent') else 'unknown'}' but encountered an issue synthesizing the final response." 
-                      final_confidence = 0.3 # Lower confidence due to synthesis error
+                      # This outer catch block handles errors calling the delegation function or processing its result
+                      logger.error(f"[{request_id}] Error during synthesis minion execution: {synth_err}", exc_info=True)
+                      analysis_intent_str = analysis.intent.primary_intent if hasattr(analysis, 'intent') else 'unknown'
+                      final_answer = f"I encountered an issue during the synthesis step for your request about '{analysis_intent_str}'."
+                      final_confidence = 0.3
             
             elif 'final_answer' not in locals():
                  # Handle cases where synthesis wasn't needed but answer wasn't set (e.g., execution error handled earlier)
@@ -1087,6 +1101,10 @@ class PoseyAgent:
 
             # Ensure analysis dump is safe even if analysis is None
             analysis_dump = analysis.model_dump() if analysis else None
+
+            # --- MOVED: The check/addition for execution_results_summary now happens BEFORE synthesis --- 
+            # Log completion time AFTER final result object is constructed
+            logger.info(f"Posey execution completed in {total_time:.2f}s for request {request_id}")
 
             return AgentExecutionResult(
                 success=True, 

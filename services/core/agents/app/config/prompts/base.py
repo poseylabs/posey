@@ -1,7 +1,7 @@
 """Shared base prompt module for all agent interactions"""
 
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
 import pytz
 import json
@@ -23,6 +23,12 @@ class SystemContext(BaseModel):
     # Add fields for data assigned in content_analysis.py
     current_operation: Optional[str] = None
     available_abilities: Optional[Dict[str, Any]] = None
+    # Fields for analysis results passed to Synthesis
+    analysis_intent: Optional[Dict[str, Any]] = None
+    analysis_delegation: Optional[Dict[str, Any]] = None
+    analysis_reasoning: Optional[str] = None
+    # Field for execution results passed to Synthesis
+    execution_results_summary: Optional[List[str]] = None
 
 class MemoryContext(BaseModel):
     """Memory context information"""

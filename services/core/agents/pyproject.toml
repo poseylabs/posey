@@ -81,6 +81,11 @@ py-rust-stemmers = ">=0.1.0,<0.3.0" # Added from requirements
 # Monitoring & Logging
 structlog = ">=24.1.0"
 prometheus-client = ">=0.19.0"
+opentelemetry-api = ">=1.22.0" # Added from requirements
+opentelemetry-sdk = ">=1.22.0" # Added from requirements
+opentelemetry-exporter-otlp = ">=1.22.0" # Added from requirements
+opentelemetry-instrumentation-fastapi = ">=0.43b0" # Added from requirements
+opentelemetry-instrumentation-httpx = "*" # Added for Logfire
 
 # SDKs
 boto3 = ">=1.36.12"
@@ -90,6 +95,7 @@ botocore = ">=1.36.12"
 # pandas = "*" # Assume in base image
 # numpy = "*" # Assume in base image
 datasets = ">=3.1.0" # Added from requirements
+Markdown = ">=3.8"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -120,6 +126,7 @@ dev = "uvicorn app.main:app --reload --host 0.0.0.0 --port 5555"
 "image_processing" = "app.minions.image_processing:ImageProcessingMinion"
 "memory" = "app.minions.memory:MemoryMinion"
 "research" = "app.minions.research:ResearchMinion"
+"synthesis" = "app.minions.synthesis:SynthesisMinion"
 "voyager" = "app.minions.voyager:VoyagerMinion"
 
 [tool.pylint.messages_control]

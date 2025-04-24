@@ -20,7 +20,7 @@ class PromptLoader:
 
     @classmethod
     def get_agent_prompt(cls, agent_name: str):
-        return cls.load_prompt("agents", agent_name)
+        return cls.load_prompt("minions", agent_name)
 
     @classmethod
     def get_shared_prompt(cls, name: str):

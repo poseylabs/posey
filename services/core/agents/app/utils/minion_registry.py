@@ -8,6 +8,9 @@ from app.config import logger
 from app.config.database import Database
 from app.db.models.managed_minion import ManagedMinion
 from app.minions.base import BaseMinion
+from app.db.utils import get_minion_llm_config_by_key
+from app.db.models import MinionLLMConfig
+from app.minions.synthesis import SynthesisResponse
 
 MINION_ENTRY_POINT_GROUP = "posey.minions"
 
@@ -99,29 +102,123 @@ class MinionRegistry:
         try:
             MinionClass = self._loaded_classes[minion_key]
             
-            # --- Fetch DB config FIRST using a session ---
+            # --- REVERTED: Fetch DB config AND LLM config within a session --- 
+            minion_config: Optional[ManagedMinion] = None
+            llm_config: Optional[MinionLLMConfig] = None # Variable for LLM config
             async with db_manager.get_session() as session:
+                # Fetch ManagedMinion config
                 stmt = select(ManagedMinion).where(ManagedMinion.minion_key == minion_key)
                 result = await session.execute(stmt)
-                minion_config: Optional[ManagedMinion] = result.scalars().first()
-            
-            if not minion_config:
-                # This shouldn't happen if _load_active_minions worked, but safety check
-                raise ValueError(f"Database configuration for active minion '{minion_key}' not found during instantiation.")
-            
-            # --- Instantiate with details from DB --- 
-            # Ensure description is not None, provide default if it is
-            description = minion_config.description or f"Minion for {minion_config.display_name}"
-            instance = MinionClass(
-                name=minion_config.minion_key, # Internal key
-                display_name=minion_config.display_name, # User-facing name
-                description=description, # Description from DB
-                # prompt_category can remain default ('agents') or be configured in DB later
-            )
+                minion_config = result.scalars().first()
+                
+                if not minion_config:
+                    # This shouldn't happen if _load_active_minions worked, but safety check
+                    raise ValueError(f"Database configuration for active minion '{minion_key}' not found during instantiation.")
 
-            await instance.setup()
+                # REVERTED: Fetch associated MinionLLMConfig using the utility
+                try:
+                    llm_config = await get_minion_llm_config_by_key(session, minion_key)
+                    if not llm_config:
+                         logger.warning(f"Could not find LLM configuration for minion '{minion_key}' during setup. Setup might proceed with defaults or fail if LLM is required.")
+                    else:
+                         logger.info(f"Found LLM config for '{minion_key}' to pass to setup.")
+                except Exception as llm_fetch_err:
+                     logger.error(f"Error fetching LLM config for '{minion_key}' during setup: {llm_fetch_err}", exc_info=True)
+                     # llm_config remains None
+                
+                # --- Instantiate with details from DB --- 
+                description = minion_config.description or f"Minion for {minion_config.display_name}"
+                instance = MinionClass(
+                    name=minion_config.minion_key, # Internal key
+                    display_name=minion_config.display_name, # User-facing name
+                    description=description, # Description from DB
+                )
 
-            self._instances[minion_key] = instance # Store after successful setup
+                # --- Call setup WITH required args --- 
+                # Setup needs the ORM object for potential relationship access
+                await instance.setup(db_session=session, llm_config_orm=llm_config)
+
+                # --- Agent Creation --- 
+                # Move the import inside the method to break the circular dependency
+                from app.utils.agent import create_agent
+                agent = None # Initialize agent variable
+                if llm_config:
+                    try:
+                        # --- Corrected Agent Creation Argument Preparation ---
+
+                        # 1. Get model_identifier from the relationship
+                        model_identifier = None
+                        if hasattr(llm_config, 'llm_model') and llm_config.llm_model:
+                            if hasattr(llm_config.llm_model, 'model_id') and llm_config.llm_model.model_id:
+                                model_identifier = llm_config.llm_model.model_id
+                                logger.debug(f"Retrieved model_identifier '{model_identifier}' from llm_model relationship for minion '{minion_key}'.")
+                            else:
+                                logger.error(f"Related llm_model found for minion '{minion_key}', but it has no 'model_id' attribute or it's empty.")
+                                raise ValueError(f"Related LLMModel object for minion '{minion_key}' is missing the 'model_id' attribute.")
+                        else:
+                            logger.error(f"MinionLLMConfig for minion '{minion_key}' does not have a related 'llm_model' or it's None.")
+                            raise ValueError(f"Could not find related LLMModel for minion '{minion_key}'. Cannot determine model identifier.")
+
+                        # 2. Get OTHER config details (temperature, etc.) from the config JSON column
+                        llm_config_details = {} # Default to empty dict
+                        if hasattr(llm_config, 'config') and llm_config.config:
+                            if isinstance(llm_config.config, dict):
+                                llm_config_details = llm_config.config.copy() # Use copy to avoid modifying original
+                                logger.debug(f"Retrieved base config details dictionary for minion '{minion_key}': {llm_config_details}")
+                            else:
+                                logger.warning(f"Minion '{minion_key}' llm_config.config is not a dictionary (type: {type(llm_config.config)}). Using empty config details.")
+                        else:
+                             logger.debug(f"Minion '{minion_key}' has no additional config details in llm_config.config.")
+
+                        # *** ADD the model_identifier retrieved from relationship TO the config dict ***
+                        if model_identifier:
+                            llm_config_details['model_identifier'] = model_identifier
+                            logger.debug(f"Added/Updated 'model_identifier' in config details for '{minion_key}'")
+                        else:
+                             # This case should have been caught by the checks above, but safety first
+                             raise ValueError(f"Model identifier was None when trying to add to config for '{minion_key}'")
+
+                        # 3. Get expected result type and settings override from ManagedMinion config
+                        agent_result_type_str = getattr(minion_config, 'expected_output_type', None)
+                        agent_result_type = agent_result_type_str # Pass str or None for now
+                        model_settings_override = getattr(minion_config, 'default_model_settings', None)
+
+                        # --- ADDED: Explicitly set result_type for synthesis minion --- 
+                        if minion_key == 'synthesis':
+                            logger.info(f"Setting result_type to SynthesisResponse for minion '{minion_key}'")
+                            agent_result_type = SynthesisResponse
+                        # --- END ADDED ---
+
+                        # --- Use the create_agent utility ---
+                        # Pass the ORM config object via db_llm_config_orm.
+                        # create_agent will internally extract details from it.
+                        # Do NOT pass the derived llm_config_details to the 'config' parameter.
+                        agent = await create_agent(
+                            agent_type=minion_key, 
+                            abilities=[], # Placeholder
+                            db=session, 
+                            config=None, # Explicitly pass None for config override
+                            result_type=agent_result_type,
+                            user_preferences=None, # Not available at registry level
+                            db_llm_config_orm=llm_config, # Pass the fetched ORM object
+                            available_abilities_list=None # Placeholder
+                        )
+                        instance.agent = agent # Assign the created agent to the instance
+                        logger.info(f"Successfully created and assigned agent to minion '{minion_key}'. Agent type: {type(instance.agent)}")
+
+                    except (ValueError, TypeError, KeyError) as config_err:
+                         logger.error(f"Configuration error during agent creation for minion '{minion_key}': {config_err}", exc_info=True)
+                         raise RuntimeError(f"Agent configuration error for minion '{minion_key}'") from config_err
+                    except Exception as agent_create_e:
+                        # Catch potential DetachedInstanceError if session was closed before lazy load, etc.
+                        logger.error(f"Failed to create agent for minion '{minion_key}': {agent_create_e}", exc_info=True)
+                        raise RuntimeError(f"Agent creation failed for minion '{minion_key}'") from agent_create_e
+                else:
+                     logger.warning(f"Cannot create agent for minion '{minion_key}' because LLM configuration (MinionLLMConfig) was not found.")
+                     # Consider if an agent MUST be present. If so, raise an error.
+                     # raise RuntimeError(f"LLM config not found, cannot create agent for minion '{minion_key}'")
+
+            self._instances[minion_key] = instance # Store after successful setup & agent creation (if applicable)
             logger.info(f"Successfully initialized and set up '{minion_key}' minion")
             return instance
 

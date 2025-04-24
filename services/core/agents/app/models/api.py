@@ -91,8 +91,13 @@ class MessageResponse(BaseModel):
     role: str
     sender_type: str
     created_at: datetime
-    meta: Optional[Dict[str, Any]]
-    model_config = ConfigDict(from_attributes=True)
+    metadata: Optional[Dict[str, Any]] = Field(None, alias='metadata')
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        arbitrary_types_allowed=True
+    )
 
 class ConversationCreate(BaseModel):
     title: Optional[str] = None

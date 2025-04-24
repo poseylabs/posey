@@ -100,9 +100,8 @@ export function AuthProvider({
   }, [initState, setUser, status]);
 
   useEffect(() => {
-    console.log("AuthProvider Loaded");
-    setIsClient(true);
-  }, []);
+    if (!isClient) setIsClient(true);
+  }, [isClient]);
 
   useEffect(() => {
     if (isClient && !isFetching) {

@@ -25,12 +25,13 @@ export class ConversationService {
     fetchData?: boolean;
   }) {
 
-    if (!user) {
-      console.warn('Starting conversation with no user ID, assume it will be updated when JWT loads.');
-    }
-
     this.currentConversationId = currentConversationId ?? '';
     this.userID = user ?? '';
+
+    if (!user) {
+      console.error('Refusing to start conversation without user.');
+      return;
+    }
 
     if (typeof conversation === 'object') {
       this.conversation = conversation;
@@ -62,11 +63,16 @@ export class ConversationService {
   }) {
     this.validate(true);
 
+    // Simplify metadata processing: Use the passed object directly, default to empty object
+    const finalMetadata = (metadata && typeof metadata === 'object') ? metadata : {};
+
+    console.log("Final metadata:", finalMetadata);
+
     const message = this.promptToMessage({
       content,
       sender,
       role,
-      metadata
+      metadata: finalMetadata
     });
 
     try {
@@ -82,6 +88,9 @@ export class ConversationService {
       }
 
       const response = await request.json();
+      // response.data should be the message object *as saved in the DB*
+      // including the metadata field if the backend saved it correctly.
+      console.log("Response from addMessage API:", response.data);
       return response.data;
 
     } catch (error) {

@@ -88,7 +88,10 @@ export class AgentService {
       await this.handleAgentError(response);
     }
 
-    return response.json()
+    const rawResponse = await response.json();
+
+
+    return rawResponse;
   }
 
   /**

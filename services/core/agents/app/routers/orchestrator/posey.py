@@ -16,9 +16,13 @@ from app.utils.minion_registry import MinionRegistry
 from app.utils.result_types import AgentExecutionResult
 from app.utils.message_handler import extract_messages_from_context
 from app.minions.base import BaseMinion
-from app.utils.context import enhance_run_context, RunContext
 from app.config.prompts.base import get_location_from_ip
 from app.models.system import LocationInfo
+import markdown
+from markdown.extensions.fenced_code import FencedCodeExtension
+from markdown.extensions.tables import TableExtension
+from markdown.extensions.nl2br import Nl2BrExtension
+from markdown.extensions.smarty import SmartyExtension
 
 router = APIRouter(
     prefix="/orchestrator/posey",
@@ -155,49 +159,58 @@ async def run_posey(
             logger.error(f"[RUN_POSEY / {request_id}] Validation error for payload: {e}")
             raise HTTPException(status_code=400, detail=f"Payload validation failed: {e}")
 
-        # --- MODIFICATION START: Prioritize prefs from payload ---
-        logger.debug(f"[RUN_POSEY / {request_id}] Raw payload data before RunRequest model: {run_request_data}") # Log raw data
-        
-        # Try getting preferences directly from the parsed payload first
+        # --- Always fetch preferences from DB based on authenticated user --- 
+        db_user_prefs = {} # Initialize default
+        config_source_log = "none (defaulting)"
+        try:
+            # Ensure user state and ID exist (should be guaranteed by auth middleware)
+            if not hasattr(request.state, 'user') or not request.state.user.get('id'):
+                logger.error(f"[RUN_POSEY / {request_id}] User ID not found in request.state. Authentication middleware might have failed.")
+                raise HTTPException(status_code=401, detail="User authentication context missing.")
+            
+            user_id = request.state.user['id']
+            logger.info(f"[RUN_POSEY / {request_id}] Always fetching preferences from DB for user_id: {user_id}")
+            query_prefs = text("SELECT preferences FROM users WHERE id = :user_id")
+            result_prefs = await db_session.execute(query_prefs, {"user_id": user_id})
+            row_prefs = result_prefs.fetchone()
+            db_prefs_data = row_prefs[0] if row_prefs and row_prefs[0] else None
+            
+            if isinstance(db_prefs_data, dict):
+                logger.info(f"[RUN_POSEY / {request_id}] Successfully fetched preferences from database.")
+                logger.debug(f"[RUN_POSEY / {request_id}] Preferences from DB: {db_prefs_data}")
+                db_user_prefs = db_prefs_data # Store fetched prefs
+                config_source_log = "database"
+            elif db_prefs_data is not None:
+                logger.warning(f"[RUN_POSEY / {request_id}] Preferences found in DB for user {user_id} but are not a dictionary (type: {type(db_prefs_data)}). Using empty dict.")
+                # config_source_log remains 'none (defaulting)'
+            else:
+                logger.warning(f"[RUN_POSEY / {request_id}] No preferences found in DB for user {user_id}. Using empty dict.")
+                # config_source_log remains 'none (defaulting)'
+            
+        except HTTPException as http_exc: # Re-raise HTTPException
+            raise http_exc
+        except Exception as db_err:
+            logger.error(f"[RUN_POSEY / {request_id}] Error fetching preferences from DB: {db_err}", exc_info=True)
+            config_source_log = "none (db_error)"
+
+        # --- Merge with Payload Preferences (Payload takes priority) --- 
+        final_user_prefs = db_user_prefs.copy() # Start with DB prefs
         payload_prefs = run_request_data.get("metadata", {}).get("preferences")
         
         if payload_prefs and isinstance(payload_prefs, dict):
-            logger.info(f"[RUN_POSEY / {request_id}] Using preferences found in request payload's metadata.")
-            user_prefs = payload_prefs
-            config_source_log = "payload"
-        else:
-            logger.info(f"[RUN_POSEY / {request_id}] Preferences not found or invalid in payload metadata. Checking request state...")
-            # Fallback: Check request.state (populated by auth middleware?)
-            if hasattr(request.state, 'user') and isinstance(request.state.user.get("preferences"), dict):
-                logger.info(f"[RUN_POSEY / {request_id}] Using preferences found in request.state.user.")
-                user_prefs = request.state.user["preferences"]
-                config_source_log = "request.state"
+            logger.info(f"[RUN_POSEY / {request_id}] Found preferences in request payload. Merging with DB preferences (payload takes priority).")
+            logger.debug(f"[RUN_POSEY / {request_id}] Preferences from Payload: {payload_prefs}")
+            final_user_prefs.update(payload_prefs) # Merge, payload overwrites duplicates
+            if config_source_log == "database":
+                config_source_log = "database_and_payload"
             else:
-                 # Fallback: Fetch from DB
-                 logger.warning(f"[RUN_POSEY / {request_id}] Preferences not found in request state. Fetching from DB.")
-                 try:
-                     query_prefs = text("SELECT preferences FROM users WHERE id = :user_id")
-                     result_prefs = await db_session.execute(query_prefs, {"user_id": request.state.user["id"]})
-                     row_prefs = result_prefs.fetchone()
-                     # The DB likely stores the preferences JSON object directly
-                     db_prefs_data = row_prefs[0] if row_prefs and row_prefs[0] else None 
-                     if isinstance(db_prefs_data, dict):
-                          logger.info(f"[RUN_POSEY / {request_id}] Using preferences fetched from database.")
-                          user_prefs = db_prefs_data # Use the dict directly
-                          config_source_log = "database"
-                     else:
-                          logger.warning(f"[RUN_POSEY / {request_id}] No preferences found in DB or DB value is not a dictionary. Using empty dict.")
-                          user_prefs = {}
-                          config_source_log = "none (defaulting)"
-                 except Exception as db_err:
-                      logger.error(f"[RUN_POSEY / {request_id}] Error fetching preferences from DB: {db_err}", exc_info=True)
-                      user_prefs = {}
-                      config_source_log = "none (db_error)"
-
+                config_source_log = "payload_only"
+        else:
+            logger.info(f"[RUN_POSEY / {request_id}] No valid preferences found in request payload metadata. Using only DB preferences (if any).")
+            # config_source_log remains as determined by DB fetch
+            
         # Log the final source and content of user_prefs being used
-        logger.debug(f"[RUN_POSEY / {request_id}] Final user_prefs source: {config_source_log}")
-        logger.debug(f"[RUN_POSEY / {request_id}] Final user_prefs content being passed to PoseyAgent.create: {user_prefs}")
-        # --- MODIFICATION END ---
+        logger.debug(f"[RUN_POSEY / {request_id}] Final user_prefs used (source: {config_source_log}): {final_user_prefs}")
 
         # Log file details
         uploaded_file_info = []
@@ -232,13 +245,13 @@ async def run_posey(
             db=db_session, 
             registry=registry, 
             initialized_minions=initialized_minions,
-            user_preferences=user_prefs # Pass the fetched preferences
+            user_preferences=final_user_prefs # Pass the potentially merged preferences
         )
 
         # --- Determine Location (Prefs or IP Fallback) --- 
         final_location: Optional[Dict[str, Any]] = None
         # 1. Check user preferences (assuming location might be stored directly)
-        prefs_location = user_prefs.get("location")
+        prefs_location = final_user_prefs.get("location")
         if prefs_location and isinstance(prefs_location, dict):
              # Assuming it's already a dict matching LocationInfo structure
              try:
@@ -272,15 +285,15 @@ async def run_posey(
             "conversation_id": run_request.conversation_id,
             "preferences": {
                 "llm": {
-                    "provider": user_prefs.get("preferred_provider", LLM_CONFIG["default"]["provider"]),
-                    "model": user_prefs.get("preferred_model", LLM_CONFIG["default"]["model"])
+                    "provider": final_user_prefs.get("preferred_provider", LLM_CONFIG["default"]["provider"]),
+                    "model": final_user_prefs.get("preferred_model", LLM_CONFIG["default"]["model"])
                 },
                 "image": {
-                    "provider": user_prefs.get("preferred_image_provider", "openai"), # Assuming keys like these
-                    "model": user_prefs.get("preferred_image_model", "dall-e-3")
+                    "provider": final_user_prefs.get("preferred_image_provider", "openai"), # Assuming keys like these
+                    "model": final_user_prefs.get("preferred_image_model", "dall-e-3")
                 },
                  # Include other relevant preferences from user_prefs
-                 **{k: v for k, v in user_prefs.items() if k not in ['preferred_provider', 'preferred_model', 'preferred_image_provider', 'preferred_image_model', 'location']} # Exclude location here
+                 **{k: v for k, v in final_user_prefs.items() if k not in ['preferred_provider', 'preferred_model', 'preferred_image_provider', 'preferred_image_model', 'location']} # Exclude location here
             },
             "location": final_location, # Add the determined location object/dict
             "metadata": run_request.metadata,
@@ -332,7 +345,7 @@ async def run_posey(
 
         # Safely extract data from execution_result
         if isinstance(execution_result, AgentExecutionResult):
-            response_data["answer"] = execution_result.answer
+            original_answer = execution_result.answer
             response_data["confidence"] = execution_result.confidence
             response_data["sources"] = [
                 {
@@ -341,27 +354,59 @@ async def run_posey(
                     "data": execution_result.metadata.get('sources', [])
                 }
             ]
-            # Merge metadata carefully, prioritizing specific fields
+            
+            # --- Generate contentHtml --- 
+            generated_html = None
+            if isinstance(original_answer, str):
+                try:
+                    generated_html = markdown.markdown(
+                        original_answer,
+                        extensions=[
+                            FencedCodeExtension(),
+                            TableExtension(),
+                            Nl2BrExtension(),
+                            SmartyExtension(),
+                        ],
+                        output_format='html5'
+                    )
+                    logger.debug(f"[{request_id}] Successfully converted answer to HTML.")
+                except Exception as md_err:
+                    logger.error(f"[{request_id}] Error converting answer to HTML: {md_err}", exc_info=True)
+            
+            # --- Determine final answer field --- 
+            # Prioritize raw text if possible, otherwise use original or placeholder
+            # Basic check if original answer contains HTML tags
+            if isinstance(original_answer, str) and ('<' in original_answer and '>' in original_answer): 
+                # If original looks like HTML, maybe use a placeholder or stripped version
+                # For now, let's just use the original, as frontend uses contentHtml
+                final_answer = original_answer 
+                # Alternatively, try stripping (requires library like beautifulsoup4)
+                # from bs4 import BeautifulSoup
+                # soup = BeautifulSoup(original_answer, 'html.parser')
+                # final_answer = soup.get_text()
+            else:
+                final_answer = original_answer # Assume it was raw text
+                
+            response_data["answer"] = final_answer
+            
+            # --- Merge metadata --- 
             merged_metadata = {
-                # Base metadata from context/timing
                 "processing_time": end_time - start_time,
                 "request_id": request_id,
                 "model": context["preferences"]["llm"]["model"],
                 "provider": context["preferences"]["llm"]["provider"],
-                # Fields from execution_result.metadata
                 **execution_result.metadata,
-                # Fields from execution_result directly
                 "abilities_used": execution_result.abilities_used,
-                "status": "success" # Update status
+                "status": "success",
+                "contentHtml": generated_html # Add the generated HTML here
             }
             response_data["metadata"] = merged_metadata
             response_data["memory_updates"] = execution_result.metadata.get("memory_updates", [])
             
-            # Add LLM usage data if available inside execution_result.metadata
+            # Add LLM usage data if available
             if execution_result.metadata.get("usage"):
                  response_data["metadata"]["usage"] = execution_result.metadata["usage"]
-            # Check for _usage attribute as a fallback (might be set by pydantic-ai Agent)
-            elif hasattr(execution_result, '_usage'):
+            elif hasattr(execution_result, '_usage'): # Fallback
                  response_data["metadata"]["usage"] = {
                     'requests': execution_result._usage.requests if hasattr(execution_result._usage, 'requests') else 0,
                     'request_tokens': execution_result._usage.request_tokens if hasattr(execution_result._usage, 'request_tokens') else 0,
@@ -369,10 +414,11 @@ async def run_posey(
                     'total_tokens': execution_result._usage.total_tokens if hasattr(execution_result._usage, 'total_tokens') else 0
                  }
         else:
-             # Handle unexpected result type (e.g., string)
-             logger.warning(f"[RUN_POSEY / {request_id}] Unexpected result type: {type(execution_result)}. Attempting to parse string.")
-             response_data["answer"] = str(execution_result) # Use the raw string as answer
-             response_data["metadata"]["status"] = "partial_success" # Indicate potential issue
+             # Handle unexpected result type
+             logger.warning(f"[RUN_POSEY / {request_id}] Unexpected result type: {type(execution_result)}. Attempting to parse.")
+             response_data["answer"] = str(execution_result) 
+             response_data["metadata"]["status"] = "partial_success"
+             response_data["metadata"]["contentHtml"] = None # Ensure it's None here too
 
         return {
             "success": True, # Indicate API call succeeded, check metadata.status for agent status
@@ -395,7 +441,8 @@ async def run_posey(
                 "abilities_used": [],
                 "request_id": request_id,
                 "status": "failed",
-                "error_message": str(e)
+                "error_message": str(e),
+                "contentHtml": None # Ensure contentHtml is None in error case too
              },
              "memory_updates": []
         }

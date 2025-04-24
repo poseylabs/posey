@@ -13,7 +13,7 @@ def getAgentPrompt(agent_name: str) -> dict:
     """
     Get the prompt JSON for a specific agent.
     """
-    return load_prompts(f"agents/{agent_name}.json")
+    return load_prompts(f"minions/{agent_name}.json")
 
 def sharedPrompt(group: str) -> dict:
     """

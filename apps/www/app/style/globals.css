@@ -7,3 +7,9 @@ html, body {
   height: 100%;
   width: 100%;
 }
+
+.layout-wrapper {
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}

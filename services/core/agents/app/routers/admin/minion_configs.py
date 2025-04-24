@@ -389,7 +389,7 @@ async def delete_minion_config(config_id: UUID, db: AsyncSession = Depends(get_d
     if not config:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Minion config not found")
     
-    # TODO: Check if this config is being used by any active agents/minions before deleting
+    # TODO: Check if this config is being used by any active minions before deleting
     # This would require adding a check against any tables that reference this config
     
     await db.delete(config)

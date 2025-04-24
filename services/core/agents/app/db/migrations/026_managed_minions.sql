@@ -109,7 +109,21 @@ VALUES
         }'::jsonb,
         '["research", "deep_research", "information_synthesis", "source_analysis"]'::jsonb
     ),
-    
+
+    -- Synthesis Minion (active by default)
+    (
+        'synthesis',
+        'Synthesis',
+        'Synthesizes the final user-facing response from the execution summary.',
+        'app.minions.synthesis:SynthesisMinion',
+        true,
+        'core',
+        '{
+            "requires_setup": true,
+            "priority": 50
+        }'::jsonb,
+        '["synthesis"]'::jsonb
+    ),
     -- Voyager Minion (inactive by default)
     (
         'voyager',

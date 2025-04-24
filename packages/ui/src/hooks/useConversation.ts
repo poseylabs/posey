@@ -3,13 +3,15 @@ import { Message, ConversationService, PoseyState, Conversation, ConversationSta
 import { usePoseyState } from '@posey.ai/state';
 import { agentService } from '@posey.ai/core';
 
+export interface UseConversationProps {
+  fetchData?: boolean;
+  initialConversationId?: string;
+}
+
 export const useConversation = ({
   fetchData = false,
   initialConversationId
-}: {
-  fetchData?: boolean
-  initialConversationId?: string;
-} = {}) => {
+}: UseConversationProps = {}) => {
 
   const state = usePoseyState();
 
@@ -33,7 +35,7 @@ export const useConversation = ({
     // Get the initial conversation object from the state IF the initialConversationId matches.
     // This relies on ChatProvider setting the state before this hook runs, which *should* happen now.
     const initialConvoFromState = initialConversationId === chat.currentConversation?.id ? chat.currentConversation : undefined;
-    console.log(`[useConversation init] Initializing ConversationService. Prop ID: ${initialConversationId}, State ID: ${chat.currentConversation?.id}, Using initial conversation from state: ${!!initialConvoFromState}`);
+    // console.log(`[useConversation init] Initializing ConversationService. Prop ID: ${initialConversationId}, State ID: ${chat.currentConversation?.id}, Using initial conversation from state: ${!!initialConvoFromState}`);
 
     return new ConversationService({
       user: user?.id,
@@ -125,6 +127,7 @@ export const useConversation = ({
 
       // Send to agent
       console.log(`callAgent - Calling agent service for conversation ${idToSend || '(new)'} with ${messages.length} messages.`);
+
       const response: any = await agentService.call({
         messages,
         conversationId: idToSend, // Pass potentially undefined for new convos
@@ -135,7 +138,10 @@ export const useConversation = ({
 
       if (!response?.success) {
         const errorMsg = response?.error || 'Agent call failed';
-        console.error('Error calling agent:', errorMsg);
+        console.error('Fatal error calling agent:', {
+          errorMsg,
+          response
+        });
         throw new Error(errorMsg);
       }
 

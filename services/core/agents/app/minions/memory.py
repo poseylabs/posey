@@ -73,8 +73,8 @@ class MemoryMinion(BaseMinion):
     semantic_retriever = None # Keep, initialized in setup
     embeddings: Optional[Embeddings] = None
 
-    async def setup(self) -> None:
-        """Initialize the memory minion with LangGraph memory components (async setup)"""
+    async def setup(self, *args, **kwargs) -> None:
+        """Initialize the memory minion with LangGraph memory components (async setup), accepting extra args."""
         logger.info("Initializing memory minion with LangGraph (async setup)")
 
         # Setup ability and store (keeping original components for compatibility)

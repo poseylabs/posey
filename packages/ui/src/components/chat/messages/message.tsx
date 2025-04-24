@@ -1,7 +1,12 @@
+'use client';
 import './message.css'
 import { PlayIcon, PauseIcon, DownloadIcon, BookmarkIcon, ExternalLinkIcon, BrainIcon } from 'lucide-react'
-// import Markdown from 'react-markdown'
+// import ReactMarkdown from 'react-markdown'
+// import remarkGfm from 'remark-gfm'
 import { useEffect, useState } from 'react'
+// import { remark } from 'remark';
+// import html from 'remark-html';
+import DOMPurify from 'dompurify';
 
 import { Message, PoseyState } from "@posey.ai/core";
 import { config } from '@posey.ai/core/config'
@@ -100,21 +105,26 @@ export function ChatMessage({
 
       const message_content: any = message?.content || message;
       const thinkMatch = message_content?.match(/<think>([\s\S]*?)<\/think>/);
+      let processedContent = message_content;
 
       if (thinkMatch) {
         // Extract content between think tags
         setReasoning(thinkMatch[1].trim());
         // Remove think tags from displayed content
-        const _content = message_content?.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+        processedContent = message_content?.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+      }
 
-        if (_content !== messageContent) {
-          setMessageContent(_content);
-        }
-      } else if (message_content !== messageContent) {
-        setMessageContent(message_content);
+      if (processedContent !== messageContent) {
+        setMessageContent(processedContent);
       }
     }
   }, [message, messageContent]);
+
+  useEffect(() => {
+    if (message) {
+      console.log('Render message:', message);
+    }
+  }, [message]);
 
   const renderContent = () => {
     switch (message.metadata?.type) {
@@ -164,9 +174,50 @@ export function ChatMessage({
           </>
         );
       default:
-        return (
-          <div className="chat-content whitespace-pre-wrap">{messageContent}</div>
-        );
+        // Fallback plain text content (after <think> tag removal)
+        const plainTextContent = typeof messageContent === 'string' ? messageContent : '';
+        // Check for pre-rendered HTML in both possible locations
+        const htmlContent = message.metadata?.contentHtml || message.metadata?.analysis?.contentHtml;
+
+        if (htmlContent && typeof htmlContent === 'string') {
+          // Sanitize and render the HTML
+          const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
+            ADD_ATTR: ['target', 'rel'], // Allow target and rel attributes for links
+            ADD_TAGS: ['a'], // Ensure anchor tags are allowed
+          });
+
+          return (
+            <div
+              className="chat-content prose prose-sm prose-neutral dark:prose-invert max-w-none
+                        prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                        prose-p:my-1 prose-headings:my-2"
+              dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+            />
+          );
+        } else {
+          console.debug('Message metadata structure:', message.metadata);
+          // Fallback to rendering plain text content with link detection
+          return (
+            <div className="chat-content whitespace-pre-wrap break-words">
+              {plainTextContent.split(/\b(https?:\/\/[^\s]+)\b/).map((part, i) => {
+                if (part.match(/^https?:\/\//)) {
+                  return (
+                    <a
+                      key={i}
+                      href={part}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {part}
+                    </a>
+                  );
+                }
+                return part;
+              })}
+            </div>
+          );
+        }
     }
   };
 

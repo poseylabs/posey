@@ -37,7 +37,7 @@ export function Navbar({
       {/* Left side */}
       <div className="flex-1">
         <SidebarButton iconOpen={iconOpen} iconClose={iconClose} />
-        <a href="/">
+        <a href="/posey">
           <span className="text-lg font-bold">{logo}</span>
         </a>
       </div>

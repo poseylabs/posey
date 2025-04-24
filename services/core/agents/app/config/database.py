@@ -166,7 +166,6 @@ class Database:
 
             self._async_engine = create_async_engine(
                 sqlalchemy_dsn,
-                echo=settings.DEBUG,
                 pool_size=5,
                 max_overflow=10,
                 pool_pre_ping=True

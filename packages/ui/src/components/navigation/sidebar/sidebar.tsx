@@ -281,7 +281,7 @@ export default function Sidebar({
   }: {
     conversationId: string;
   }) => {
-    linkTo(`/chat/${conversationId}`);
+    linkTo(`/posey/chat/${conversationId}`);
   }
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
@@ -444,7 +444,7 @@ export default function Sidebar({
   useEffect(() => {
     if (currentConversation?.id && !currentConversationId) {
       if (typeof window !== 'undefined') {
-        const _id = window.location.pathname.split('/chat/')[1];
+        const _id = window.location.pathname.split('/posey/chat/')[1];
         setCurrentConversationId(_id);
       }
     }

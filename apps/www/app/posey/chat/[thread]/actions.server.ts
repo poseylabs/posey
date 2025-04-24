@@ -1,7 +1,8 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import type { Conversation } from '@posey.ai/core';
+import type { Conversation, Message } from '@posey.ai/core';
+import { marked } from 'marked';
 
 export async function getConversation(thread: string): Promise<Conversation | null> {
   if (!thread) {
@@ -9,11 +10,8 @@ export async function getConversation(thread: string): Promise<Conversation | nu
     return null;
   }
 
-  console.log(`[getConversation] Attempting to fetch thread: ${thread}`);
-
   try {
     const apiBase = process.env.NEXT_PUBLIC_AGENT_API_ENDPOINT || 'http://localhost:5555';
-    console.log(`[getConversation] Using API base: ${apiBase}`);
     const cookieStore = await cookies();
     const cookieHeader = [];
     
@@ -22,16 +20,11 @@ export async function getConversation(thread: string): Promise<Conversation | nu
     if (accessToken) {
       cookieHeader.push(`sAccessToken=${accessToken.value}`);
     }
-    
-    console.log(`[getConversation] Access token found: ${!!accessToken}`);
-    
-    // Get the SuperTokens refresh token cookie
+
     const refreshToken = cookieStore.get('sIdRefreshToken');
     if (refreshToken) {
       cookieHeader.push(`sIdRefreshToken=${refreshToken.value}`);
     }
-    
-    console.log(`[getConversation] Refresh token found: ${!!refreshToken}`);
     
     if (cookieHeader.length === 0) {
       console.warn('No authentication cookies found for API request');
@@ -39,7 +32,6 @@ export async function getConversation(thread: string): Promise<Conversation | nu
     }
     
     const fetchUrl = `${apiBase}/conversations/${thread}`;
-    console.log(`[getConversation] Fetching URL: ${fetchUrl}`);
     
     const response = await fetch(`${apiBase}/conversations/${thread}`, {
       headers: {
@@ -57,8 +49,35 @@ export async function getConversation(thread: string): Promise<Conversation | nu
 
     const result = await response.json();
     
-    if (result.success || result.data) {
-      return result.data as Conversation;
+    if (result.success && result.data) {
+      const conversation = result.data as Conversation;
+
+      // --- Add Markdown to HTML conversion for existing messages --- 
+      if (conversation.messages && Array.isArray(conversation.messages)) {
+        console.debug(`[getConversation/${thread}] Processing ${conversation.messages.length} messages for HTML conversion.`);
+        for (const message of conversation.messages) {
+          if (typeof message.content === 'string') {
+            try {
+              const htmlContent = await marked.parse(message.content);
+              // Ensure metadata object exists
+              message.metadata = message.metadata || {}; 
+              message.metadata.contentHtml = htmlContent;
+              console.debug(`[getConversation/${thread}/message/${message.id}] Successfully converted message content to HTML.`);
+            } catch (error) {
+              console.error(`[getConversation/${thread}/message/${message.id}] Error converting message content to HTML: ${error}`);
+              // Optionally keep contentHtml as null/undefined or set an error flag
+              if (message.metadata) {
+                message.metadata.contentHtml = null; // Keep original content on error
+              }
+            }
+          } else {
+             console.debug(`[getConversation/${thread}/message/${message.id}] Message content is not a string (type: ${typeof message.content}), skipping HTML conversion.`);
+          }
+        }
+      }
+      // --- End Markdown to HTML conversion --- 
+      
+      return conversation;
     }
 
     return null;

@@ -1,7 +1,13 @@
 from typing import Dict, Any, List, Optional
-from pydantic_ai import RunContext, Agent
+from pydantic_ai import RunContext
 from app.config import logger
-from app.config.prompts.base import ( generate_base_prompt, BasePromptContext, UserContext, MemoryContext, SystemContext )
+from app.config.prompts.base import (
+    generate_base_prompt,
+    BasePromptContext,
+    UserContext,
+    MemoryContext,
+    SystemContext
+    )
 import json
 import time
 from datetime import datetime
@@ -10,9 +16,7 @@ from app.models.analysis import ContentAnalysis
 from app.minions.base import BaseMinion
 import traceback
 from app.utils.ability_registry import AbilityRegistry
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.system import LocationInfo
-from app.config.database import Database
 
 class ContentAnalysisMinion(BaseMinion):
     """Content Analysis Minion - analyzes content, determines intent and required abilities"""
@@ -83,11 +87,6 @@ class ContentAnalysisMinion(BaseMinion):
         
         # Add analysis-specific data to the appropriate context
         if analysis_data:
-            # Add query-related info to user context - THIS IS NO LONGER NEEDED
-            # if "query" in analysis_data:
-            #     user_context.query = analysis_data["query"]
-                
-            # Add analysis-specific fields to system context
             if "operation" in analysis_data:
                 system_context.current_operation = analysis_data["operation"]
             if "available_abilities" in analysis_data:
@@ -122,20 +121,6 @@ class ContentAnalysisMinion(BaseMinion):
             now = datetime.now()
         
         formatted_time = now.strftime("%Y-%m-%d %H:%M:%S %Z")
-        
-        # Add debug logging for time-related context
-        logger.info("========== TIME CONTEXT DEBUG ==========")
-        logger.info(f"Context timestamp: {context.get('timestamp', 'NOT_FOUND')}")
-        logger.info(f"Context formatted_time: {context.get('formatted_time', 'NOT_FOUND')}")
-        logger.info(f"Context timezone: {user_tz}")
-        logger.info(f"Local formatted_time: {formatted_time}")
-        logger.info(f"Full context keys: {list(context.keys())}")
-        
-        if 'system' in context:
-            logger.info(f"System context timestamp: {context['system'].get('timestamp', 'NOT_FOUND')}")
-        
-        logger.info("========================================")
-        
 
         location_info = "Unknown"
         if context.get('system', {}).get('location'):
@@ -153,7 +138,6 @@ class ContentAnalysisMinion(BaseMinion):
             location_info=location_info,
             conversation_id=conversation_id,
             uploaded_files_json=uploaded_files_json 
-            # context=context # Remove the raw context dictionary from format args
         )
 
         # Format ability information
@@ -213,8 +197,8 @@ Determine:
             db_session = context.deps.get("db", None)
             logger.debug(f"[CON_ANA_RUN / {request_id}] Database session present: {db_session is not None}")
             
-            # Get available abilities
-            available_abilities = await fetch_available_abilities()
+            # Get available abilities using the static method via self
+            available_abilities = self.fetch_available_abilities()
             logger.debug(f"[CON_ANA_RUN / {request_id}] Fetched {len(available_abilities)} available abilities: {list(available_abilities.keys())}")
             
             # Enhanced logging for available abilities
@@ -402,21 +386,4 @@ Determine:
                     "parameters": {k: v for k, v in params.items() if k != "query"} # Exclude query to avoid leaking sensitive info
                 }
             }
-
-async def fetch_available_abilities() -> Dict[str, Dict[str, Any]]:
-    """Fetch all available abilities and their configurations"""
-    # Get abilities from the registry
-    registry = AbilityRegistry()
-    abilities_list = await registry.get_available_abilities()
-    
-    # Convert to the expected format
-    abilities_dict = {}
-    for ability in abilities_list:
-        abilities_dict[ability["name"]] = {
-            "description": ability.get("description", ""),
-            "capabilities": ability.get("capabilities", [])
-        }
-    
-    logger.debug(f"Fetched {len(abilities_dict)} available abilities: {list(abilities_dict.keys())}")
-    return abilities_dict
 

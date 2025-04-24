@@ -32,6 +32,10 @@ from app.utils.minion_registry import MinionRegistry
 
 # Configure logging with DEBUG level
 setup_logging(settings.LOG_LEVEL)
+# --- Debugging Log Level Check ---
+# sqlalchemy_engine_logger = logging.getLogger('sqlalchemy.engine')
+# logger.info(f"[POST-SETUP CHECK] sqlalchemy.engine effective level: {logging.getLevelName(sqlalchemy_engine_logger.getEffectiveLevel())}")
+# --- End Debugging Check ---
 logger.info(f"Starting Posey Agents API with log level: {settings.LOG_LEVEL}")
 logger.info("Setting package loggers to DEBUG level")
 
@@ -66,6 +70,11 @@ async def lifespan(app: FastAPI):
             logger.error(f"[LIFESPAN] Failed to configure Logfire: {logfire_err}", exc_info=True)
             # Decide if this is fatal or just a warning
         # --- End Logfire --- 
+        
+        # --- Debugging Log Level Check #2 ---
+        # sqlalchemy_engine_logger_lifespan = logging.getLogger('sqlalchemy.engine')
+        # logger.info(f"[LIFESPAN CHECK] sqlalchemy.engine effective level: {logging.getLevelName(sqlalchemy_engine_logger_lifespan.getEffectiveLevel())}")
+        # --- End Debugging Check #2 ---
         
         # Initialize database connections
         logger.info("[LIFESPAN] Attempting db.connect_all()...")

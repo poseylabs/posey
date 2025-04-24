@@ -17,14 +17,13 @@ from app.config import logger
 from app.config.defaults import LLM_CONFIG, OLLAMA_URL
 from app.config.llm_loader import get_llm_config_from_db, LLMDatabaseConfig
 from app.config.prompts import PromptLoader
-from app.minions.content_analysis import fetch_available_abilities
+from app.minions.base import BaseMinion
 import httpx
 from app.utils.result_types import AgentExecutionResult
-from app.minions.base import BaseMinion
-from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.models import ModelRequestParameters
 from app.db.models import MinionLLMConfig
 from app.models.analysis import ContentAnalysis
+from pydantic_ai.models.gemini import GeminiModel
 
 __all__ = ['create_agent', 'run_agent_with_messages']
 
@@ -215,7 +214,8 @@ async def create_agent(
     # --- Prepare System Prompt using PromptLoader --- 
     try:
         prompt_loader = PromptLoader()
-        # Load the full prompt config using the RESOLVED config key, not the agent type
+        # Load the full prompt config using the resolved_config_key (e.g., 'posey')
+        logger.debug(f"Loading prompt config using resolved key: {resolved_config_key}")
         agent_prompts = prompt_loader.get_prompt_with_shared_config(resolved_config_key)
         
         # --- Construct full system prompt --- 
@@ -231,8 +231,8 @@ async def create_agent(
         # Use the passed-in list if available, otherwise fetch as a fallback (though ideally it should always be passed)
         if available_abilities_list is None:
             logger.warning(f"available_abilities_list not provided to create_agent for '{agent_type}'. Fetching fallback.")
-            # Keep the internal call as a safety fallback, but log warning
-            _abilities_list_internal = fetch_available_abilities() 
+            # Call the static method via BaseMinion class (synchronously)
+            _abilities_list_internal = BaseMinion.fetch_available_abilities()
         else:
              _abilities_list_internal = available_abilities_list
 
@@ -257,10 +257,11 @@ CRITICAL INSTRUCTIONS:
 
 {response_instruction}"""
         # --- End construction ---
-        logger.info(f"Successfully loaded and constructed system prompt for agent type '{agent_type}'")
+        logger.info(f"Successfully loaded and constructed system prompt for config key '{resolved_config_key}' (agent type '{agent_type}')")
         logger.debug(f"System prompt being used for '{agent_type}':\n---\n{system_prompt}\n---")
     except Exception as e:
-        logger.error(f"Failed to load or construct system prompt for '{agent_type}': {e}. Falling back to simple prompt.")
+        # Use resolved_config_key in the error message as well
+        logger.error(f"Failed to load or construct system prompt for config key '{resolved_config_key}' (agent type '{agent_type}'): {e}. Falling back to simple prompt.")
         system_prompt = f"You are a helpful AI assistant functioning as a {agent_type}." 
     # --- End System Prompt Preparation ---
     

@@ -37,7 +37,7 @@ export function StartChat({
         console.log('CONVERSATION STARTING!', conversation);
 
         // Just navigate to the new page - let the page handle fetching the conversation
-        linkTo(`/chat/${conversation.id}`);
+        linkTo(`/posey/chat/${conversation.id}`);
 
         // Don't update global state here - let the page component do it
         // This completely avoids the race condition
