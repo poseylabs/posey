@@ -1,5 +1,5 @@
 # Core ML dependencies
-torch==2.6.0
+torch==2.7.0
 transformers==4.48.3
 sentence-transformers==3.4.1
 langchain==0.3.18
